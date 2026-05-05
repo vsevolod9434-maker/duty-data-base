@@ -62,6 +62,24 @@ const taskStatusLabels: Record<Task["status"], string> = {
   cancelled: "Отменено",
 };
 
+type StalkerProfileApiResponse = {
+  id: string;
+  registryNumber: string | null;
+  fullName: string;
+  callsign: string;
+  birthDate: string | null;
+  affiliation: StalkerAffiliation | null;
+  photoUrl: string | null;
+  appearance: string | null;
+  notes: string | null;
+  status: StalkerProfile["status"];
+  taskMark?: StalkerProfile["taskMark"];
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string | null;
+  updatedBy: string | null;
+};
+
 const emptyDraft = {
   fullName: "",
   callsign: "",
@@ -82,6 +100,72 @@ const emptyGroupMemberDraft = {
 
 function formatDate(value: string) {
   return value ? new Date(value).toLocaleDateString("ru-RU") : "Не указана";
+}
+
+function normalizeApiProfile(profile: StalkerProfileApiResponse): StalkerProfile {
+  return {
+    id: profile.id,
+    registryNumber: profile.registryNumber ?? undefined,
+    fullName: profile.fullName,
+    callsign: profile.callsign,
+    birthDate: profile.birthDate ?? "",
+    affiliation: profile.affiliation ?? undefined,
+    photoUrl: profile.photoUrl ?? undefined,
+    appearance: profile.appearance ?? "",
+    notes: profile.notes ?? "",
+    status: profile.status,
+    taskMark: profile.taskMark ?? "none",
+    createdAt: profile.createdAt,
+    updatedAt: profile.updatedAt,
+    createdBy: profile.createdBy ?? undefined,
+    updatedBy: profile.updatedBy ?? undefined,
+  };
+}
+
+function normalizeDateInputValue(value: string) {
+  return value ? value.slice(0, 10) : "";
+}
+
+async function readApiError(response: Response) {
+  const fallbackMessage = "Сервер вернул ошибку.";
+
+  try {
+    const payload = (await response.json()) as { error?: unknown };
+    return typeof payload.error === "string" ? payload.error : fallbackMessage;
+  } catch {
+    return fallbackMessage;
+  }
+}
+
+async function fetchStalkerProfiles() {
+  const response = await fetch("/api/stalkers", { cache: "no-store" });
+
+  if (!response.ok) {
+    throw new Error(await readApiError(response));
+  }
+
+  const payload = (await response.json()) as StalkerProfileApiResponse[];
+  return payload.map(normalizeApiProfile);
+}
+
+async function saveStalkerProfileRequest(
+  method: "POST" | "PATCH",
+  url: string,
+  payload: Record<string, unknown>,
+) {
+  const response = await fetch(url, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readApiError(response));
+  }
+
+  return normalizeApiProfile((await response.json()) as StalkerProfileApiResponse);
 }
 
 function formatMoney(value: number) {
@@ -319,6 +403,13 @@ export default function StalkerProfilesPage() {
   const [tradeOperations, setTradeOperations] = useState<TradeOperation[]>([]);
   const [violations, setViolations] = useState<Violation[]>([]);
   const [isStorageReady, setIsStorageReady] = useState(false);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const [isProfileSaving, setIsProfileSaving] = useState(false);
+  const [isProfileDeleting, setIsProfileDeleting] = useState(false);
+  const [profileLoadMessage, setProfileLoadMessage] = useState("");
+  const [profileActionMessage, setProfileActionMessage] = useState("");
+  const [localImportProfiles, setLocalImportProfiles] = useState<StalkerProfile[]>([]);
+  const [isImportingProfiles, setIsImportingProfiles] = useState(false);
   const [selectedProfileId, setSelectedProfileId] = useState("");
   const [profileListTab, setProfileListTab] = useState<StalkerProfile["status"]>("active");
   const [activeProfileTab, setActiveProfileTab] = useState("");
@@ -360,28 +451,76 @@ export default function StalkerProfilesPage() {
   const [profilePage, setProfilePage] = useState(1);
 
   useEffect(() => {
-    const storageReadHandle = window.setTimeout(() => {
-      const storedProfiles = readStoredCollection<StalkerProfile>(STALKER_PROFILES_STORAGE_KEY, initialStalkerProfiles);
-      const queryProfileId = new URLSearchParams(window.location.search).get("profileId");
-      const profileFromQuery = queryProfileId
-        ? storedProfiles.find((profile) => profile.id === queryProfileId)
-        : null;
+    let isCancelled = false;
 
-      setProfiles(storedProfiles);
+    const storageReadHandle = window.setTimeout(() => {
+      const localProfiles = readStoredCollection<StalkerProfile>(STALKER_PROFILES_STORAGE_KEY, initialStalkerProfiles);
+      const queryProfileId = new URLSearchParams(window.location.search).get("profileId");
+
       setTasks(readStoredCollection<Task>(STALKER_TASKS_STORAGE_KEY, initialTasks));
       setGroups(readStoredCollection<StalkerGroup>(STALKER_GROUPS_STORAGE_KEY, initialStalkerGroups));
       setTradeOperations(readStoredCollection<TradeOperation>(TRADE_OPERATIONS_STORAGE_KEY, initialTradeOperations));
       setViolations(readStoredCollection<Violation>(VIOLATIONS_STORAGE_KEY, []));
-      if (profileFromQuery) {
-        setSelectedProfileId(profileFromQuery.id);
-        setProfileListTab(profileFromQuery.status);
-        setActiveProfileTab("");
-        setProfilePhotoLoadFailed(false);
+
+      async function loadProfiles() {
+        setIsProfileLoading(true);
+        setProfileLoadMessage("");
+
+        try {
+          const serverProfiles = await fetchStalkerProfiles();
+
+          if (isCancelled) {
+            return;
+          }
+
+          setProfiles(serverProfiles);
+
+          if (serverProfiles.length > 0) {
+            writeStoredCollection(STALKER_PROFILES_STORAGE_KEY, serverProfiles);
+            setLocalImportProfiles([]);
+          } else if (localProfiles.length > 0) {
+            setLocalImportProfiles(localProfiles);
+          }
+
+          const profileFromQuery = queryProfileId
+            ? serverProfiles.find((profile) => profile.id === queryProfileId)
+            : null;
+
+          if (profileFromQuery) {
+            setSelectedProfileId(profileFromQuery.id);
+            setProfileListTab(profileFromQuery.status);
+            setActiveProfileTab("");
+            setProfilePhotoLoadFailed(false);
+          }
+        } catch (error) {
+          if (isCancelled) {
+            return;
+          }
+
+          setProfileLoadMessage(
+            error instanceof Error
+              ? `Не удалось загрузить профили из базы данных: ${error.message}`
+              : "Не удалось загрузить профили из базы данных.",
+          );
+
+          if (localProfiles.length > 0) {
+            setLocalImportProfiles(localProfiles);
+          }
+        } finally {
+          if (!isCancelled) {
+            setIsStorageReady(true);
+            setIsProfileLoading(false);
+          }
+        }
       }
-      setIsStorageReady(true);
+
+      void loadProfiles();
     }, 0);
 
-    return () => window.clearTimeout(storageReadHandle);
+    return () => {
+      isCancelled = true;
+      window.clearTimeout(storageReadHandle);
+    };
   }, []);
 
   useEffect(() => {
@@ -389,8 +528,12 @@ export default function StalkerProfilesPage() {
       return;
     }
 
+    if (profiles.length === 0 && localImportProfiles.length > 0) {
+      return;
+    }
+
     writeStoredCollection(STALKER_PROFILES_STORAGE_KEY, profiles);
-  }, [isStorageReady, profiles]);
+  }, [isStorageReady, localImportProfiles.length, profiles]);
 
   useEffect(() => {
     if (!isStorageReady) {
@@ -671,7 +814,7 @@ export default function StalkerProfilesPage() {
       fullName: profile.fullName,
       callsign: profile.callsign,
       registryNumber: profile.registryNumber ?? "",
-      birthDate: profile.birthDate,
+      birthDate: normalizeDateInputValue(profile.birthDate),
       affiliation: profile.affiliation ?? "",
       photoUrl: profile.photoUrl ?? "",
       appearance: profile.appearance,
@@ -737,134 +880,204 @@ export default function StalkerProfilesPage() {
     setTableMessage("Профиль добавлен в группу.");
   }
 
-  function handleProfileSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleProfileSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const fullName = draft.fullName.trim();
     const callsign = draft.callsign.trim();
 
-    if (!fullName && !callsign) {
-      setFormMessage("Укажите ФИО или позывной.");
+    if (!fullName) {
+      setFormMessage("Укажите ФИО сталкера.");
       return;
     }
 
-    const now = getSystemTimestamp();
+    const payload = {
+      registryNumber: draft.registryNumber.trim() || null,
+      fullName,
+      callsign,
+      birthDate: draft.birthDate || null,
+      affiliation: draft.affiliation || null,
+      photoUrl: normalizedPhotoUrl || null,
+      appearance: draft.appearance.trim() || null,
+      notes: draft.notes.trim() || null,
+      status: draft.status,
+    };
 
-    if (editingProfileId) {
-      const profileTitle = callsign || fullName || "Без имени";
+    setIsProfileSaving(true);
+    setFormMessage("");
 
-      setProfiles((currentProfiles) =>
-        currentProfiles.map((profile) =>
-          profile.id === editingProfileId
-            ? {
-                ...profile,
-                registryNumber: draft.registryNumber.trim() || undefined,
-                fullName,
-                callsign,
-                birthDate: draft.birthDate,
-                affiliation: draft.affiliation
-                  ? (draft.affiliation as StalkerAffiliation)
-                  : undefined,
-                photoUrl: normalizedPhotoUrl || undefined,
-                appearance: draft.appearance.trim(),
-                notes: draft.notes.trim(),
-                status: draft.status,
-                updatedAt: now,
-              }
-            : profile,
-        ),
+    try {
+      if (editingProfileId) {
+        const profileTitle = callsign || fullName || "Без имени";
+        const updatedProfile = await saveStalkerProfileRequest(
+          "PATCH",
+          `/api/stalkers/${encodeURIComponent(editingProfileId)}`,
+          payload,
+        );
+
+        setProfiles((currentProfiles) =>
+          currentProfiles.map((profile) => (profile.id === editingProfileId ? updatedProfile : profile)),
+        );
+        setProfileListTab(updatedProfile.status);
+        setTableMessage("Профиль обновлён в базе данных.");
+        addActivityLogEntry({
+          type: "stalker",
+          title: `Изменён профиль сталкера: ${profileTitle}`,
+          status: "OK",
+        });
+      } else {
+        const profileTitle = callsign || fullName || "Без имени";
+        const newProfile = await saveStalkerProfileRequest("POST", "/api/stalkers", payload);
+
+        setProfiles((currentProfiles) => [newProfile, ...currentProfiles]);
+        setSelectedProfileId(newProfile.id);
+        setProfileListTab(newProfile.status);
+        setTableMessage("Профиль сохранён в базе данных.");
+        addActivityLogEntry({
+          type: "stalker",
+          title: `Создан профиль сталкера: ${profileTitle}`,
+          status: "OK",
+        });
+      }
+
+      setProfilePage(1);
+      setActiveProfileTab("");
+      setIsProfileModalOpen(false);
+      resetProfileDraft();
+    } catch (error) {
+      setFormMessage(
+        error instanceof Error
+          ? `Не удалось сохранить профиль: ${error.message}`
+          : "Не удалось сохранить профиль.",
       );
-      setProfileListTab(draft.status);
-      setTableMessage("Профиль обновлён и сохранён локально.");
-      addActivityLogEntry({
-        type: "stalker",
-        title: `Изменён профиль сталкера: ${profileTitle}`,
-        status: "OK",
-      });
-    } else {
-      const profileTitle = callsign || fullName || "Без имени";
-      const newProfile: StalkerProfile = {
-        id: `temp-${Date.now()}`,
-        registryNumber: draft.registryNumber.trim() || undefined,
-        fullName,
-        callsign,
-        birthDate: draft.birthDate,
-        affiliation: draft.affiliation ? (draft.affiliation as StalkerAffiliation) : undefined,
-        photoUrl: normalizedPhotoUrl || undefined,
-        appearance: draft.appearance.trim(),
-        notes: draft.notes.trim(),
-        status: draft.status,
-        taskMark: "none",
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      setProfiles((currentProfiles) => [newProfile, ...currentProfiles]);
-      setSelectedProfileId(newProfile.id);
-      setProfileListTab(newProfile.status);
-      setTableMessage("Профиль сохранён локально.");
-      addActivityLogEntry({
-        type: "stalker",
-        title: `Создан профиль сталкера: ${profileTitle}`,
-        status: "OK",
-      });
+    } finally {
+      setIsProfileSaving(false);
     }
-
-    setProfilePage(1);
-    setActiveProfileTab("");
-    setIsProfileModalOpen(false);
-    resetProfileDraft();
   }
 
-  function setProfileStatus(profileId: string, status: StalkerProfile["status"]) {
+  async function setProfileStatus(profileId: string, status: StalkerProfile["status"]) {
     const profile = profiles.find((currentProfile) => currentProfile.id === profileId);
     const profileTitle = profile ? getProfileTitle(profile) : "Без имени";
 
-    setProfiles((currentProfiles) =>
-      currentProfiles.map((profile) =>
-        profile.id === profileId
-          ? { ...profile, status, updatedAt: getSystemTimestamp() }
-          : profile,
-      ),
-    );
-    setProfileListTab(status);
-    setSelectedProfileId("");
-    setProfilePage(1);
-    setTableMessage(status === "archive" ? "Профиль перенесён в архив." : "Профиль возвращён в активные.");
-    addActivityLogEntry({
-      type: "stalker",
-      title:
-        status === "archive"
-          ? `Профиль перенесён в архив: ${profileTitle}`
-          : `Профиль возвращён из архива: ${profileTitle}`,
-      status: status === "archive" ? "WARN" : "OK",
-    });
+    setProfileActionMessage("");
+    setIsProfileSaving(true);
+
+    try {
+      const updatedProfile = await saveStalkerProfileRequest(
+        "PATCH",
+        `/api/stalkers/${encodeURIComponent(profileId)}`,
+        { status },
+      );
+
+      setProfiles((currentProfiles) =>
+        currentProfiles.map((profile) => (profile.id === profileId ? updatedProfile : profile)),
+      );
+      setProfileListTab(status);
+      setSelectedProfileId("");
+      setProfilePage(1);
+      setTableMessage(status === "archive" ? "Профиль перенесён в архив." : "Профиль возвращён в активные.");
+      addActivityLogEntry({
+        type: "stalker",
+        title:
+          status === "archive"
+            ? `Профиль перенесён в архив: ${profileTitle}`
+            : `Профиль возвращён из архива: ${profileTitle}`,
+        status: status === "archive" ? "WARN" : "OK",
+      });
+    } catch (error) {
+      setProfileActionMessage(
+        error instanceof Error
+          ? `Не удалось изменить статус профиля: ${error.message}`
+          : "Не удалось изменить статус профиля.",
+      );
+    } finally {
+      setIsProfileSaving(false);
+    }
   }
 
-  function deleteProfile(profileId: string) {
+  async function deleteProfile(profileId: string) {
     const profile = profiles.find((currentProfile) => currentProfile.id === profileId);
 
     if (!window.confirm("Удалить профиль окончательно?")) {
       return;
     }
 
-    setProfiles((currentProfiles) => currentProfiles.filter((profile) => profile.id !== profileId));
-    setTasks((currentTasks) => currentTasks.filter((task) => task.stalkerId !== profileId));
-    setGroups((currentGroups) =>
-      currentGroups.map((group) => ({
-        ...group,
-        members: group.members.filter((member) => member.stalkerId !== profileId),
-        updatedAt: getSystemTimestamp(),
-      })),
-    );
-    setSelectedProfileId("");
-    setProfilePage(1);
-    setTableMessage("Профиль удалён. Связанные задания удалены, составы групп обновлены.");
-    addActivityLogEntry({
-      type: "stalker",
-      title: `Профиль удалён: ${profile ? getProfileTitle(profile) : "Без имени"}`,
-      status: "WARN",
-    });
+    setProfileActionMessage("");
+    setIsProfileDeleting(true);
+
+    try {
+      const response = await fetch(`/api/stalkers/${encodeURIComponent(profileId)}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response));
+      }
+
+      setProfiles((currentProfiles) => currentProfiles.filter((profile) => profile.id !== profileId));
+      setTasks((currentTasks) => currentTasks.filter((task) => task.stalkerId !== profileId));
+      setGroups((currentGroups) =>
+        currentGroups.map((group) => ({
+          ...group,
+          members: group.members.filter((member) => member.stalkerId !== profileId),
+          updatedAt: getSystemTimestamp(),
+        })),
+      );
+      setSelectedProfileId("");
+      setProfilePage(1);
+      setTableMessage("Профиль удалён из базы данных. Локальные связанные записи обновлены.");
+      addActivityLogEntry({
+        type: "stalker",
+        title: `Профиль удалён: ${profile ? getProfileTitle(profile) : "Без имени"}`,
+        status: "WARN",
+      });
+    } catch (error) {
+      setProfileActionMessage(
+        error instanceof Error
+          ? `Не удалось удалить профиль: ${error.message}`
+          : "Не удалось удалить профиль.",
+      );
+    } finally {
+      setIsProfileDeleting(false);
+    }
+  }
+
+  async function importLocalProfiles() {
+    if (localImportProfiles.length === 0) {
+      return;
+    }
+
+    setIsImportingProfiles(true);
+    setProfileActionMessage("");
+
+    try {
+      const response = await fetch("/api/stalkers/import", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(localImportProfiles),
+      });
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response));
+      }
+
+      const importedProfiles = ((await response.json()) as StalkerProfileApiResponse[]).map(normalizeApiProfile);
+      setProfiles(importedProfiles);
+      writeStoredCollection(STALKER_PROFILES_STORAGE_KEY, importedProfiles);
+      setLocalImportProfiles([]);
+      setProfilePage(1);
+      setTableMessage("Локальные профили импортированы в базу данных.");
+    } catch (error) {
+      setProfileActionMessage(
+        error instanceof Error
+          ? `Не удалось импортировать локальные профили: ${error.message}`
+          : "Не удалось импортировать локальные профили.",
+      );
+    } finally {
+      setIsImportingProfiles(false);
+    }
   }
 
   function selectProfile(profileId: string) {
@@ -1539,12 +1752,28 @@ export default function StalkerProfilesPage() {
                   </label>
                 </div>
 
+                {profileLoadMessage ? <p className="draft-message">{profileLoadMessage}</p> : null}
+                {profileActionMessage ? <p className="draft-message">{profileActionMessage}</p> : null}
                 {tableMessage ? <p className="table-message">{tableMessage}</p> : null}
+                {localImportProfiles.length > 0 ? (
+                  <div className="empty-state compact-empty-state">
+                    <p>Найдены локальные профили.</p>
+                    <span>Можно импортировать {localImportProfiles.length} записей в базу данных. Локальная копия не будет удалена.</span>
+                    <button
+                      className="primary-command"
+                      disabled={isImportingProfiles}
+                      onClick={importLocalProfiles}
+                      type="button"
+                    >
+                      {isImportingProfiles ? "Импорт..." : "Импортировать в базу данных"}
+                    </button>
+                  </div>
+                ) : null}
 
                 <div className="profile-list">
-                  {!isStorageReady ? (
+                  {!isStorageReady || isProfileLoading ? (
                     <div className="empty-state">
-                      <p>Загрузка локальных данных...</p>
+                      <p>Загрузка профилей из базы данных...</p>
                     </div>
                   ) : paginatedProfiles.items.length > 0 ? (
                     paginatedProfiles.items.map((profile) => {
@@ -1590,15 +1819,15 @@ export default function StalkerProfilesPage() {
                   )}
                 </div>
 
-                {isStorageReady ? (
+                {isStorageReady && !isProfileLoading ? (
                   <Pagination page={paginatedProfiles.page} pageCount={paginatedProfiles.pageCount} onPageChange={setProfilePage} />
                 ) : null}
               </section>
 
               <section className="profile-column detail-host-column">
-                {!isStorageReady ? (
+                {!isStorageReady || isProfileLoading ? (
                   <div className="empty-state">
-                    <p>Загрузка локальных данных...</p>
+                    <p>Загрузка профилей из базы данных...</p>
                   </div>
                 ) : selectedProfile ? (
                   <div className="profile-detail">
@@ -1675,19 +1904,19 @@ export default function StalkerProfilesPage() {
                       </div>
 
                       <div className="profile-hero-actions">
-                        <button className="command-row task-action-button" onClick={() => openEditProfile(selectedProfile)} type="button">
+                        <button className="command-row task-action-button" disabled={isProfileSaving || isProfileDeleting} onClick={() => openEditProfile(selectedProfile)} type="button">
                           Редактировать
                         </button>
                         {selectedProfile.status === "active" ? (
-                          <button className="command-row task-action-button" onClick={() => setProfileStatus(selectedProfile.id, "archive")} type="button">
+                          <button className="command-row task-action-button" disabled={isProfileSaving || isProfileDeleting} onClick={() => setProfileStatus(selectedProfile.id, "archive")} type="button">
                             В архив
                           </button>
                         ) : (
-                          <button className="command-row task-action-button" onClick={() => setProfileStatus(selectedProfile.id, "active")} type="button">
+                          <button className="command-row task-action-button" disabled={isProfileSaving || isProfileDeleting} onClick={() => setProfileStatus(selectedProfile.id, "active")} type="button">
                             Вернуть из архива
                           </button>
                         )}
-                        <button className="command-row task-action-button" onClick={() => deleteProfile(selectedProfile.id)} type="button">
+                        <button className="command-row task-action-button" disabled={isProfileSaving || isProfileDeleting} onClick={() => deleteProfile(selectedProfile.id)} type="button">
                           Удалить
                         </button>
                       </div>
@@ -1865,7 +2094,7 @@ export default function StalkerProfilesPage() {
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>{editingProfileId ? "Редактирование профиля" : "Создание профиля сталкера"}</h1>
-                <p>Профиль сохраняется локально в браузере</p>
+                <p>Профиль сохраняется в базе данных</p>
               </div>
             </div>
 
@@ -1959,8 +2188,8 @@ export default function StalkerProfilesPage() {
               <button className="command-row" onClick={closeProfileModal} type="button">
                 Отмена
               </button>
-              <button className="primary-command" type="submit">
-                {editingProfileId ? "Сохранить изменения" : "Сохранить профиль"}
+              <button className="primary-command" disabled={isProfileSaving} type="submit">
+                {isProfileSaving ? "Сохранение..." : editingProfileId ? "Сохранить изменения" : "Сохранить профиль"}
               </button>
             </div>
           </form>
