@@ -1,0 +1,162 @@
+import type { DutyRank, DutyStaffPosition } from "./types";
+
+export const dutyRanks: DutyRank[] = [
+  "Рядовой",
+  "Ефрейтор",
+  "Младший Сержант",
+  "Сержант",
+  "Старший Сержант",
+  "Прапорщик",
+  "Старший Прапорщик",
+  "Старшина",
+  "Младший Лейтенант",
+  "Лейтенант",
+  "Старший Лейтенант",
+  "Капитан",
+  "Майор",
+  "Подполковник",
+  "Полковник",
+  "Генерал",
+];
+
+export const dutyStaffPositions: DutyStaffPosition[] = [
+  {
+    id: "management-commander",
+    department: "УПРАВЛЕНИЕ",
+    title: "КОМАНДИР ОТРЯДА СПЕЦИАЛЬНОГО НАЗНАЧЕНИЯ",
+    isVacant: true,
+  },
+  {
+    id: "management-deputy-political",
+    department: "УПРАВЛЕНИЕ",
+    title:
+      "ЗАМЕСТИТЕЛЬ КОМАНДИРА ОТРЯДА СПЕЦИАЛЬНОГО НАЗНАЧЕНИЯ ПО ВОСПИТАТЕЛЬНОЙ И ПОЛИТИЧЕСКОЙ РАБОТЕ С ЛИЧНЫМ СОСТАВОМ",
+    isVacant: true,
+  },
+  {
+    id: "management-quartermaster",
+    department: "УПРАВЛЕНИЕ",
+    title: "СТАРШИНА ОТРЯДА СПЕЦИАЛЬНОГО НАЗНАЧЕНИЯ (НАЧАЛЬНИК СЛУЖБЫ ТЫЛА)",
+    isVacant: true,
+  },
+  {
+    id: "combat-training-chief",
+    department: "ОТДЕЛ БОЕВОЙ ПОДГОТОВКИ ОТРЯДА СПЕЦИАЛЬНОГО НАЗНАЧЕНИЯ",
+    title: "НАЧАЛЬНИК ОТДЕЛА (ИНСТРУКТОР ПО БОЕВОЙ ПОДГОТОВКЕ ЛИЧНОГО СОСТАВА)",
+    isVacant: true,
+  },
+  {
+    id: "special-department-chief",
+    department: "ОСОБЫЙ ОТДЕЛ ОТРЯДА СПЕЦИАЛЬНОГО НАЗНАЧЕНИЯ",
+    title: "НАЧАЛЬНИК ОСОБОГО ОТДЕЛА",
+    isVacant: true,
+  },
+  {
+    id: "special-department-officer",
+    department: "ОСОБЫЙ ОТДЕЛ ОТРЯДА СПЕЦИАЛЬНОГО НАЗНАЧЕНИЯ",
+    title: "СОТРУДНИК ОСОБОГО ОТДЕЛА",
+    isVacant: true,
+  },
+  {
+    id: "special-department-recon-1",
+    department: "ОСОБЫЙ ОТДЕЛ ОТРЯДА СПЕЦИАЛЬНОГО НАЗНАЧЕНИЯ",
+    title: "ГРУППА РАЗВЕДКИ (ПОДВ. ОСОБ. ОТД.)",
+    isVacant: true,
+  },
+  {
+    id: "special-department-recon-2",
+    department: "ОСОБЫЙ ОТДЕЛ ОТРЯДА СПЕЦИАЛЬНОГО НАЗНАЧЕНИЯ",
+    title: "ГРУППА РАЗВЕДКИ (ПОДВ. ОСОБ. ОТД.)",
+    isVacant: true,
+  },
+  {
+    id: "logistics-quartermaster",
+    department: "СЛУЖБА ТЫЛА",
+    title: "СТАРШИНА ОТРЯДА СПЕЦИАЛЬНОГО НАЗНАЧЕНИЯ (НАЧАЛЬНИК СЛУЖБЫ ТЫЛА)",
+    isVacant: true,
+  },
+  {
+    id: "logistics-supplier-1",
+    department: "СЛУЖБА ТЫЛА",
+    title: "СНАБЖЕНЕЦ СЛУЖБЫ ТЫЛА",
+    isVacant: true,
+  },
+  {
+    id: "logistics-supplier-2",
+    department: "СЛУЖБА ТЫЛА",
+    title: "СНАБЖЕНЕЦ СЛУЖБЫ ТЫЛА",
+    isVacant: true,
+  },
+  {
+    id: "medical-chief",
+    department: "МЕДИЦИНСКАЯ СЛУЖБА",
+    title: "НАЧАЛЬНИК МЕДИЦИНСКОЙ СЛУЖБЫ (ВОЕНВРАЧ/САНИНСТРУКТОР)",
+    isVacant: true,
+  },
+  {
+    id: "medical-instructor",
+    department: "МЕДИЦИНСКАЯ СЛУЖБА",
+    title: "САНИНСТРУКТОР",
+    isVacant: true,
+  },
+  {
+    id: "research-chief",
+    department: "НАУЧНО-ИССЛЕДОВАТЕЛЬСКИЙ КОРПУС",
+    title: "НАЧАЛЬНИК КОРПУСА (ВЕДУЩИЙ ИССЛЕДОВАТЕЛЬ)",
+    isVacant: true,
+  },
+  {
+    id: "research-specialist",
+    department: "НАУЧНО-ИССЛЕДОВАТЕЛЬСКИЙ КОРПУС",
+    title: "СПЕЦИАЛИСТ",
+    isVacant: true,
+  },
+  {
+    id: "fighters-platoon-commander",
+    department: "ВЗВОД ИСТРЕБИТЕЛЕЙ",
+    title: "КОМАНДИР ВЗВОДА ИСТРЕБИТЕЛЕЙ",
+    isVacant: true,
+  },
+  {
+    id: "fighters-platoon-deputy",
+    department: "ВЗВОД ИСТРЕБИТЕЛЕЙ",
+    title: "ЗАМЕСТИТЕЛЬ КОМАНДИРА ВЗВОДА ИСТРЕБИТЕЛЕЙ",
+    isVacant: true,
+  },
+  {
+    id: "fighters-platoon-senior-rifleman",
+    department: "ВЗВОД ИСТРЕБИТЕЛЕЙ",
+    title: "СТАРШИЙ СТРЕЛОК ВЗВОДА ИСТРЕБИТЕЛЕЙ",
+    isVacant: true,
+  },
+  {
+    id: "fighters-platoon-rifleman-1",
+    department: "ВЗВОД ИСТРЕБИТЕЛЕЙ",
+    title: "СТРЕЛОК ВЗВОДА ИСТРЕБИТЕЛЕЙ",
+    isVacant: true,
+  },
+  {
+    id: "fighters-platoon-rifleman-2",
+    department: "ВЗВОД ИСТРЕБИТЕЛЕЙ",
+    title: "СТРЕЛОК ВЗВОДА ИСТРЕБИТЕЛЕЙ",
+    isVacant: true,
+  },
+  {
+    id: "fighters-platoon-rifleman-3",
+    department: "ВЗВОД ИСТРЕБИТЕЛЕЙ",
+    title: "СТРЕЛОК ВЗВОДА ИСТРЕБИТЕЛЕЙ",
+    isVacant: true,
+  },
+  {
+    id: "fighters-platoon-grenadier",
+    department: "ВЗВОД ИСТРЕБИТЕЛЕЙ",
+    title: "ГРАНАТОМЕТЧИК ВЗВОДА ИСТРЕБИТЕЛЕЙ",
+    isVacant: true,
+  },
+  {
+    id: "fighters-platoon-sniper",
+    department: "ВЗВОД ИСТРЕБИТЕЛЕЙ",
+    title: "СНАЙПЕР ВЗВОДА ИСТРЕБИТЕЛЕЙ",
+    isVacant: true,
+  },
+];
