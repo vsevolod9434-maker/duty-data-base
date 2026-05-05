@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { getSystemToday } from "@/lib/stalker-utils";
 import type { Task } from "@/lib/types";
 
 type TaskRecordCardProps = {
@@ -43,8 +44,7 @@ function getDueTone(value: string): DueTone {
     return "neutral";
   }
 
-  const today = new Date();
-  const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const todayDate = getSystemToday();
 
   if (dueDate < todayDate) {
     return "overdue";

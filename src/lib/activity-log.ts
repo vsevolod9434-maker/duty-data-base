@@ -1,4 +1,5 @@
 import { journalEntries } from "./mock-data";
+import { getSystemTimestamp, normalizeSystemDates } from "./stalker-utils";
 import type { JournalEntry, JournalEntryType } from "./types";
 
 export const ACTIVITY_LOG_STORAGE_KEY = "duty-rp-activity-log";
@@ -36,27 +37,27 @@ function isJournalEntry(value: unknown): value is JournalEntry {
 
 export function readActivityLog(fallback: JournalEntry[] = journalEntries) {
   if (typeof window === "undefined") {
-    return fallback;
+    return normalizeSystemDates(fallback);
   }
 
   try {
     const raw = window.localStorage.getItem(ACTIVITY_LOG_STORAGE_KEY);
 
     if (!raw) {
-      return fallback;
+      return normalizeSystemDates(fallback);
     }
 
     const parsed = JSON.parse(raw);
 
     if (!Array.isArray(parsed)) {
-      return fallback;
+      return normalizeSystemDates(fallback);
     }
 
-    const entries = parsed.filter(isJournalEntry);
+    const entries = normalizeSystemDates(parsed.filter(isJournalEntry));
 
-    return entries.length > 0 ? entries : fallback;
+    return entries.length > 0 ? entries : normalizeSystemDates(fallback);
   } catch {
-    return fallback;
+    return normalizeSystemDates(fallback);
   }
 }
 
@@ -65,7 +66,7 @@ export function writeActivityLog(entries: JournalEntry[]) {
     return;
   }
 
-  window.localStorage.setItem(ACTIVITY_LOG_STORAGE_KEY, JSON.stringify(entries));
+  window.localStorage.setItem(ACTIVITY_LOG_STORAGE_KEY, JSON.stringify(normalizeSystemDates(entries)));
   window.dispatchEvent(new Event(ACTIVITY_LOG_UPDATED_EVENT));
 }
 
@@ -83,7 +84,7 @@ export function addActivityLogEntry({
     title,
     status,
     description,
-    createdAt: now.toISOString(),
+    createdAt: getSystemTimestamp(),
   };
 
   const currentEntries = readActivityLog([]);

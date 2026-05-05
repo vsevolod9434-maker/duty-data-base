@@ -144,7 +144,7 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
         </nav>
 
         <div className="pda-status registry-status">
-          <span className="pda-clock">{moscowTime ?? "--:--"} МСК</span>
+          <span className="pda-clock">{moscowTime ?? "--:--"}</span>
           <span className="pda-signal" aria-hidden="true" />
           <span className="battery" aria-label="Батарея" />
         </div>

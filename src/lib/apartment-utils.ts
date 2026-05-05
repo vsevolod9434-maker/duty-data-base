@@ -1,4 +1,5 @@
-﻿import type { Apartment, ApartmentPayment, ApartmentPaymentStatus, ApartmentStatus } from "./types";
+import { getSystemTimestamp, getSystemToday } from "./stalker-utils";
+import type { Apartment, ApartmentPayment, ApartmentPaymentStatus, ApartmentStatus } from "./types";
 
 export const apartmentPaymentStatusLabels: Record<ApartmentPaymentStatus, string> = {
   none: "Нет оплаты",
@@ -12,7 +13,7 @@ export const apartmentStatusLabels: Record<ApartmentStatus, string> = {
   occupied: "Занята",
 };
 
-export function createDefaultApartments(now = new Date().toISOString()): Apartment[] {
+export function createDefaultApartments(now = getSystemTimestamp()): Apartment[] {
   return [1, 2, 3].map((number) => ({
     id: `apartment-${number}`,
     name: `Квартира ${number}`,
@@ -43,7 +44,7 @@ export function getApartmentPaymentStatus(payment?: ApartmentPayment): Apartment
     return "none";
   }
 
-  const today = new Date();
+  const today = getSystemToday();
   today.setHours(0, 0, 0, 0);
 
   const paidUntil = new Date(payment.paidUntil);

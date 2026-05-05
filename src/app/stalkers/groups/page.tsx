@@ -19,15 +19,20 @@ import type {
   Task,
 } from "@/lib/types";
 import {
+  forceSystemYear,
   getAffiliationBadgeClass,
   getAffiliationLabel,
   getPaginatedItems,
   getGroupRoleLabel,
-  getTodayDate,
   getProfileSecondaryTitle,
   getProfileTitle,
+  getSystemTimestamp,
+  getTodayDate,
   groupRoleLabels,
+  isTaskOverdue,
   readStoredCollection,
+  SYSTEM_DATE_MAX,
+  SYSTEM_DATE_MIN,
   STALKER_GROUPS_STORAGE_KEY,
   STALKER_PROFILES_STORAGE_KEY,
   STALKER_TASKS_STORAGE_KEY,
@@ -107,14 +112,6 @@ const taskStatusLabels: Record<Task["status"], string> = {
 
 function formatDate(value: string) {
   return value ? new Date(value).toLocaleDateString("ru-RU") : "Не указана";
-}
-
-function isTaskOverdue(task: Task) {
-  if (!task.dueAt || task.status !== "active") {
-    return false;
-  }
-
-  return new Date(task.dueAt) < new Date(new Date().toDateString());
 }
 
 function getTaskStatusLabel(task: Task) {
@@ -368,7 +365,7 @@ export default function StalkerGroupsPage() {
             stalkerId: profileId,
             roleType: "member",
             customRoleName: null,
-            joinedAt: new Date().toISOString(),
+            joinedAt: getSystemTimestamp(),
           },
         ],
       };
@@ -402,7 +399,7 @@ export default function StalkerGroupsPage() {
       return;
     }
 
-    const now = new Date().toISOString();
+    const now = getSystemTimestamp();
 
     setGroups((currentGroups) =>
       currentGroups.map((group) =>
@@ -462,7 +459,7 @@ export default function StalkerGroupsPage() {
                     }
                   : member,
               ),
-              updatedAt: new Date().toISOString(),
+              updatedAt: getSystemTimestamp(),
             }
           : group,
       ),
@@ -491,7 +488,7 @@ export default function StalkerGroupsPage() {
           ? {
               ...group,
               members: group.members.filter((member) => member.id !== memberId),
-              updatedAt: new Date().toISOString(),
+              updatedAt: getSystemTimestamp(),
             }
           : group,
       ),
@@ -527,7 +524,7 @@ export default function StalkerGroupsPage() {
       return;
     }
 
-    const now = new Date().toISOString();
+    const now = getSystemTimestamp();
     const normalizedMembers = draft.members.map((member) => ({
       ...member,
       customRoleName:
@@ -591,7 +588,7 @@ export default function StalkerGroupsPage() {
     setGroups((currentGroups) =>
       currentGroups.map((group) =>
         group.id === groupId
-          ? { ...group, status, updatedAt: new Date().toISOString() }
+          ? { ...group, status, updatedAt: getSystemTimestamp() }
           : group,
       ),
     );
@@ -693,7 +690,12 @@ export default function StalkerGroupsPage() {
     field: Field,
     value: (typeof groupTaskDraft)[Field],
   ) {
-    setGroupTaskDraft((currentDraft) => ({ ...currentDraft, [field]: value }));
+    const nextValue =
+      typeof value === "string" && (field === "issuedAt" || field === "dueAt")
+        ? (forceSystemYear(value) as (typeof groupTaskDraft)[Field])
+        : value;
+
+    setGroupTaskDraft((currentDraft) => ({ ...currentDraft, [field]: nextValue }));
     setGroupTaskFormMessage("");
   }
 
@@ -717,7 +719,7 @@ export default function StalkerGroupsPage() {
       return;
     }
 
-    const now = new Date().toISOString();
+    const now = getSystemTimestamp();
 
     if (editingGroupTaskId) {
       setTasks((currentTasks) =>
@@ -798,9 +800,9 @@ export default function StalkerGroupsPage() {
           ? {
               ...task,
               acceptedBy: normalizedAcceptedBy,
-              completedAt: new Date().toISOString(),
+              completedAt: getSystemTimestamp(),
               status: "completed",
-              updatedAt: new Date().toISOString(),
+              updatedAt: getSystemTimestamp(),
             }
           : task,
       ),
@@ -823,7 +825,7 @@ export default function StalkerGroupsPage() {
 
     setTasks((currentTasks) =>
       currentTasks.map((task) =>
-        task.id === taskId ? { ...task, status: "cancelled", updatedAt: new Date().toISOString() } : task,
+        task.id === taskId ? { ...task, status: "cancelled", updatedAt: getSystemTimestamp() } : task,
       ),
     );
     setTableMessage("Групповое задание отменено.");
@@ -1348,11 +1350,11 @@ export default function StalkerGroupsPage() {
                 <div className="task-form-grid">
                   <label className="filter-field">
                     <span>Дата выдачи</span>
-                    <input onChange={(event) => updateGroupTaskDraft("issuedAt", event.target.value)} type="date" value={groupTaskDraft.issuedAt} />
+                    <input max={SYSTEM_DATE_MAX} min={SYSTEM_DATE_MIN} onChange={(event) => updateGroupTaskDraft("issuedAt", event.target.value)} type="date" value={groupTaskDraft.issuedAt} />
                   </label>
                   <label className="filter-field">
                     <span>Выполнить до</span>
-                    <input onChange={(event) => updateGroupTaskDraft("dueAt", event.target.value)} type="date" value={groupTaskDraft.dueAt} />
+                    <input max={SYSTEM_DATE_MAX} min={SYSTEM_DATE_MIN} onChange={(event) => updateGroupTaskDraft("dueAt", event.target.value)} type="date" value={groupTaskDraft.dueAt} />
                   </label>
                   <label className="filter-field">
                     <span>Статус выполнения</span>

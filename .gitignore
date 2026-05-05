@@ -63,3 +63,4 @@ out
 
 # build/cache
 tsconfig.tsbuildinfo
+/src/generated/prisma

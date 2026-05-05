@@ -6,6 +6,16 @@
 } from "./types";
 
 export const PAGE_SIZE = 10;
+const REAL_WORLD_SYSTEM_YEAR_BASE = 2026;
+const SYSTEM_YEAR_BASE = 2009;
+
+export function getSystemYear(referenceDate = new Date()) {
+  return SYSTEM_YEAR_BASE + (referenceDate.getFullYear() - REAL_WORLD_SYSTEM_YEAR_BASE);
+}
+
+export const SYSTEM_YEAR = getSystemYear();
+export const SYSTEM_DATE_MIN = `${SYSTEM_YEAR}-01-01`;
+export const SYSTEM_DATE_MAX = `${SYSTEM_YEAR}-12-31`;
 export const STALKER_PROFILES_STORAGE_KEY = "duty-rp-db:stalker-profiles";
 export const STALKER_TASKS_STORAGE_KEY = "duty-rp-db:stalker-tasks";
 export const STALKER_GROUPS_STORAGE_KEY = "duty-rp-db:stalker-groups";
@@ -31,23 +41,136 @@ export const groupRoleLabels: Record<StalkerGroupRoleType, string> = {
   custom: "Ручной ввод",
 };
 
+function padDatePart(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+function padMilliseconds(value: number) {
+  return String(value).padStart(3, "0");
+}
+
+function shouldNormalizeDateField(key: string) {
+  if (key === "birthDate") {
+    return false;
+  }
+
+  return key === "date" || key === "paidUntil" || key === "dueAt" || key === "operationDate" || key.endsWith("At");
+}
+
+function formatSystemDateValue(date: Date) {
+  return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`;
+}
+
+function formatSystemTimestampValue(date: Date) {
+  return `${formatSystemDateValue(date)}T${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}:${padDatePart(
+    date.getSeconds(),
+  )}.${padMilliseconds(date.getMilliseconds())}`;
+}
+
+export function createSystemDate(base = new Date()) {
+  const nextDate = new Date(base.getTime());
+  nextDate.setFullYear(getSystemYear());
+  return nextDate;
+}
+
+export function parseSystemDate(value: string) {
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue) {
+    return null;
+  }
+
+  const isoMatch = trimmedValue.match(
+    /^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?)?/,
+  );
+
+  if (isoMatch) {
+    const [, year, month, day, hours = "0", minutes = "0", seconds = "0", milliseconds = "0"] = isoMatch;
+    return new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hours),
+      Number(minutes),
+      Number(seconds),
+      Number(milliseconds.padEnd(3, "0")),
+    );
+  }
+
+  const russianMatch = trimmedValue.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+
+  if (russianMatch) {
+    const [, day, month, year] = russianMatch;
+    return new Date(Number(year), Number(month) - 1, Number(day));
+  }
+
+  const parsedDate = new Date(trimmedValue);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return null;
+  }
+
+  return parsedDate;
+}
+
+export function forceSystemYear(value: string) {
+  const parsedDate = parseSystemDate(value);
+
+  if (!parsedDate) {
+    return value;
+  }
+
+  const normalizedDate = createSystemDate(parsedDate);
+  const hasTime = /[T\s]\d{2}:\d{2}/.test(value);
+
+  return hasTime ? formatSystemTimestampValue(normalizedDate) : formatSystemDateValue(normalizedDate);
+}
+
+export function normalizeSystemDates<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeSystemDates(item)) as T;
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, currentValue]) => {
+        if (typeof currentValue === "string" && shouldNormalizeDateField(key)) {
+          return [key, forceSystemYear(currentValue)];
+        }
+
+        return [key, normalizeSystemDates(currentValue)];
+      }),
+    ) as T;
+  }
+
+  return value;
+}
+
+export function getSystemTimestamp() {
+  return formatSystemTimestampValue(createSystemDate(new Date()));
+}
+
+export function getSystemToday() {
+  return new Date(`${getTodayDate()}T00:00:00`);
+}
+
 export function readStoredCollection<T>(key: string, fallback: T[]) {
   if (typeof window === "undefined") {
-    return fallback;
+    return normalizeSystemDates(fallback);
   }
 
   try {
     const raw = window.localStorage.getItem(key);
 
     if (!raw) {
-      return fallback;
+      return normalizeSystemDates(fallback);
     }
 
     const parsed = JSON.parse(raw);
 
-    return Array.isArray(parsed) ? (parsed as T[]) : fallback;
+    return Array.isArray(parsed) ? normalizeSystemDates(parsed as T[]) : normalizeSystemDates(fallback);
   } catch {
-    return fallback;
+    return normalizeSystemDates(fallback);
   }
 }
 
@@ -56,7 +179,7 @@ export function writeStoredCollection<T>(key: string, value: T[]) {
     return;
   }
 
-  window.localStorage.setItem(key, JSON.stringify(value));
+  window.localStorage.setItem(key, JSON.stringify(normalizeSystemDates(value)));
 }
 
 export function getPageCount(totalItems: number) {
@@ -95,7 +218,7 @@ export function getGroupRoleLabel(roleType: StalkerGroupRoleType, customRoleName
 }
 
 export function getTodayDate() {
-  return new Date().toISOString().slice(0, 10);
+  return formatSystemDateValue(createSystemDate(new Date()));
 }
 
 export function isTaskOverdue(task: Task) {
@@ -103,7 +226,7 @@ export function isTaskOverdue(task: Task) {
     return false;
   }
 
-  return new Date(task.dueAt) < new Date(getTodayDate());
+  return new Date(task.dueAt) < getSystemToday();
 }
 
 export function getAffiliationBadgeClass(affiliation?: StalkerAffiliation) {

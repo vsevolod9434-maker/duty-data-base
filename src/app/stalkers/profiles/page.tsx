@@ -26,16 +26,21 @@ import type {
 } from "@/lib/types";
 import {
   affiliationLabels,
+  forceSystemYear,
   getAffiliationBadgeClass,
   getAffiliationLabel,
   getGroupRoleLabel,
   getPaginatedItems,
   getProfileStateBadgeClass,
   getProfileTitle,
+  getSystemTimestamp,
+  getSystemToday,
   getTodayDate,
   groupRoleLabels,
   isTaskOverdue,
   readStoredCollection,
+  SYSTEM_DATE_MAX,
+  SYSTEM_DATE_MIN,
   STALKER_GROUPS_STORAGE_KEY,
   STALKER_PROFILES_STORAGE_KEY,
   STALKER_TASKS_STORAGE_KEY,
@@ -89,7 +94,7 @@ function getAge(birthDate: string) {
   }
 
   const birth = new Date(birthDate);
-  const today = new Date();
+  const today = getSystemToday();
   let age = today.getFullYear() - birth.getFullYear();
   const monthDiff = today.getMonth() - birth.getMonth();
 
@@ -584,21 +589,36 @@ export default function StalkerProfilesPage() {
     field: Field,
     value: (typeof taskDraft)[Field],
   ) {
-    setTaskDraft((currentDraft) => ({ ...currentDraft, [field]: value }));
+    const nextValue =
+      typeof value === "string" && (field === "issuedAt" || field === "dueAt")
+        ? (forceSystemYear(value) as (typeof taskDraft)[Field])
+        : value;
+
+    setTaskDraft((currentDraft) => ({ ...currentDraft, [field]: nextValue }));
   }
 
   function updateEditTaskDraft<Field extends keyof typeof editTaskDraft>(
     field: Field,
     value: (typeof editTaskDraft)[Field],
   ) {
-    setEditTaskDraft((currentDraft) => ({ ...currentDraft, [field]: value }));
+    const nextValue =
+      typeof value === "string" && (field === "issuedAt" || field === "dueAt")
+        ? (forceSystemYear(value) as (typeof editTaskDraft)[Field])
+        : value;
+
+    setEditTaskDraft((currentDraft) => ({ ...currentDraft, [field]: nextValue }));
   }
 
   function updateTradeDraft<Field extends keyof typeof tradeDraft>(
     field: Field,
     value: (typeof tradeDraft)[Field],
   ) {
-    setTradeDraft((currentDraft) => ({ ...currentDraft, [field]: value }));
+    const nextValue =
+      typeof value === "string" && field === "operationDate"
+        ? (forceSystemYear(value) as (typeof tradeDraft)[Field])
+        : value;
+
+    setTradeDraft((currentDraft) => ({ ...currentDraft, [field]: nextValue }));
     setTradeFormMessage("");
   }
 
@@ -606,7 +626,12 @@ export default function StalkerProfilesPage() {
     field: Field,
     value: (typeof violationDraft)[Field],
   ) {
-    setViolationDraft((currentDraft) => ({ ...currentDraft, [field]: value }));
+    const nextValue =
+      typeof value === "string" && field === "date"
+        ? (forceSystemYear(value) as (typeof violationDraft)[Field])
+        : value;
+
+    setViolationDraft((currentDraft) => ({ ...currentDraft, [field]: nextValue }));
     setViolationFormMessage("");
   }
 
@@ -686,7 +711,7 @@ export default function StalkerProfilesPage() {
       return;
     }
 
-    const now = new Date().toISOString();
+    const now = getSystemTimestamp();
 
     setGroups((currentGroups) =>
       currentGroups.map((group) =>
@@ -723,7 +748,7 @@ export default function StalkerProfilesPage() {
       return;
     }
 
-    const now = new Date().toISOString();
+    const now = getSystemTimestamp();
 
     if (editingProfileId) {
       const profileTitle = callsign || fullName || "Без имени";
@@ -798,7 +823,7 @@ export default function StalkerProfilesPage() {
     setProfiles((currentProfiles) =>
       currentProfiles.map((profile) =>
         profile.id === profileId
-          ? { ...profile, status, updatedAt: new Date().toISOString() }
+          ? { ...profile, status, updatedAt: getSystemTimestamp() }
           : profile,
       ),
     );
@@ -829,7 +854,7 @@ export default function StalkerProfilesPage() {
       currentGroups.map((group) => ({
         ...group,
         members: group.members.filter((member) => member.stalkerId !== profileId),
-        updatedAt: new Date().toISOString(),
+        updatedAt: getSystemTimestamp(),
       })),
     );
     setSelectedProfileId("");
@@ -1025,7 +1050,7 @@ export default function StalkerProfilesPage() {
       return;
     }
 
-    const now = new Date().toISOString();
+    const now = getSystemTimestamp();
     const item = {
       id: `profile-trade-item-${Date.now()}`,
       name: itemName,
@@ -1119,7 +1144,7 @@ export default function StalkerProfilesPage() {
       return;
     }
 
-    const now = new Date().toISOString();
+    const now = getSystemTimestamp();
 
     if (editingViolationId) {
       setViolations((currentViolations) =>
@@ -1186,7 +1211,7 @@ export default function StalkerProfilesPage() {
       return;
     }
 
-    const now = new Date().toISOString();
+    const now = getSystemTimestamp();
 
     setViolations((currentViolations) =>
       currentViolations.map((violation) =>
@@ -1854,7 +1879,7 @@ export default function StalkerProfilesPage() {
                   <div className="profile-create-grid">
                     <label className="filter-field">
                       <span>ФИО</span>
-                      <input onChange={(event) => updateDraft("fullName", event.target.value)} placeholder="Например: Иван Петров" type="text" value={draft.fullName} />
+                      <input onChange={(event) => updateDraft("fullName", event.target.value)} placeholder="Например: Чередняк Савелий Алексеевич" type="text" value={draft.fullName} />
                     </label>
                     <label className="filter-field">
                       <span>Позывной</span>
@@ -1862,7 +1887,7 @@ export default function StalkerProfilesPage() {
                     </label>
                     <label className="filter-field">
                       <span>Внутренний номер</span>
-                      <input onChange={(event) => updateDraft("registryNumber", event.target.value)} placeholder="Например: ДЛГ-014" type="text" value={draft.registryNumber} />
+                      <input onChange={(event) => updateDraft("registryNumber", event.target.value)} placeholder="Например: 200999" type="text" value={draft.registryNumber} />
                     </label>
                     <label className="filter-field">
                       <span>Дата рождения</span>
@@ -1890,8 +1915,8 @@ export default function StalkerProfilesPage() {
                       </select>
                     </label>
                     <label className="filter-field profile-create-wide">
-                      <span>Ссылка на фотографию</span>
-                      <input onChange={(event) => updateDraft("photoUrl", event.target.value)} placeholder="Например: ссылка на изображение профиля" type="url" value={draft.photoUrl} />
+                      <span>Фотография</span>
+                      <input onChange={(event) => updateDraft("photoUrl", event.target.value)} placeholder="Например: https://..." type="url" value={draft.photoUrl} />
                     </label>
                   </div>
 
@@ -2068,11 +2093,11 @@ export default function StalkerProfilesPage() {
                 <div className="task-form-grid">
                   <label className="filter-field">
                     <span>Дата выдачи</span>
-                    <input onChange={(event) => updateEditTaskDraft("issuedAt", event.target.value)} type="date" value={editTaskDraft.issuedAt} />
+                    <input max={SYSTEM_DATE_MAX} min={SYSTEM_DATE_MIN} onChange={(event) => updateEditTaskDraft("issuedAt", event.target.value)} type="date" value={editTaskDraft.issuedAt} />
                   </label>
                   <label className="filter-field">
                     <span>Выполнить до</span>
-                    <input onChange={(event) => updateEditTaskDraft("dueAt", event.target.value)} type="date" value={editTaskDraft.dueAt} />
+                    <input max={SYSTEM_DATE_MAX} min={SYSTEM_DATE_MIN} onChange={(event) => updateEditTaskDraft("dueAt", event.target.value)} type="date" value={editTaskDraft.dueAt} />
                   </label>
                   <label className="filter-field">
                     <span>Награда</span>
@@ -2179,11 +2204,11 @@ export default function StalkerProfilesPage() {
                 <div className="task-form-grid">
                   <label className="filter-field">
                     <span>Дата выдачи</span>
-                    <input onChange={(event) => updateTaskDraft("issuedAt", event.target.value)} type="date" value={taskDraft.issuedAt} />
+                    <input max={SYSTEM_DATE_MAX} min={SYSTEM_DATE_MIN} onChange={(event) => updateTaskDraft("issuedAt", event.target.value)} type="date" value={taskDraft.issuedAt} />
                   </label>
                   <label className="filter-field">
                     <span>Выполнить до</span>
-                    <input onChange={(event) => updateTaskDraft("dueAt", event.target.value)} type="date" value={taskDraft.dueAt} />
+                    <input max={SYSTEM_DATE_MAX} min={SYSTEM_DATE_MIN} onChange={(event) => updateTaskDraft("dueAt", event.target.value)} type="date" value={taskDraft.dueAt} />
                   </label>
                   <label className="filter-field">
                     <span>Награда</span>
@@ -2301,7 +2326,7 @@ export default function StalkerProfilesPage() {
                 <div className="task-form-grid">
                   <label className="filter-field">
                     <span>Дата операции</span>
-                    <input onChange={(event) => updateTradeDraft("operationDate", event.target.value)} type="date" value={tradeDraft.operationDate} />
+                    <input max={SYSTEM_DATE_MAX} min={SYSTEM_DATE_MIN} onChange={(event) => updateTradeDraft("operationDate", event.target.value)} type="date" value={tradeDraft.operationDate} />
                   </label>
                   <label className="filter-field">
                     <span>Кто оформил</span>
@@ -2354,7 +2379,7 @@ export default function StalkerProfilesPage() {
                 <div className="task-form-grid">
                   <label className="filter-field">
                     <span>Дата нарушения</span>
-                    <input onChange={(event) => updateViolationDraft("date", event.target.value)} type="date" value={violationDraft.date} />
+                    <input max={SYSTEM_DATE_MAX} min={SYSTEM_DATE_MIN} onChange={(event) => updateViolationDraft("date", event.target.value)} type="date" value={violationDraft.date} />
                   </label>
                   <label className="filter-field">
                     <span>Кто оформил</span>

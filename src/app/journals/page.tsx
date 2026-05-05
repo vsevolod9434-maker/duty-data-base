@@ -28,12 +28,16 @@ import type {
   ViolationSubjectType,
 } from "@/lib/types";
 import {
+  forceSystemYear,
   getAffiliationLabel,
   getPaginatedItems,
   getProfileSecondaryTitle,
   getProfileTitle,
+  getSystemTimestamp,
   getTodayDate,
   readStoredCollection,
+  SYSTEM_DATE_MAX,
+  SYSTEM_DATE_MIN,
   STALKER_GROUPS_STORAGE_KEY,
   STALKER_PROFILES_STORAGE_KEY,
   STALKER_TASKS_STORAGE_KEY,
@@ -489,7 +493,12 @@ export default function JournalsPage() {
     field: Field,
     value: (typeof taskDraft)[Field],
   ) {
-    setTaskDraft((currentDraft) => ({ ...currentDraft, [field]: value }));
+    const nextValue =
+      typeof value === "string" && (field === "issuedAt" || field === "dueAt")
+        ? (forceSystemYear(value) as (typeof taskDraft)[Field])
+        : value;
+
+    setTaskDraft((currentDraft) => ({ ...currentDraft, [field]: nextValue }));
     setTaskFormMessage("");
   }
 
@@ -636,7 +645,12 @@ export default function JournalsPage() {
     field: Field,
     value: (typeof tradeDraft)[Field],
   ) {
-    setTradeDraft((currentDraft) => ({ ...currentDraft, [field]: value }));
+    const nextValue =
+      typeof value === "string" && field === "operationDate"
+        ? (forceSystemYear(value) as (typeof tradeDraft)[Field])
+        : value;
+
+    setTradeDraft((currentDraft) => ({ ...currentDraft, [field]: nextValue }));
     setTradeFormMessage("");
   }
 
@@ -644,7 +658,12 @@ export default function JournalsPage() {
     field: Field,
     value: (typeof violationDraft)[Field],
   ) {
-    setViolationDraft((currentDraft) => ({ ...currentDraft, [field]: value }));
+    const nextValue =
+      typeof value === "string" && field === "date"
+        ? (forceSystemYear(value) as (typeof violationDraft)[Field])
+        : value;
+
+    setViolationDraft((currentDraft) => ({ ...currentDraft, [field]: nextValue }));
     setViolationFormMessage("");
   }
 
@@ -747,7 +766,7 @@ export default function JournalsPage() {
       return;
     }
 
-    const now = new Date().toISOString();
+    const now = getSystemTimestamp();
     const item = {
       id: `trade-item-${Date.now()}`,
       name: itemName,
@@ -909,7 +928,7 @@ export default function JournalsPage() {
       return;
     }
 
-    const now = new Date().toISOString();
+    const now = getSystemTimestamp();
 
     if (editingViolationId) {
       setViolations((currentViolations) =>
@@ -1015,7 +1034,7 @@ export default function JournalsPage() {
       return;
     }
 
-    const now = new Date().toISOString();
+    const now = getSystemTimestamp();
 
     setViolations((currentViolations) =>
       currentViolations.map((violation) =>
@@ -1105,7 +1124,7 @@ export default function JournalsPage() {
     }
 
     if (editingTaskId) {
-      const now = new Date().toISOString();
+      const now = getSystemTimestamp();
       const acceptedBy = taskDraft.acceptedBy.trim();
 
       setTasks((currentTasks) =>
@@ -1187,7 +1206,7 @@ export default function JournalsPage() {
       manualAssigneeName = manualName;
     }
 
-    const now = new Date().toISOString();
+    const now = getSystemTimestamp();
     const newTask: Task = {
       id: `journal-task-${Date.now()}`,
       assigneeType,
@@ -1234,7 +1253,7 @@ export default function JournalsPage() {
           ? {
               ...currentTask,
               acceptedBy: normalizedAcceptedBy,
-              completedAt: new Date().toISOString(),
+              completedAt: getSystemTimestamp(),
               status: "completed",
             }
           : currentTask,
@@ -1751,11 +1770,11 @@ export default function JournalsPage() {
                 <div className="task-form-grid">
                   <label className="filter-field">
                     <span>Дата выдачи</span>
-                    <input onChange={(event) => updateTaskDraft("issuedAt", event.target.value)} type="date" value={taskDraft.issuedAt} />
+                    <input max={SYSTEM_DATE_MAX} min={SYSTEM_DATE_MIN} onChange={(event) => updateTaskDraft("issuedAt", event.target.value)} type="date" value={taskDraft.issuedAt} />
                   </label>
                   <label className="filter-field">
                     <span>Выполнить до</span>
-                    <input onChange={(event) => updateTaskDraft("dueAt", event.target.value)} type="date" value={taskDraft.dueAt} />
+                    <input max={SYSTEM_DATE_MAX} min={SYSTEM_DATE_MIN} onChange={(event) => updateTaskDraft("dueAt", event.target.value)} type="date" value={taskDraft.dueAt} />
                   </label>
                   <label className="filter-field">
                     <span>Награда</span>
@@ -1954,7 +1973,7 @@ export default function JournalsPage() {
                 <div className="task-form-grid">
                   <label className="filter-field">
                     <span>Дата операции</span>
-                    <input onChange={(event) => updateTradeDraft("operationDate", event.target.value)} type="date" value={tradeDraft.operationDate} />
+                    <input max={SYSTEM_DATE_MAX} min={SYSTEM_DATE_MIN} onChange={(event) => updateTradeDraft("operationDate", event.target.value)} type="date" value={tradeDraft.operationDate} />
                   </label>
                   <label className="filter-field">
                     <span>Кто оформил</span>
@@ -2058,7 +2077,7 @@ export default function JournalsPage() {
                 <div className="task-form-grid">
                   <label className="filter-field">
                     <span>Дата нарушения</span>
-                    <input onChange={(event) => updateViolationDraft("date", event.target.value)} type="date" value={violationDraft.date} />
+                    <input max={SYSTEM_DATE_MAX} min={SYSTEM_DATE_MIN} onChange={(event) => updateViolationDraft("date", event.target.value)} type="date" value={violationDraft.date} />
                   </label>
                   <label className="filter-field">
                     <span>Кто оформил</span>

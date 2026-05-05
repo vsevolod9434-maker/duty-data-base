@@ -12,6 +12,7 @@ import {
   clampPage,
   DUTY_MEMBERS_STORAGE_KEY,
   getPaginatedItems,
+  getSystemTimestamp,
   readStoredCollection,
   writeStoredCollection,
 } from "@/lib/stalker-utils";
@@ -281,7 +282,7 @@ export default function DutyMembersPage() {
       return;
     }
 
-    const timestamp = new Date().toISOString();
+    const timestamp = getSystemTimestamp();
 
     if (editingMemberId) {
       const memberTitle = draft.callSign.trim() || draft.fullName.trim() || "Без имени";
@@ -350,7 +351,7 @@ export default function DutyMembersPage() {
   function toggleArchive(memberId: string, profileStatus: DutyMemberProfileStatus) {
     const member = members.find((currentMember) => currentMember.id === memberId);
     const nextStatus: DutyMemberProfileStatus = profileStatus === "active" ? "archived" : "active";
-    const timestamp = new Date().toISOString();
+    const timestamp = getSystemTimestamp();
     const nextMembers = members.map((member) =>
       member.id === memberId ? { ...member, profileStatus: nextStatus, updatedAt: timestamp } : member,
     );

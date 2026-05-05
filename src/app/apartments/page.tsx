@@ -17,14 +17,18 @@ import {
   normalizeApartments,
 } from "@/lib/apartment-utils";
 import {
+  forceSystemYear,
   getAffiliationBadgeClass,
   getAffiliationLabel,
   getPaginatedItems,
   getProfileSecondaryTitle,
   getProfileTitle,
+  getSystemTimestamp,
   getTodayDate,
   readStoredCollection,
   APARTMENTS_STORAGE_KEY,
+  SYSTEM_DATE_MAX,
+  SYSTEM_DATE_MIN,
   STALKER_GROUPS_STORAGE_KEY,
   STALKER_PROFILES_STORAGE_KEY,
   writeStoredCollection,
@@ -201,7 +205,7 @@ export default function ApartmentsPage() {
         return {
           ...updatedApartment,
           status: getApartmentOccupancyStatus(updatedApartment),
-          updatedAt: new Date().toISOString(),
+          updatedAt: getSystemTimestamp(),
         };
       }),
     );
@@ -271,7 +275,7 @@ export default function ApartmentsPage() {
       return;
     }
 
-    const now = new Date().toISOString();
+    const now = getSystemTimestamp();
 
     updateApartment(selectedApartment.id, (apartment) => ({
       ...apartment,
@@ -316,7 +320,7 @@ export default function ApartmentsPage() {
       return;
     }
 
-    const now = new Date().toISOString();
+    const now = getSystemTimestamp();
 
     updateApartment(selectedApartment.id, (apartment) => ({
       ...apartment,
@@ -413,7 +417,12 @@ export default function ApartmentsPage() {
     field: Field,
     value: (typeof paymentDraft)[Field],
   ) {
-    setPaymentDraft((currentDraft) => ({ ...currentDraft, [field]: value }));
+    const nextValue =
+      typeof value === "string" && (field === "paidAt" || field === "paidUntil")
+        ? (forceSystemYear(value) as (typeof paymentDraft)[Field])
+        : value;
+
+    setPaymentDraft((currentDraft) => ({ ...currentDraft, [field]: nextValue }));
     setPaymentMessage("");
   }
 
@@ -470,7 +479,7 @@ export default function ApartmentsPage() {
       return;
     }
 
-    const now = new Date().toISOString();
+    const now = getSystemTimestamp();
     const payment: ApartmentPayment = {
       id: `apartment-payment-${Date.now()}`,
       paidAt: paymentDraft.paidAt,
@@ -1016,11 +1025,11 @@ export default function ApartmentsPage() {
                 <div className="payment-form-stack">
                   <label className="filter-field">
                     <span>Дата оплаты</span>
-                    <input onChange={(event) => updatePaymentDraft("paidAt", event.target.value)} type="date" value={paymentDraft.paidAt} />
+                    <input max={SYSTEM_DATE_MAX} min={SYSTEM_DATE_MIN} onChange={(event) => updatePaymentDraft("paidAt", event.target.value)} type="date" value={paymentDraft.paidAt} />
                   </label>
                   <label className="filter-field">
                     <span>Оплачено до</span>
-                    <input onChange={(event) => updatePaymentDraft("paidUntil", event.target.value)} type="date" value={paymentDraft.paidUntil} />
+                    <input max={SYSTEM_DATE_MAX} min={SYSTEM_DATE_MIN} onChange={(event) => updatePaymentDraft("paidUntil", event.target.value)} type="date" value={paymentDraft.paidUntil} />
                   </label>
                   <label className="apartment-payment-toggle">
                     <input
