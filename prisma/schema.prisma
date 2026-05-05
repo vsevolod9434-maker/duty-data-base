@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -10,4 +5,299 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+model Stalker {
+  id                 String                 @id
+  registryNumber     String?
+  fullName           String
+  callsign           String
+  birthDate          DateTime?
+  affiliation        StalkerAffiliation?
+  photoUrl           String?
+  appearance         String?
+  notes              String?
+  status             StalkerProfileStatus
+  createdAt          DateTime
+  updatedAt          DateTime
+  createdBy          String?
+  updatedBy          String?
+  groupMemberships   StalkerGroupMember[]
+  apartmentTenants   ApartmentTenant[]
+  tasks              Task[]                 @relation("TaskStalker")
+  tradeOperations    TradeOperation[]       @relation("TradeOperationStalker")
+  violations         Violation[]            @relation("ViolationProfile")
+}
+
+model StalkerGroup {
+  id              String               @id
+  name            String
+  photoUrl        String?
+  status          StalkerGroupStatus
+  notes           String?
+  createdAt       DateTime
+  updatedAt       DateTime
+  members         StalkerGroupMember[]
+  tasks           Task[]               @relation("TaskGroup")
+  tradeOperations TradeOperation[]     @relation("TradeOperationGroup")
+}
+
+model StalkerGroupMember {
+  id             String               @id
+  groupId        String
+  stalkerId      String
+  roleType       StalkerGroupRoleType
+  customRoleName String?
+  joinedAt       DateTime
+  group          StalkerGroup         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  stalker        Stalker              @relation(fields: [stalkerId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@index([stalkerId])
+}
+
+model Apartment {
+  id        String             @id
+  name      String
+  status    ApartmentStatus
+  notes     String?
+  createdAt DateTime
+  updatedAt DateTime
+  tenants   ApartmentTenant[]
+  payments  ApartmentPayment[]
+}
+
+model ApartmentTenant {
+  id          String     @id
+  apartmentId String
+  profileId   String
+  addedAt     DateTime
+  apartment   Apartment  @relation(fields: [apartmentId], references: [id], onDelete: Cascade)
+  profile     Stalker    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([apartmentId])
+  @@index([profileId])
+}
+
+model ApartmentPayment {
+  id            String                @id
+  apartmentId   String
+  paidAt        DateTime
+  amount        Int
+  paymentType   ApartmentPaymentType?
+  paymentMethod String?
+  paidUntil     DateTime
+  notes         String?
+  createdAt     DateTime
+  acceptedBy    String?
+  issuedBy      String?
+  responsibleBy String?
+  apartment     Apartment             @relation(fields: [apartmentId], references: [id], onDelete: Cascade)
+
+  @@index([apartmentId])
+}
+
+model Task {
+  id                 String            @id
+  assigneeType       TaskAssigneeType
+  stalkerId          String?
+  groupId            String?
+  manualAssigneeName String?
+  issuedAt           DateTime
+  dueAt              DateTime?
+  description        String
+  reward             String?
+  notes              String?
+  issuedBy           String?
+  acceptedBy         String?
+  completedAt        DateTime?
+  status             TaskStatus
+  createdAt          DateTime
+  updatedAt          DateTime
+  stalker            Stalker?          @relation("TaskStalker", fields: [stalkerId], references: [id], onDelete: SetNull)
+  group              StalkerGroup?     @relation("TaskGroup", fields: [groupId], references: [id], onDelete: SetNull)
+
+  @@index([stalkerId])
+  @@index([groupId])
+  @@index([assigneeType])
+  @@index([status])
+}
+
+model TradeOperation {
+  id                    String               @id
+  type                  TradeType
+  subjectType           TradeSubjectType
+  stalkerId             String?
+  groupId               String?
+  manualParticipantName String?
+  totalAmount           Int
+  issuedBy              String?
+  notes                 String?
+  operationDate         DateTime?
+  createdAt             DateTime
+  updatedAt             DateTime
+  stalker               Stalker?             @relation("TradeOperationStalker", fields: [stalkerId], references: [id], onDelete: SetNull)
+  group                 StalkerGroup?        @relation("TradeOperationGroup", fields: [groupId], references: [id], onDelete: SetNull)
+  items                 TradeOperationItem[]
+
+  @@index([stalkerId])
+  @@index([groupId])
+  @@index([type])
+  @@index([subjectType])
+}
+
+model TradeOperationItem {
+  id          String         @id
+  operationId String
+  name        String
+  quantity    Int
+  price       Int
+  notes       String?
+  operation   TradeOperation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+
+  @@index([operationId])
+}
+
+model Violation {
+  id                  String               @id
+  violatorType        ViolationSubjectType
+  profileId           String?
+  manualViolatorName  String?
+  status              ViolationStatus
+  closedAt            DateTime?
+  closureNote         String?
+  date                DateTime
+  description         String
+  issuedBy            String?
+  notes               String?
+  createdAt           DateTime
+  updatedAt           DateTime
+  profile             Stalker?             @relation("ViolationProfile", fields: [profileId], references: [id], onDelete: SetNull)
+
+  @@index([profileId])
+  @@index([violatorType])
+  @@index([status])
+}
+
+model DutyMember {
+  id             String                  @id
+  fullName       String
+  callSign       String?
+  callsign       String?
+  birthDate      DateTime?
+  appearance     String?
+  rank           String?
+  position       String?
+  staffPositionId String?
+  unit           String?
+  serviceStatus  DutyServiceStatus
+  profileStatus  DutyMemberProfileStatus
+  notes          String?
+  createdAt      DateTime
+  updatedAt      DateTime
+}
+
+model ActivityLog {
+  id          String          @id
+  type        ActivityLogType
+  time        String?
+  title       String
+  status      String
+  description String?
+  createdAt   DateTime?
+
+  @@index([type])
+}
+
+enum StalkerProfileStatus {
+  active
+  archive
+}
+
+enum StalkerAffiliation {
+  loner
+  duty
+  freedom
+  gopnik
+  bandit
+  mercenary
+  military
+  clear_sky
+}
+
+enum StalkerGroupStatus {
+  active
+  archive
+}
+
+enum StalkerGroupRoleType {
+  leader
+  member
+  custom
+}
+
+enum ApartmentStatus {
+  free
+  occupied
+}
+
+enum ApartmentPaymentType {
+  money
+  other
+}
+
+enum TaskAssigneeType {
+  stalker
+  group
+  manual
+}
+
+enum TaskStatus {
+  active
+  completed
+  cancelled
+}
+
+enum TradeType {
+  sale
+  purchase
+}
+
+enum TradeSubjectType {
+  stalker
+  group
+  manual
+}
+
+enum ViolationSubjectType {
+  profile
+  manual
+}
+
+enum ViolationStatus {
+  active
+  closed
+}
+
+enum DutyServiceStatus {
+  active
+  leave
+  wounded
+  missing
+  discharged
+}
+
+enum DutyMemberProfileStatus {
+  active
+  archived
+}
+
+enum ActivityLogType {
+  system
+  stalker
+  group
+  apartment
+  task
+  trade
+  duty_member
 }
