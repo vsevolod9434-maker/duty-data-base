@@ -12,7 +12,13 @@ export async function GET() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return Response.json({ error: "Пользователь не авторизован." }, { status: 401 });
+    return Response.json(
+      {
+        error: "UNAUTHORIZED",
+        message: "Требуется вход в систему.",
+      },
+      { status: 401 },
+    );
   }
 
   const prisma = getPrismaClient();
@@ -22,14 +28,14 @@ export async function GET() {
     },
   });
 
-  if (!accessUser) {
-    return Response.json({
-      login: user.email ?? "Пользователь",
-      displayName: null,
-      role: null,
-      roleLabel: null,
-      email: user.email ?? null,
-    });
+  if (!accessUser || !accessUser.isActive) {
+    return Response.json(
+      {
+        error: "FORBIDDEN",
+        message: "Доступ к операции запрещён.",
+      },
+      { status: 403 },
+    );
   }
 
   return Response.json({

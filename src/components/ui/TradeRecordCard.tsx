@@ -53,7 +53,7 @@ export function TradeRecordCard({
   const resolvedParticipantLabel = participantLabel || "участник не указан";
 
   return (
-    <article className={`task-item profile-record-card trade-record-card trade-record-${operation.type}`}>
+    <article className={`task-item profile-record-card trade-record-card trade-record-${operation.type} interactive-card animate-list-item-in`}>
       <div className="task-item-row task-record-header">
         <div className="task-item-mainline profile-record-title">
           <strong>{getTradeItemsTitle(operation)}</strong>

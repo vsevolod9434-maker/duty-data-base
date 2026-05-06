@@ -22,7 +22,9 @@ export function ViolationRecordCard({
   actions,
 }: ViolationRecordCardProps) {
   return (
-    <article className={`task-item profile-record-card violation-record-card ${isActive ? "profile-record-alert" : "profile-record-muted"}`}>
+    <article
+      className={`task-item profile-record-card violation-record-card ${isActive ? "profile-record-alert" : "profile-record-muted"} interactive-card animate-list-item-in`}
+    >
       <div className="task-item-row task-record-header">
         <div className="task-item-mainline profile-record-title">
           <strong title={violation.description}>{violation.description || "Описание нарушения не указано"}</strong>

@@ -86,7 +86,7 @@ export function TaskRecordCard({
   const dueTone = getDueTone(task.dueAt);
 
   return (
-    <article className={`task-item profile-record-card task-record-card task-record-${task.status}`}>
+    <article className={`task-item profile-record-card task-record-card task-record-${task.status} interactive-card animate-list-item-in`}>
       <div className="task-item-row task-record-header">
         <div className="task-item-mainline profile-record-title">
           <strong title={task.description}>{task.description || "Описание задания не указано"}</strong>

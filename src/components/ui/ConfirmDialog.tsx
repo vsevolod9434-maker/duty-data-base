@@ -45,9 +45,9 @@ export function ConfirmDialog({
   };
 
   return (
-    <div className="pda-modal-backdrop" onMouseDown={handleDialogClose}>
+    <div className="pda-modal-backdrop animate-fade-in" onMouseDown={handleDialogClose}>
       <div
-        className="pda-modal confirm-dialog"
+        className="pda-modal confirm-dialog animate-modal-in"
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"
@@ -61,11 +61,11 @@ export function ConfirmDialog({
         </div>
 
         <div className="modal-actions confirm-dialog-actions">
-          <button className="command-row" disabled={loading || disabled} onClick={handleDialogClose} type="button">
+          <button className="command-row interactive-button" disabled={loading || disabled} onClick={handleDialogClose} type="button">
             {cancelLabel}
           </button>
           <button
-            className={`primary-command confirm-dialog-confirm confirm-dialog-confirm-${tone}`}
+            className={`primary-command interactive-button confirm-dialog-confirm confirm-dialog-confirm-${tone}`}
             disabled={loading || disabled}
             onClick={onConfirm}
             type="button"

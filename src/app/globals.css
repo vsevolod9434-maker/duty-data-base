@@ -1895,6 +1895,108 @@ button {
   font-size: 1.08rem;
 }
 
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.992);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes modal-backdrop-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in-soft {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes list-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes soft-status-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(182, 64, 70, 0);
+  }
+
+  50% {
+    box-shadow: 0 0 0 4px rgba(182, 64, 70, 0.08);
+  }
+}
+
+.animate-panel-in {
+  animation: panel-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.animate-modal-in {
+  animation: panel-in 150ms cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.animate-fade-in {
+  animation: fade-in-soft 150ms ease-out;
+}
+
+.animate-list-item-in {
+  animation: list-item-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.interactive-card {
+  transition:
+    border-color 140ms ease,
+    box-shadow 160ms ease,
+    background-color 140ms ease,
+    transform 140ms ease;
+  will-change: transform;
+}
+
+.interactive-card:hover,
+.interactive-card:focus-visible {
+  transform: translateY(-1px);
+}
+
+.interactive-button {
+  transition:
+    border-color 130ms ease,
+    background-color 130ms ease,
+    color 130ms ease,
+    box-shadow 140ms ease,
+    transform 110ms ease;
+}
+
+.interactive-button:active {
+  transform: scale(0.99);
+}
+
+.status-soft-pulse {
+  animation: soft-status-pulse 1.6s ease-out 1;
+}
+
 .pda-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1907,6 +2009,7 @@ button {
     rgba(0, 0, 0, 0.72);
   padding: 1rem;
   backdrop-filter: blur(8px);
+  animation: modal-backdrop-in 140ms ease-out;
 }
 
 .pda-modal {
@@ -1922,6 +2025,8 @@ button {
     inset 0 1px 0 rgba(255, 255, 255, 0.04),
     0 28px 90px rgba(0, 0, 0, 0.75);
   padding: 0;
+  animation: panel-in 160ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: center top;
 }
 
 .confirm-dialog {
@@ -2064,6 +2169,11 @@ button {
     rgba(7, 9, 9, 0.28);
   color: var(--muted);
   padding: 0.95rem;
+  animation: fade-in-soft 180ms ease-out;
+  transition:
+    border-color 140ms ease,
+    box-shadow 160ms ease,
+    background-color 140ms ease;
 }
 
 .empty-state p {
@@ -5964,6 +6074,13 @@ body::after,
   font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: 0.02em;
+  transition:
+    border-color 130ms ease,
+    background-color 130ms ease,
+    color 130ms ease,
+    box-shadow 150ms ease,
+    transform 110ms ease;
+  will-change: transform;
 }
 
 .command-row:hover,
@@ -5976,6 +6093,14 @@ body::after,
   background: var(--registry-row-active);
   color: var(--foreground-strong);
   outline: none;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+}
+
+.command-row:active,
+.primary-command:active,
+.command-button:active {
+  transform: scale(0.99);
 }
 
 .primary-command,
@@ -5999,6 +6124,11 @@ body::after,
   background: #07090a;
   color: var(--foreground);
   box-shadow: none;
+  transition:
+    border-color 130ms ease,
+    background-color 130ms ease,
+    box-shadow 140ms ease,
+    transform 110ms ease;
 }
 
 .filter-field input:focus,
@@ -6008,6 +6138,7 @@ body::after,
 .group-role-input:focus {
   border-color: var(--line-strong);
   outline: 1px solid rgba(209, 69, 76, 0.28);
+  box-shadow: 0 0 0 3px rgba(209, 69, 76, 0.1);
 }
 
 .empty-state,
@@ -10710,4 +10841,188 @@ body::after,
 .pda-signout-button {
   padding: 0.38rem 0.62rem;
   font-size: 0.72rem;
+}
+
+/* Service motion layer */
+.login-card {
+  animation: panel-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition:
+    border-color 150ms ease,
+    box-shadow 180ms ease,
+    transform 150ms ease;
+}
+
+.login-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.28);
+}
+
+.login-form input,
+.login-submit,
+.pda-signout-button {
+  transition:
+    border-color 130ms ease,
+    background-color 130ms ease,
+    box-shadow 150ms ease,
+    color 130ms ease,
+    transform 110ms ease;
+}
+
+.login-form input:hover {
+  border-color: rgba(185, 178, 166, 0.34);
+}
+
+.login-submit:hover,
+.login-submit:focus-visible,
+.pda-signout-button:hover,
+.pda-signout-button:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(64, 10, 15, 0.22);
+}
+
+.login-submit:active,
+.pda-signout-button:active {
+  transform: scale(0.99);
+}
+
+.profile-list-item,
+.profile-record-card,
+.task-item,
+.journal-tab-card,
+.apartment-list-card,
+.group-list-card,
+.profile-column,
+.profile-detail,
+.profile-card-grid > *,
+.apartments-two-column-layout > *,
+.journal-overview-card,
+.journal-toolbar,
+.journal-empty,
+.empty-state {
+  animation: list-item-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.profile-list-item,
+.profile-record-card,
+.task-item,
+.journal-tab-card,
+.apartment-list-card,
+.group-list-card {
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    box-shadow 170ms ease,
+    transform 130ms ease;
+  will-change: transform;
+}
+
+.profile-list-item:hover,
+.profile-list-item:focus-visible,
+.profile-record-card:hover,
+.profile-record-card:focus-within,
+.task-item:hover,
+.task-item:focus-within,
+.journal-tab-card:hover,
+.journal-tab-card:focus-visible,
+.apartment-list-card:hover,
+.apartment-list-card:focus-visible,
+.group-list-card:hover,
+.group-list-card:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.18);
+}
+
+.badge-chip,
+.profile-badge,
+.task-status-badge,
+.profile-state-badge {
+  transition:
+    border-color 130ms ease,
+    background-color 130ms ease,
+    color 130ms ease,
+    box-shadow 150ms ease,
+    opacity 130ms ease;
+}
+
+.badge-task-overdue,
+.badge-payment-overdue,
+.badge-violation-active {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+.draft-message,
+.form-error,
+.table-message,
+.login-error {
+  animation: fade-in-soft 160ms ease-out;
+}
+
+.pda-modal-backdrop {
+  transition: background-color 140ms ease, backdrop-filter 140ms ease;
+}
+
+.pda-modal,
+.confirm-dialog,
+.journal-modal,
+.journal-action-modal,
+.task-modal,
+.task-complete-modal {
+  transform-origin: center top;
+}
+
+.filter-field input,
+.filter-field select,
+.filter-field textarea,
+.group-role-select,
+.group-role-input,
+.stacked-field input,
+.stacked-field select,
+.stacked-field textarea,
+.login-form input {
+  transition:
+    border-color 130ms ease,
+    background-color 130ms ease,
+    color 130ms ease,
+    box-shadow 140ms ease,
+    transform 110ms ease;
+}
+
+.filter-field input:hover,
+.filter-field select:hover,
+.filter-field textarea:hover,
+.group-role-select:hover,
+.group-role-input:hover,
+.stacked-field input:hover,
+.stacked-field select:hover,
+.stacked-field textarea:hover {
+  border-color: rgba(220, 106, 95, 0.24);
+}
+
+.filter-field input:focus,
+.filter-field select:focus,
+.filter-field textarea:focus,
+.group-role-select:focus,
+.group-role-input:focus,
+.stacked-field input:focus,
+.stacked-field select:focus,
+.stacked-field textarea:focus {
+  transform: translateY(-1px);
+}
+
+.pda-user-email,
+.pda-clock,
+.battery,
+.pda-signal {
+  transition: opacity 130ms ease, color 130ms ease, transform 130ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

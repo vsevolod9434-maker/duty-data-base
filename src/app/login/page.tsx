@@ -58,7 +58,7 @@ export default function LoginPage() {
   return (
     <main className="login-page">
       <section className="login-shell">
-        <div className="login-card">
+        <div className="login-card animate-panel-in">
           <div className="login-card-header">
             <span className="login-kicker">Внутренняя база группировки «Долг»</span>
             <h1>Вход в систему учёта</h1>
@@ -92,7 +92,7 @@ export default function LoginPage() {
 
             {message ? <p className="login-error">{message}</p> : null}
 
-            <button className="login-submit" disabled={isLoading} type="submit">
+            <button className="login-submit interactive-button" disabled={isLoading} type="submit">
               {isLoading ? "Проверка доступа..." : "Войти"}
             </button>
           </form>

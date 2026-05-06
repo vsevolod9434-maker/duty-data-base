@@ -47,6 +47,13 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
         const response = await fetch("/api/auth/me");
 
         if (!response.ok) {
+          if (response.status === 401 || response.status === 403) {
+            const supabase = createSupabaseBrowserClient();
+            await supabase.auth.signOut();
+            router.replace("/login");
+            router.refresh();
+          }
+
           return;
         }
 
@@ -67,7 +74,7 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
     return () => {
       isCancelled = true;
     };
-  }, []);
+  }, [router]);
 
   async function signOut() {
     setIsSigningOut(true);
@@ -225,8 +232,8 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
         </div>
       </div>
       {isDutyBlockedModalOpen ? (
-        <div className="pda-modal-backdrop" onMouseDown={() => setIsDutyBlockedModalOpen(false)}>
-          <div className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="pda-modal-backdrop animate-fade-in" onMouseDown={() => setIsDutyBlockedModalOpen(false)}>
+          <div className="pda-modal task-modal animate-modal-in" onMouseDown={(event) => event.stopPropagation()}>
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>Состав</h1>
@@ -234,7 +241,7 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
               </div>
             </div>
             <div className="modal-actions">
-              <button className="primary-command" onClick={() => setIsDutyBlockedModalOpen(false)} type="button">
+              <button className="primary-command interactive-button" onClick={() => setIsDutyBlockedModalOpen(false)} type="button">
                 Закрыть
               </button>
             </div>
