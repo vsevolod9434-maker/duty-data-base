@@ -52,18 +52,36 @@ export async function PATCH(request: Request, context: RouteContext) {
     data.registryNumber = normalizeNullableString(payload.registryNumber);
   }
 
+  const currentProfile =
+    payload.fullName !== undefined || payload.callsign !== undefined
+      ? await getPrismaClient().stalker.findUnique({
+          select: {
+            fullName: true,
+            callsign: true,
+          },
+          where: { id },
+        })
+      : null;
+
+  if ((payload.fullName !== undefined || payload.callsign !== undefined) && !currentProfile) {
+    return createErrorResponse("Профиль сталкера не найден.", 404);
+  }
+
   if (payload.fullName !== undefined) {
-    const fullName = normalizeRequiredString(payload.fullName);
-
-    if (!fullName) {
-      return createErrorResponse("Укажите ФИО сталкера.");
-    }
-
-    data.fullName = fullName;
+    data.fullName = normalizeRequiredString(payload.fullName);
   }
 
   if (payload.callsign !== undefined) {
     data.callsign = normalizeRequiredString(payload.callsign);
+  }
+
+  if (currentProfile) {
+    const nextFullName = payload.fullName !== undefined ? normalizeRequiredString(payload.fullName) : currentProfile.fullName;
+    const nextCallsign = payload.callsign !== undefined ? normalizeRequiredString(payload.callsign) : currentProfile.callsign;
+
+    if (!nextFullName && !nextCallsign) {
+      return createErrorResponse("Укажите ФИО или позывной.");
+    }
   }
 
   if (payload.birthDate !== undefined) {

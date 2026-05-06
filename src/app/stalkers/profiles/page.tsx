@@ -886,8 +886,8 @@ export default function StalkerProfilesPage() {
     const fullName = draft.fullName.trim();
     const callsign = draft.callsign.trim();
 
-    if (!fullName) {
-      setFormMessage("Укажите ФИО сталкера.");
+    if (!fullName && !callsign) {
+      setFormMessage("Укажите ФИО или позывной.");
       return;
     }
 
@@ -1800,7 +1800,7 @@ export default function StalkerProfilesPage() {
                           </span>
 
                           <span className="profile-list-info-row">
-                            <span className="profile-list-meta">{profile.fullName}</span>
+                            <span className="profile-list-meta">{profile.fullName || profile.callsign || "Без имени"}</span>
                             <span className="profile-list-badges">
                               {serviceBadges.map((badge) => (
                                 <span className={`profile-state-badge badge-chip ${badge.className}`} key={badge.className}>
@@ -2102,7 +2102,7 @@ export default function StalkerProfilesPage() {
               <section className="form-section">
                 <div className="form-section-heading">
                   <h2>Основные данные</h2>
-                  <span>Имя, позывной и служебные признаки</span>
+                  <span>Для создания достаточно ФИО или позывного</span>
                 </div>
                 <div className="modal-layout-grid">
                   <div className="profile-create-grid">

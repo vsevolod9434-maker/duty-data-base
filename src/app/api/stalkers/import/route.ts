@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     })
     .map((profile) => {
       const callsign = normalizeRequiredString(profile.callsign);
-      const fullName = normalizeRequiredString(profile.fullName) || callsign || "Без имени";
+      const fullName = normalizeRequiredString(profile.fullName);
       const createdAt = parseStoredDate(profile.createdAt, now);
       const updatedAt = parseStoredDate(profile.updatedAt, createdAt);
 
@@ -49,7 +49,8 @@ export async function POST(request: Request) {
         createdBy: normalizeNullableString(profile.createdBy),
         updatedBy: normalizeNullableString(profile.updatedBy),
       };
-    });
+    })
+    .filter((profile) => profile.fullName || profile.callsign);
 
   if (candidates.length === 0) {
     return createErrorResponse("В локальном списке нет профилей, пригодных для импорта.");

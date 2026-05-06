@@ -31,9 +31,10 @@ export async function POST(request: Request) {
   }
 
   const fullName = normalizeRequiredString(payload.fullName);
+  const callsign = normalizeRequiredString(payload.callsign);
 
-  if (!fullName) {
-    return createErrorResponse("Укажите ФИО сталкера.");
+  if (!fullName && !callsign) {
+    return createErrorResponse("Укажите ФИО или позывной.");
   }
 
   if (payload.status !== undefined && !isStalkerProfileStatus(payload.status)) {
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
       id: crypto.randomUUID(),
       registryNumber: normalizeNullableString(payload.registryNumber),
       fullName,
-      callsign: normalizeRequiredString(payload.callsign),
+      callsign,
       birthDate: parseNullableDate(payload.birthDate),
       affiliation: isStalkerAffiliation(payload.affiliation) ? payload.affiliation : null,
       photoUrl: normalizeNullableString(payload.photoUrl),
