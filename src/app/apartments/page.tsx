@@ -1,7 +1,7 @@
 ﻿"use client";
 
 /* eslint-disable @next/next/no-img-element */
-import type { FormEvent, KeyboardEvent } from "react";
+import type { FormEvent, KeyboardEvent, MouseEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
 import { addActivityLogEntry } from "@/lib/activity-log";
@@ -109,6 +109,10 @@ function createEmptyPaymentDraft() {
     paidUntil: "",
     notes: "",
   };
+}
+
+function isDirtyValue(currentValue: unknown, initialValue: unknown) {
+  return JSON.stringify(currentValue) !== JSON.stringify(initialValue);
 }
 
 function getProfileInitials(profile: StalkerProfile) {
@@ -281,6 +285,7 @@ export default function ApartmentsPage() {
     title: string;
     message: string;
     confirmLabel: string;
+    cancelLabel?: string;
     variant?: "danger" | "default" | "warning";
     loading?: boolean;
     onConfirm: () => void | Promise<void>;
@@ -481,6 +486,35 @@ export default function ApartmentsPage() {
     setTenantSearchQuery("");
     setTenantMessage("");
     setIsTenantModalOpen(true);
+  }
+
+  function requestDirtyModalClose(isDirty: boolean, closeModal: () => void) {
+    if (!isDirty) {
+      closeModal();
+      return;
+    }
+
+    setConfirmDialog({
+      title: "Закрыть окно?",
+      message: "Вы уверены, что хотите закрыть окно?",
+      confirmLabel: "Закрыть",
+      cancelLabel: "Остаться",
+      variant: "warning",
+      onConfirm: () => {
+        setConfirmDialog(null);
+        closeModal();
+      },
+    });
+  }
+
+  function handleModalBackdropMouseDown(event: MouseEvent<HTMLElement>, isDirty: boolean, closeModal: () => void) {
+    if (event.target === event.currentTarget) {
+      requestDirtyModalClose(isDirty, closeModal);
+    }
+  }
+
+  function isTenantDraftDirty() {
+    return selectedProfileIds.length > 0 || Boolean(selectedGroupId) || Boolean(tenantSearchQuery.trim());
   }
 
   function closeTenantModal() {
@@ -684,6 +718,29 @@ export default function ApartmentsPage() {
     setEditingPaymentId("");
     setPaymentMessage("");
     setIsPaymentModalOpen(false);
+  }
+
+  function getInitialPaymentDraft() {
+    const payment = editingPaymentId
+      ? selectedApartment?.payments.find((currentPayment) => currentPayment.id === editingPaymentId)
+      : null;
+
+    if (!payment) {
+      return createEmptyPaymentDraft();
+    }
+
+    return {
+      paidAt: payment.paidAt,
+      amount: String(payment.amount),
+      paymentType: payment.paymentType ?? "money",
+      paymentMethod: payment.paymentMethod ?? "",
+      paidUntil: payment.paidUntil,
+      notes: payment.notes,
+    };
+  }
+
+  function isPaymentDraftDirty() {
+    return isDirtyValue(paymentDraft, getInitialPaymentDraft());
   }
 
   function updatePaymentDraft<Field extends keyof typeof paymentDraft>(
@@ -1315,8 +1372,11 @@ export default function ApartmentsPage() {
       </section>
 
       {isTenantModalOpen && selectedApartment ? (
-        <div className="pda-modal-backdrop">
-          <div className="pda-modal task-modal">
+        <div
+          className="pda-modal-backdrop"
+          onMouseDown={(event) => handleModalBackdropMouseDown(event, isTenantDraftDirty(), closeTenantModal)}
+        >
+          <div className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>Добавить жильцов</h1>
@@ -1413,7 +1473,11 @@ export default function ApartmentsPage() {
             </div>
 
             <div className="modal-actions">
-              <button className="command-row" onClick={closeTenantModal} type="button">
+              <button
+                className="command-row"
+                onClick={() => requestDirtyModalClose(isTenantDraftDirty(), closeTenantModal)}
+                type="button"
+              >
                 Закрыть
               </button>
             </div>
@@ -1422,8 +1486,11 @@ export default function ApartmentsPage() {
       ) : null}
 
       {isPaymentModalOpen && selectedApartment ? (
-        <div className="pda-modal-backdrop">
-          <form className="pda-modal task-modal" onSubmit={submitPayment}>
+        <div
+          className="pda-modal-backdrop"
+          onMouseDown={(event) => handleModalBackdropMouseDown(event, isPaymentDraftDirty(), closePaymentModal)}
+        >
+          <form className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={submitPayment}>
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>{editingPaymentId ? "Редактирование оплаты" : "Принять оплату"}</h1>
@@ -1483,7 +1550,11 @@ export default function ApartmentsPage() {
             </div>
 
             <div className="modal-actions">
-              <button className="command-row" onClick={closePaymentModal} type="button">
+              <button
+                className="command-row"
+                onClick={() => requestDirtyModalClose(isPaymentDraftDirty(), closePaymentModal)}
+                type="button"
+              >
                 Отмена
               </button>
               <button className="primary-command" disabled={isApartmentSaving} type="submit">
@@ -1499,6 +1570,7 @@ export default function ApartmentsPage() {
           title={confirmDialog.title}
           message={confirmDialog.message}
           confirmLabel={confirmDialog.confirmLabel}
+          cancelLabel={confirmDialog.cancelLabel}
           variant={confirmDialog.variant}
           loading={confirmDialog.loading || isApartmentSaving}
           onCancel={() => setConfirmDialog(null)}

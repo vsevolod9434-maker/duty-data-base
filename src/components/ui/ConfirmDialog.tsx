@@ -36,10 +36,23 @@ export function ConfirmDialog({
   const tone = variant === "default" ? confirmTone : variant;
   const dialogMessage = description ?? message;
   const handleClose = onCancel ?? onClose;
+  const handleDialogClose = () => {
+    if (loading || disabled) {
+      return;
+    }
+
+    handleClose?.();
+  };
 
   return (
-    <div className="pda-modal-backdrop">
-      <div className="pda-modal confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-dialog-title">
+    <div className="pda-modal-backdrop" onMouseDown={handleDialogClose}>
+      <div
+        className="pda-modal confirm-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-dialog-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
         <div className="section-header modal-header">
           <div className="min-w-0">
             <h1 id="confirm-dialog-title">{title}</h1>
@@ -48,7 +61,7 @@ export function ConfirmDialog({
         </div>
 
         <div className="modal-actions confirm-dialog-actions">
-          <button className="command-row" disabled={loading || disabled} onClick={handleClose} type="button">
+          <button className="command-row" disabled={loading || disabled} onClick={handleDialogClose} type="button">
             {cancelLabel}
           </button>
           <button

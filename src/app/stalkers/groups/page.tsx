@@ -1,7 +1,7 @@
 ﻿"use client";
 
 /* eslint-disable @next/next/no-img-element */
-import type { FormEvent } from "react";
+import type { FormEvent, MouseEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -266,6 +266,10 @@ function getTaskStatusClass(task: Task) {
   return isTaskOverdue(task) ? "badge-task-overdue" : "badge-task-active";
 }
 
+function isDirtyValue(currentValue: unknown, initialValue: unknown) {
+  return JSON.stringify(currentValue) !== JSON.stringify(initialValue);
+}
+
 export default function StalkerGroupsPage() {
   const [profiles, setProfiles] = useState<StalkerProfile[]>([]);
   const [groups, setGroups] = useState<StalkerGroup[]>([]);
@@ -303,6 +307,7 @@ export default function StalkerGroupsPage() {
     title: string;
     message: string;
     confirmLabel: string;
+    cancelLabel?: string;
     variant?: "danger" | "default" | "warning";
     loading?: boolean;
     onConfirm: () => void | Promise<void>;
@@ -481,6 +486,105 @@ export default function StalkerGroupsPage() {
   function openCreateGroup() {
     resetDraft();
     setIsGroupModalOpen(true);
+  }
+
+  function requestDirtyModalClose(isDirty: boolean, closeModal: () => void) {
+    if (!isDirty) {
+      closeModal();
+      return;
+    }
+
+    setConfirmDialog({
+      title: "Закрыть окно?",
+      message: "Вы уверены, что хотите закрыть окно?",
+      confirmLabel: "Закрыть",
+      cancelLabel: "Остаться",
+      variant: "warning",
+      onConfirm: () => {
+        setConfirmDialog(null);
+        closeModal();
+      },
+    });
+  }
+
+  function handleModalBackdropMouseDown(
+    event: MouseEvent<HTMLElement>,
+    isDirty: boolean,
+    closeModal: () => void,
+  ) {
+    if (event.target === event.currentTarget) {
+      requestDirtyModalClose(isDirty, closeModal);
+    }
+  }
+
+  function getInitialGroupDraft() {
+    const group = editingGroupId ? groups.find((currentGroup) => currentGroup.id === editingGroupId) : null;
+
+    if (!group) {
+      return emptyGroupDraft;
+    }
+
+    return {
+      name: group.name,
+      photoUrl: group.photoUrl ?? "",
+      notes: group.notes,
+      status: group.status,
+      members: group.members,
+    };
+  }
+
+  function isGroupDraftDirty() {
+    return isDirtyValue(draft, getInitialGroupDraft());
+  }
+
+  function isSelectedGroupMemberDraftDirty() {
+    return isDirtyValue(selectedGroupMemberDraft, emptySelectedGroupMemberDraft);
+  }
+
+  function getInitialMemberRoleDraft() {
+    const member = editingMemberRoleId
+      ? selectedGroup?.members.find((currentMember) => currentMember.id === editingMemberRoleId)
+      : null;
+
+    if (!member) {
+      return emptyMemberRoleDraft;
+    }
+
+    return {
+      roleType: member.roleType,
+      customRoleName: member.customRoleName ?? "",
+    };
+  }
+
+  function isMemberRoleDraftDirty() {
+    return isDirtyValue(memberRoleDraft, getInitialMemberRoleDraft());
+  }
+
+  function getInitialGroupTaskDraft() {
+    const task = editingGroupTaskId ? tasks.find((currentTask) => currentTask.id === editingGroupTaskId) : null;
+
+    if (!task) {
+      return emptyGroupTaskDraft;
+    }
+
+    return {
+      issuedAt: task.issuedAt,
+      dueAt: task.dueAt,
+      description: task.description,
+      reward: task.reward ?? "",
+      notes: task.notes ?? "",
+      issuedBy: task.issuedBy ?? "",
+      acceptedBy: task.acceptedBy ?? "",
+      status: task.status,
+    };
+  }
+
+  function isGroupTaskDraftDirty() {
+    return isDirtyValue(groupTaskDraft, getInitialGroupTaskDraft());
+  }
+
+  function isCompleteGroupTaskDirty() {
+    return completeGroupTaskAcceptedBy.trim().length > 0;
   }
 
   function openEditGroup(group: StalkerGroup) {
@@ -1553,8 +1657,11 @@ export default function StalkerGroupsPage() {
       </section>
 
       {isGroupModalOpen ? (
-        <div className="pda-modal-backdrop">
-          <form className="pda-modal" onSubmit={handleGroupSubmit}>
+        <div
+          className="pda-modal-backdrop"
+          onMouseDown={(event) => handleModalBackdropMouseDown(event, isGroupDraftDirty(), closeGroupModal)}
+        >
+          <form className="pda-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleGroupSubmit}>
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>{editingGroupId ? "Редактирование группы" : "Создание группы"}</h1>
@@ -1579,10 +1686,10 @@ export default function StalkerGroupsPage() {
                     />
                   </label>
                   <label className="filter-field">
-                    <span>Ссылка на изображение группы</span>
+                    <span>Изображение группы</span>
                     <input
                       onChange={(event) => setDraft((currentDraft) => ({ ...currentDraft, photoUrl: event.target.value }))}
-                      placeholder="Ссылка на изображение группы"
+                      placeholder="https://..."
                       type="url"
                       value={draft.photoUrl}
                     />
@@ -1721,7 +1828,11 @@ export default function StalkerGroupsPage() {
             </div>
 
             <div className="modal-actions">
-              <button className="command-row" onClick={closeGroupModal} type="button">
+              <button
+                className="command-row"
+                onClick={() => requestDirtyModalClose(isGroupDraftDirty(), closeGroupModal)}
+                type="button"
+              >
                 Отмена
               </button>
               <button className="primary-command" disabled={isGroupSaving} type="submit">
@@ -1733,8 +1844,11 @@ export default function StalkerGroupsPage() {
       ) : null}
 
       {isGroupTaskModalOpen && selectedGroup ? (
-        <div className="pda-modal-backdrop">
-          <form className="pda-modal task-modal journal-modal" onSubmit={handleGroupTaskSubmit}>
+        <div
+          className="pda-modal-backdrop"
+          onMouseDown={(event) => handleModalBackdropMouseDown(event, isGroupTaskDraftDirty(), closeGroupTaskModal)}
+        >
+          <form className="pda-modal task-modal journal-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleGroupTaskSubmit}>
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>{editingGroupTaskId ? "Редактировать задание группы" : "Выдать задание группе"}</h1>
@@ -1803,7 +1917,11 @@ export default function StalkerGroupsPage() {
             </div>
 
             <div className="modal-actions">
-              <button className="command-row" onClick={closeGroupTaskModal} type="button">
+              <button
+                className="command-row"
+                onClick={() => requestDirtyModalClose(isGroupTaskDraftDirty(), closeGroupTaskModal)}
+                type="button"
+              >
                 Отмена
               </button>
               <button className="primary-command" type="submit">
@@ -1815,8 +1933,11 @@ export default function StalkerGroupsPage() {
       ) : null}
 
       {isGroupMemberModalOpen && selectedGroup ? (
-        <div className="pda-modal-backdrop">
-          <div className="pda-modal task-modal">
+        <div
+          className="pda-modal-backdrop"
+          onMouseDown={(event) => handleModalBackdropMouseDown(event, isSelectedGroupMemberDraftDirty(), closeGroupMemberModal)}
+        >
+          <div className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>Добавить участника</h1>
@@ -1888,7 +2009,11 @@ export default function StalkerGroupsPage() {
             </div>
 
             <div className="modal-actions">
-              <button className="command-row" onClick={closeGroupMemberModal} type="button">
+              <button
+                className="command-row"
+                onClick={() => requestDirtyModalClose(isSelectedGroupMemberDraftDirty(), closeGroupMemberModal)}
+                type="button"
+              >
                 Отмена
               </button>
               <button className="primary-command" disabled={isGroupSaving} onClick={addMemberToSelectedGroup} type="button">
@@ -1900,8 +2025,11 @@ export default function StalkerGroupsPage() {
       ) : null}
 
       {editingMemberRoleId && selectedGroup ? (
-        <div className="pda-modal-backdrop">
-          <div className="pda-modal task-modal">
+        <div
+          className="pda-modal-backdrop"
+          onMouseDown={(event) => handleModalBackdropMouseDown(event, isMemberRoleDraftDirty(), closeEditMemberRoleModal)}
+        >
+          <div className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>Редактирование роли</h1>
@@ -1967,7 +2095,11 @@ export default function StalkerGroupsPage() {
             </div>
 
             <div className="modal-actions">
-              <button className="command-row" onClick={closeEditMemberRoleModal} type="button">
+              <button
+                className="command-row"
+                onClick={() => requestDirtyModalClose(isMemberRoleDraftDirty(), closeEditMemberRoleModal)}
+                type="button"
+              >
                 Отмена
               </button>
               <button className="primary-command" disabled={isGroupSaving} onClick={saveSelectedGroupMemberRole} type="button">
@@ -1979,8 +2111,11 @@ export default function StalkerGroupsPage() {
       ) : null}
 
       {completingGroupTaskId ? (
-        <div className="pda-modal-backdrop">
-          <form className="pda-modal task-complete-modal" onSubmit={submitCompleteGroupTask}>
+        <div
+          className="pda-modal-backdrop"
+          onMouseDown={(event) => handleModalBackdropMouseDown(event, isCompleteGroupTaskDirty(), closeCompleteGroupTaskModal)}
+        >
+          <form className="pda-modal task-complete-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={submitCompleteGroupTask}>
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>Засчитать групповое задание</h1>
@@ -2015,7 +2150,11 @@ export default function StalkerGroupsPage() {
             </div>
 
             <div className="modal-actions">
-              <button className="command-row" onClick={closeCompleteGroupTaskModal} type="button">
+              <button
+                className="command-row"
+                onClick={() => requestDirtyModalClose(isCompleteGroupTaskDirty(), closeCompleteGroupTaskModal)}
+                type="button"
+              >
                 Отмена
               </button>
               <button className="primary-command" type="submit">
@@ -2031,6 +2170,7 @@ export default function StalkerGroupsPage() {
           title={confirmDialog.title}
           message={confirmDialog.message}
           confirmLabel={confirmDialog.confirmLabel}
+          cancelLabel={confirmDialog.cancelLabel}
           variant={confirmDialog.variant}
           loading={confirmDialog.loading || isGroupSaving || isGroupDeleting}
           onCancel={() => setConfirmDialog(null)}
@@ -2040,4 +2180,3 @@ export default function StalkerGroupsPage() {
     </main>
   );
 }
-

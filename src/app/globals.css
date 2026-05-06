@@ -8025,8 +8025,9 @@ body::after,
 
 .profiles-page .profiles-list-column .profile-list > .profile-list-item .profile-list-meta {
   color: #c5ced0;
-  font-size: 0.82rem;
-  line-height: 1.2;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.24;
 }
 
 .profiles-page .profiles-list-column .profile-list > .profile-list-item .profile-affiliation-badge {
@@ -10698,21 +10699,12 @@ body::after,
 
 .pda-user-email {
   color: #d8d2c8;
-  display: grid;
-  gap: 0.05rem;
+  display: block;
   line-height: 1.05;
   max-width: 220px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.pda-user-email small {
-  color: #9c958b;
-  font-size: 0.68rem;
-  letter-spacing: 0.04em;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .pda-signout-button {

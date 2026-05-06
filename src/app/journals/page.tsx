@@ -1,6 +1,6 @@
 "use client";
 
-import type { Dispatch, FormEvent, SetStateAction } from "react";
+import type { Dispatch, FormEvent, MouseEvent, SetStateAction } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
 import { Pagination } from "@/components/ui/Pagination";
@@ -121,6 +121,7 @@ type JournalConfirmDialogState = {
   title: string;
   message: string;
   confirmLabel: string;
+  cancelLabel?: string;
   confirmTone?: "primary" | "warning" | "danger";
   onConfirm: () => void;
 } | null;
@@ -193,6 +194,10 @@ function createEntitySearchState(): EntitySearchState {
     appliedQuery: "",
     hasSearched: false,
   };
+}
+
+function isDirtyValue(currentValue: unknown, initialValue: unknown) {
+  return JSON.stringify(currentValue) !== JSON.stringify(initialValue);
 }
 
 function formatDate(value: string | null) {
@@ -693,6 +698,119 @@ export default function JournalsPage() {
     setTradeStalkerSearch(createEntitySearchState());
     setTradeGroupSearch(createEntitySearchState());
     setViolationProfileSearch(createEntitySearchState());
+  }
+
+  function requestDirtyModalClose(isDirty: boolean, closeModal: () => void) {
+    if (!isDirty) {
+      closeModal();
+      return;
+    }
+
+    setConfirmDialog({
+      title: "Закрыть окно?",
+      message: "Вы уверены, что хотите закрыть окно?",
+      confirmLabel: "Закрыть",
+      cancelLabel: "Остаться",
+      confirmTone: "warning",
+      onConfirm: () => {
+        setConfirmDialog(null);
+        closeModal();
+      },
+    });
+  }
+
+  function handleModalBackdropMouseDown(event: MouseEvent<HTMLElement>, isDirty: boolean, closeModal: () => void) {
+    if (event.target === event.currentTarget) {
+      requestDirtyModalClose(isDirty, closeModal);
+    }
+  }
+
+  function getInitialTaskDraft() {
+    const task = editingTaskId ? tasks.find((currentTask) => currentTask.id === editingTaskId) : null;
+
+    if (!task) {
+      return createEmptyTaskDraft();
+    }
+
+    return {
+      assigneeMode: task.assigneeType,
+      stalkerId: task.stalkerId ?? "",
+      groupId: task.groupId ?? "",
+      manualAssigneeName: task.manualAssigneeName ?? "",
+      issuedAt: task.issuedAt,
+      dueAt: task.dueAt,
+      description: task.description,
+      reward: task.reward,
+      notes: task.notes,
+      issuedBy: task.issuedBy,
+      acceptedBy: task.acceptedBy ?? "",
+    };
+  }
+
+  function isTaskDraftDirty() {
+    return isDirtyValue(taskDraft, getInitialTaskDraft());
+  }
+
+  function isCompleteTaskDirty() {
+    return completeTaskAcceptedBy.trim().length > 0;
+  }
+
+  function getInitialTradeDraft() {
+    const operation = editingTradeId
+      ? tradeOperations.find((currentOperation) => currentOperation.id === editingTradeId)
+      : null;
+
+    if (!operation) {
+      return createEmptyTradeDraft(tradeModalType ?? "sale");
+    }
+
+    const firstItem = operation.items[0];
+
+    return {
+      type: operation.type,
+      participantMode: operation.subjectType,
+      stalkerId: operation.stalkerId ?? "",
+      groupId: operation.groupId ?? "",
+      manualParticipantName: operation.manualParticipantName ?? "",
+      itemName: firstItem?.name ?? "",
+      quantity: firstItem ? String(firstItem.quantity) : "1",
+      price: firstItem ? String(firstItem.price) : "",
+      issuedBy: operation.issuedBy,
+      notes: operation.notes,
+      operationDate: (operation.operationDate ?? operation.createdAt).slice(0, 10),
+    };
+  }
+
+  function isTradeDraftDirty() {
+    return isDirtyValue(tradeDraft, getInitialTradeDraft());
+  }
+
+  function getInitialViolationDraft() {
+    const violation = editingViolationId
+      ? violations.find((currentViolation) => currentViolation.id === editingViolationId)
+      : null;
+
+    if (!violation) {
+      return createEmptyViolationDraft();
+    }
+
+    return {
+      violatorType: violation.violatorType,
+      profileId: violation.profileId ?? "",
+      manualViolatorName: violation.manualViolatorName ?? "",
+      date: violation.date.slice(0, 10),
+      description: violation.description,
+      issuedBy: violation.issuedBy,
+      notes: violation.notes,
+    };
+  }
+
+  function isViolationDraftDirty() {
+    return isDirtyValue(violationDraft, getInitialViolationDraft());
+  }
+
+  function isViolationClosureDirty() {
+    return violationClosureNote.trim().length > 0;
   }
 
   function changeTaskAssigneeMode(mode: TaskAssigneeMode) {
@@ -1858,8 +1976,11 @@ export default function JournalsPage() {
       </section>
 
       {completingTaskId ? (
-        <div className="pda-modal-backdrop">
-          <form className="pda-modal task-modal task-complete-modal journal-action-modal" onSubmit={handleCompleteTaskSubmit}>
+        <div
+          className="pda-modal-backdrop"
+          onMouseDown={(event) => handleModalBackdropMouseDown(event, isCompleteTaskDirty(), closeCompleteTaskModal)}
+        >
+          <form className="pda-modal task-modal task-complete-modal journal-action-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleCompleteTaskSubmit}>
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>Зачёт задания</h1>
@@ -1892,7 +2013,11 @@ export default function JournalsPage() {
               {completeTaskMessage ? <p className="draft-message">{completeTaskMessage}</p> : null}
             </div>
             <div className="modal-actions">
-              <button className="command-row" onClick={closeCompleteTaskModal} type="button">
+              <button
+                className="command-row"
+                onClick={() => requestDirtyModalClose(isCompleteTaskDirty(), closeCompleteTaskModal)}
+                type="button"
+              >
                 Отмена
               </button>
               <button className="primary-command journal-modal-submit journal-modal-submit-confirm" type="submit">
@@ -1903,8 +2028,11 @@ export default function JournalsPage() {
         </div>
       ) : null}
       {isTaskModalOpen ? (
-        <div className="pda-modal-backdrop">
-          <form className="pda-modal task-modal journal-modal" onSubmit={handleTaskSubmit}>
+        <div
+          className="pda-modal-backdrop"
+          onMouseDown={(event) => handleModalBackdropMouseDown(event, isTaskDraftDirty(), closeTaskModal)}
+        >
+          <form className="pda-modal task-modal journal-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleTaskSubmit}>
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>{isEditingTask ? "Редактирование задания" : "Создание задания"}</h1>
@@ -2047,7 +2175,11 @@ export default function JournalsPage() {
             </div>
 
             <div className="modal-actions">
-              <button className="command-row" onClick={closeTaskModal} type="button">
+              <button
+                className="command-row"
+                onClick={() => requestDirtyModalClose(isTaskDraftDirty(), closeTaskModal)}
+                type="button"
+              >
                 Отмена
               </button>
               <button className="primary-command journal-modal-submit" type="submit">
@@ -2059,8 +2191,11 @@ export default function JournalsPage() {
       ) : null}
 
       {tradeModalType ? (
-        <div className="pda-modal-backdrop">
-          <form className="pda-modal task-modal journal-modal" onSubmit={handleTradeSubmit}>
+        <div
+          className="pda-modal-backdrop"
+          onMouseDown={(event) => handleModalBackdropMouseDown(event, isTradeDraftDirty(), closeTradeModal)}
+        >
+          <form className="pda-modal task-modal journal-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleTradeSubmit}>
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>
@@ -2218,7 +2353,11 @@ export default function JournalsPage() {
             </div>
 
             <div className="modal-actions">
-              <button className="command-row" onClick={closeTradeModal} type="button">
+              <button
+                className="command-row"
+                onClick={() => requestDirtyModalClose(isTradeDraftDirty(), closeTradeModal)}
+                type="button"
+              >
                 Отмена
               </button>
               <button className="primary-command journal-modal-submit" type="submit">
@@ -2234,8 +2373,11 @@ export default function JournalsPage() {
       ) : null}
 
       {isViolationModalOpen ? (
-        <div className="pda-modal-backdrop">
-          <form className="pda-modal task-modal journal-modal" onSubmit={handleViolationSubmit}>
+        <div
+          className="pda-modal-backdrop"
+          onMouseDown={(event) => handleModalBackdropMouseDown(event, isViolationDraftDirty(), closeViolationModal)}
+        >
+          <form className="pda-modal task-modal journal-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleViolationSubmit}>
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>{isEditingViolation ? "Редактирование нарушения" : "Оформление нарушения"}</h1>
@@ -2326,7 +2468,11 @@ export default function JournalsPage() {
             </div>
 
             <div className="modal-actions">
-              <button className="command-row" onClick={closeViolationModal} type="button">
+              <button
+                className="command-row"
+                onClick={() => requestDirtyModalClose(isViolationDraftDirty(), closeViolationModal)}
+                type="button"
+              >
                 Отмена
               </button>
               <button className="primary-command journal-modal-submit" type="submit">
@@ -2338,8 +2484,11 @@ export default function JournalsPage() {
       ) : null}
 
       {closingViolationId ? (
-        <div className="pda-modal-backdrop">
-          <form className="pda-modal task-complete-modal journal-action-modal" onSubmit={closeViolationRecord}>
+        <div
+          className="pda-modal-backdrop"
+          onMouseDown={(event) => handleModalBackdropMouseDown(event, isViolationClosureDirty(), closeCloseViolationModal)}
+        >
+          <form className="pda-modal task-complete-modal journal-action-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={closeViolationRecord}>
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>Закрыть нарушение</h1>
@@ -2374,7 +2523,11 @@ export default function JournalsPage() {
             </div>
 
             <div className="modal-actions">
-              <button className="command-row" onClick={closeCloseViolationModal} type="button">
+              <button
+                className="command-row"
+                onClick={() => requestDirtyModalClose(isViolationClosureDirty(), closeCloseViolationModal)}
+                type="button"
+              >
                 Отмена
               </button>
               <button className="primary-command journal-modal-submit journal-modal-submit-warning" type="submit">
@@ -2389,6 +2542,7 @@ export default function JournalsPage() {
           title={confirmDialog.title}
           message={confirmDialog.message}
           confirmLabel={confirmDialog.confirmLabel}
+          cancelLabel={confirmDialog.cancelLabel}
           confirmTone={confirmDialog.confirmTone}
           onCancel={() => setConfirmDialog(null)}
           onConfirm={() => {

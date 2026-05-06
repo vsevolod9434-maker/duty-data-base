@@ -9,7 +9,6 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 type AccessUserResponse = {
   login?: string | null;
   displayName?: string | null;
-  roleLabel?: string | null;
   email?: string | null;
 };
 
@@ -28,7 +27,6 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
   const [isStalkersMenuOpen, setIsStalkersMenuOpen] = useState(false);
   const [isDutyBlockedModalOpen, setIsDutyBlockedModalOpen] = useState(false);
   const [userLabel, setUserLabel] = useState("");
-  const [userRoleLabel, setUserRoleLabel] = useState("");
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const tabFromPath =
@@ -56,12 +54,10 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
 
         if (!isCancelled) {
           setUserLabel(user.displayName || user.login || user.email || "");
-          setUserRoleLabel(user.roleLabel || "");
         }
       } catch {
         if (!isCancelled) {
           setUserLabel("");
-          setUserRoleLabel("");
         }
       }
     }
@@ -216,9 +212,8 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
 
         <div className="pda-status registry-status">
           {userLabel ? (
-            <span className="pda-user-email" title={userRoleLabel ? `${userLabel} — ${userRoleLabel}` : userLabel}>
+            <span className="pda-user-email" title={userLabel}>
               {userLabel}
-              {userRoleLabel ? <small>{userRoleLabel}</small> : null}
             </span>
           ) : null}
           <button className="pda-signout-button" disabled={isSigningOut} onClick={signOut} type="button">
@@ -230,8 +225,8 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
         </div>
       </div>
       {isDutyBlockedModalOpen ? (
-        <div className="pda-modal-backdrop">
-          <div className="pda-modal task-modal">
+        <div className="pda-modal-backdrop" onMouseDown={() => setIsDutyBlockedModalOpen(false)}>
+          <div className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>Состав</h1>

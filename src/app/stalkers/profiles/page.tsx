@@ -382,6 +382,10 @@ function getComputedTaskMark(profileId: string, tasks: Task[], groups: StalkerGr
   return activeTasks.length > 0 ? ("active" as const) : ("none" as const);
 }
 
+function isDirtyValue(currentValue: unknown, initialValue: unknown) {
+  return JSON.stringify(currentValue) !== JSON.stringify(initialValue);
+}
+
 function getProfileServiceBadges({
   isInActiveGroup,
   computedTaskMark,
@@ -465,6 +469,7 @@ export default function StalkerProfilesPage() {
     title: string;
     message: string;
     confirmLabel: string;
+    cancelLabel?: string;
     variant?: "danger" | "default" | "warning";
     loading?: boolean;
     onConfirm: () => void | Promise<void>;
@@ -840,6 +845,144 @@ export default function StalkerProfilesPage() {
       event.preventDefault();
       applyGroupSearch();
     }
+  }
+
+  function requestDirtyModalClose(isDirty: boolean, closeModal: () => void) {
+    if (!isDirty) {
+      closeModal();
+      return;
+    }
+
+    setConfirmDialog({
+      title: "Закрыть окно?",
+      message: "Вы уверены, что хотите закрыть окно?",
+      confirmLabel: "Закрыть",
+      cancelLabel: "Остаться",
+      variant: "warning",
+      onConfirm: () => {
+        setConfirmDialog(null);
+        closeModal();
+      },
+    });
+  }
+
+  function handleModalBackdropMouseDown(
+    event: React.MouseEvent<HTMLElement>,
+    isDirty: boolean,
+    closeModal: () => void,
+  ) {
+    if (event.target === event.currentTarget) {
+      requestDirtyModalClose(isDirty, closeModal);
+    }
+  }
+
+  function getInitialProfileDraft() {
+    const profile = editingProfileId ? profiles.find((currentProfile) => currentProfile.id === editingProfileId) : null;
+
+    if (!profile) {
+      return emptyDraft;
+    }
+
+    return {
+      fullName: profile.fullName,
+      callsign: profile.callsign,
+      registryNumber: profile.registryNumber ?? "",
+      birthDate: normalizeDateInputValue(profile.birthDate),
+      affiliation: profile.affiliation ?? "",
+      photoUrl: profile.photoUrl ?? "",
+      appearance: profile.appearance,
+      notes: profile.notes,
+      status: profile.status,
+    };
+  }
+
+  function isProfileDraftDirty() {
+    return isDirtyValue(draft, getInitialProfileDraft());
+  }
+
+  function isProfileGroupDraftDirty() {
+    return isDirtyValue(groupMemberDraft, emptyGroupMemberDraft);
+  }
+
+  function isTaskDraftDirty() {
+    return isDirtyValue(taskDraft, createEmptyTaskDraft());
+  }
+
+  function getInitialEditTaskDraft() {
+    const task = editingTaskId ? tasks.find((currentTask) => currentTask.id === editingTaskId) : null;
+
+    if (!task) {
+      return createEmptyTaskDraft();
+    }
+
+    return {
+      issuedAt: task.issuedAt,
+      dueAt: task.dueAt,
+      description: task.description,
+      reward: task.reward,
+      notes: task.notes,
+      issuedBy: task.issuedBy,
+    };
+  }
+
+  function isEditTaskDraftDirty() {
+    return isDirtyValue(editTaskDraft, getInitialEditTaskDraft());
+  }
+
+  function isCompleteTaskDraftDirty() {
+    const task = completingTaskId ? tasks.find((currentTask) => currentTask.id === completingTaskId) : null;
+    return completeTaskDraft.acceptedBy !== (task?.acceptedBy ?? "");
+  }
+
+  function getInitialTradeDraft() {
+    const operation = editingTradeId
+      ? tradeOperations.find((currentOperation) => currentOperation.id === editingTradeId)
+      : null;
+
+    if (!operation) {
+      return createEmptyTradeDraft(tradeModalType ?? "sale");
+    }
+
+    const firstItem = operation.items[0];
+
+    return {
+      type: operation.type,
+      itemName: firstItem?.name ?? "",
+      quantity: firstItem ? String(firstItem.quantity) : "1",
+      price: firstItem ? String(firstItem.price) : "",
+      issuedBy: operation.issuedBy,
+      notes: operation.notes,
+      operationDate: operation.operationDate ?? operation.createdAt.slice(0, 10),
+    };
+  }
+
+  function isTradeDraftDirty() {
+    return isDirtyValue(tradeDraft, getInitialTradeDraft());
+  }
+
+  function getInitialViolationDraft() {
+    const violation = editingViolationId
+      ? violations.find((currentViolation) => currentViolation.id === editingViolationId)
+      : null;
+
+    if (!violation) {
+      return createEmptyViolationDraft();
+    }
+
+    return {
+      date: violation.date,
+      description: violation.description,
+      issuedBy: violation.issuedBy,
+      notes: violation.notes,
+    };
+  }
+
+  function isViolationDraftDirty() {
+    return isDirtyValue(violationDraft, getInitialViolationDraft());
+  }
+
+  function isViolationClosureDirty() {
+    return violationClosureNote.trim().length > 0;
   }
 
   function openCreateProfile() {
@@ -2172,8 +2315,11 @@ export default function StalkerProfilesPage() {
       </section>
 
       {isProfileModalOpen ? (
-        <div className="pda-modal-backdrop">
-          <form className="pda-modal" onSubmit={handleProfileSubmit}>
+        <div
+          className="pda-modal-backdrop"
+          onMouseDown={(event) => handleModalBackdropMouseDown(event, isProfileDraftDirty(), closeProfileModal)}
+        >
+          <form className="pda-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleProfileSubmit}>
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>{editingProfileId ? "Редактирование профиля" : "Создание профиля сталкера"}</h1>
@@ -2268,7 +2414,11 @@ export default function StalkerProfilesPage() {
             </div>
 
             <div className="modal-actions">
-              <button className="command-row" onClick={closeProfileModal} type="button">
+              <button
+                className="command-row"
+                onClick={() => requestDirtyModalClose(isProfileDraftDirty(), closeProfileModal)}
+                type="button"
+              >
                 Отмена
               </button>
               <button className="primary-command" disabled={isProfileSaving} type="submit">
@@ -2280,8 +2430,11 @@ export default function StalkerProfilesPage() {
       ) : null}
 
       {isProfileGroupModalOpen && selectedProfile ? (
-        <div className="pda-modal-backdrop">
-          <div className="pda-modal task-modal">
+        <div
+          className="pda-modal-backdrop"
+          onMouseDown={(event) => handleModalBackdropMouseDown(event, isProfileGroupDraftDirty(), closeProfileGroupModal)}
+        >
+          <div className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>Добавить в группу</h1>
@@ -2378,7 +2531,11 @@ export default function StalkerProfilesPage() {
             </div>
 
             <div className="modal-actions">
-              <button className="command-row" onClick={closeProfileGroupModal} type="button">
+              <button
+                className="command-row"
+                onClick={() => requestDirtyModalClose(isProfileGroupDraftDirty(), closeProfileGroupModal)}
+                type="button"
+              >
                 Отмена
               </button>
             </div>
@@ -2387,8 +2544,11 @@ export default function StalkerProfilesPage() {
       ) : null}
 
       {editingTaskId ? (
-        <div className="pda-modal-backdrop">
-          <form className="pda-modal task-modal" onSubmit={handleEditTaskSubmit}>
+        <div
+          className="pda-modal-backdrop"
+          onMouseDown={(event) => handleModalBackdropMouseDown(event, isEditTaskDraftDirty(), closeEditTaskDialog)}
+        >
+          <form className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleEditTaskSubmit}>
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>Редактирование задания</h1>
@@ -2445,7 +2605,11 @@ export default function StalkerProfilesPage() {
             </div>
 
             <div className="modal-actions">
-              <button className="command-row" onClick={closeEditTaskDialog} type="button">
+              <button
+                className="command-row"
+                onClick={() => requestDirtyModalClose(isEditTaskDraftDirty(), closeEditTaskDialog)}
+                type="button"
+              >
                 Отмена
               </button>
               <button className="primary-command" type="submit">
@@ -2457,8 +2621,11 @@ export default function StalkerProfilesPage() {
       ) : null}
 
       {completingTaskId ? (
-        <div className="pda-modal-backdrop">
-          <form className="pda-modal task-modal task-complete-modal" onSubmit={handleCompleteTaskSubmit}>
+        <div
+          className="pda-modal-backdrop"
+          onMouseDown={(event) => handleModalBackdropMouseDown(event, isCompleteTaskDraftDirty(), closeCompleteTaskDialog)}
+        >
+          <form className="pda-modal task-modal task-complete-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleCompleteTaskSubmit}>
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>Засчитать выполнение задания</h1>
@@ -2486,7 +2653,11 @@ export default function StalkerProfilesPage() {
             </div>
 
             <div className="modal-actions">
-              <button className="command-row" onClick={closeCompleteTaskDialog} type="button">
+              <button
+                className="command-row"
+                onClick={() => requestDirtyModalClose(isCompleteTaskDraftDirty(), closeCompleteTaskDialog)}
+                type="button"
+              >
                 Отмена
               </button>
               <button className="primary-command" type="submit">
@@ -2498,8 +2669,11 @@ export default function StalkerProfilesPage() {
       ) : null}
 
       {isTaskOpen && selectedProfile ? (
-        <div className="pda-modal-backdrop">
-          <form className="pda-modal task-modal" onSubmit={handleTaskSubmit}>
+        <div
+          className="pda-modal-backdrop"
+          onMouseDown={(event) => handleModalBackdropMouseDown(event, isTaskDraftDirty(), closeTaskDialog)}
+        >
+          <form className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleTaskSubmit}>
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>Выдача задания</h1>
@@ -2556,7 +2730,11 @@ export default function StalkerProfilesPage() {
             </div>
 
             <div className="modal-actions">
-              <button className="command-row" onClick={closeTaskDialog} type="button">
+              <button
+                className="command-row"
+                onClick={() => requestDirtyModalClose(isTaskDraftDirty(), closeTaskDialog)}
+                type="button"
+              >
                 Отмена
               </button>
               <button className="primary-command" type="submit">
@@ -2568,8 +2746,11 @@ export default function StalkerProfilesPage() {
       ) : null}
 
       {tradeModalType && selectedProfile ? (
-        <div className="pda-modal-backdrop">
-          <form className="pda-modal task-modal" onSubmit={handleTradeSubmit}>
+        <div
+          className="pda-modal-backdrop"
+          onMouseDown={(event) => handleModalBackdropMouseDown(event, isTradeDraftDirty(), closeTradeModal)}
+        >
+          <form className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleTradeSubmit}>
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>
@@ -2657,7 +2838,11 @@ export default function StalkerProfilesPage() {
             </div>
 
             <div className="modal-actions">
-              <button className="command-row" onClick={closeTradeModal} type="button">
+              <button
+                className="command-row"
+                onClick={() => requestDirtyModalClose(isTradeDraftDirty(), closeTradeModal)}
+                type="button"
+              >
                 Отмена
               </button>
               <button className="primary-command" type="submit">
@@ -2673,8 +2858,11 @@ export default function StalkerProfilesPage() {
       ) : null}
 
       {isViolationModalOpen && selectedProfile ? (
-        <div className="pda-modal-backdrop">
-          <form className="pda-modal task-modal" onSubmit={handleViolationSubmit}>
+        <div
+          className="pda-modal-backdrop"
+          onMouseDown={(event) => handleModalBackdropMouseDown(event, isViolationDraftDirty(), closeViolationModal)}
+        >
+          <form className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleViolationSubmit}>
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>{editingViolationId ? "Редактирование нарушения" : "Оформление нарушения"}</h1>
@@ -2714,7 +2902,11 @@ export default function StalkerProfilesPage() {
             </div>
 
             <div className="modal-actions">
-              <button className="command-row" onClick={closeViolationModal} type="button">
+              <button
+                className="command-row"
+                onClick={() => requestDirtyModalClose(isViolationDraftDirty(), closeViolationModal)}
+                type="button"
+              >
                 Отмена
               </button>
               <button className="primary-command" type="submit">
@@ -2726,8 +2918,11 @@ export default function StalkerProfilesPage() {
       ) : null}
 
       {closingViolationId ? (
-        <div className="pda-modal-backdrop">
-          <form className="pda-modal task-complete-modal" onSubmit={closeViolationRecord}>
+        <div
+          className="pda-modal-backdrop"
+          onMouseDown={(event) => handleModalBackdropMouseDown(event, isViolationClosureDirty(), closeCloseViolationModal)}
+        >
+          <form className="pda-modal task-complete-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={closeViolationRecord}>
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>Закрыть нарушение</h1>
@@ -2765,7 +2960,11 @@ export default function StalkerProfilesPage() {
             </div>
 
             <div className="modal-actions">
-              <button className="command-row" onClick={closeCloseViolationModal} type="button">
+              <button
+                className="command-row"
+                onClick={() => requestDirtyModalClose(isViolationClosureDirty(), closeCloseViolationModal)}
+                type="button"
+              >
                 Отмена
               </button>
               <button className="primary-command" type="submit">
@@ -2781,6 +2980,7 @@ export default function StalkerProfilesPage() {
           title={confirmDialog.title}
           message={confirmDialog.message}
           confirmLabel={confirmDialog.confirmLabel}
+          cancelLabel={confirmDialog.cancelLabel}
           variant={confirmDialog.variant}
           loading={confirmDialog.loading || isProfileDeleting}
           onCancel={() => setConfirmDialog(null)}
