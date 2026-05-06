@@ -1,3 +1,4 @@
+import { requireApiAuth } from "@/lib/auth/require-api-auth";
 import { getPrismaClient } from "@/lib/prisma";
 import { createSystemDate } from "@/lib/stalker-utils";
 import {
@@ -20,6 +21,12 @@ const groupInclude = {
 } as const;
 
 export async function GET() {
+  const auth = await requireApiAuth();
+
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   const prisma = getPrismaClient();
   const groups = await prisma.stalkerGroup.findMany({
     include: groupInclude,
@@ -30,6 +37,12 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireApiAuth();
+
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   const payload = (await request.json().catch(() => null)) as StalkerGroupPayload | null;
 
   if (!payload || typeof payload !== "object") {

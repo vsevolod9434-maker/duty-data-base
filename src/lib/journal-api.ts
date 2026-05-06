@@ -1,12 +1,8 @@
+import { readClientApiError } from "@/lib/client-api-errors";
 import type { Task, TradeOperation, Violation } from "@/lib/types";
 
-type ApiErrorPayload = {
-  error?: unknown;
-};
-
 async function readApiError(response: Response, fallbackMessage: string) {
-  const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
-  return typeof payload?.error === "string" ? payload.error : fallbackMessage;
+  return readClientApiError(response, fallbackMessage);
 }
 
 async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit) {

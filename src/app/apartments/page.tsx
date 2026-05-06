@@ -5,6 +5,7 @@ import type { FormEvent, KeyboardEvent, MouseEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
 import { addActivityLogEntry } from "@/lib/activity-log";
+import { readClientApiError } from "@/lib/client-api-errors";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Pagination } from "@/components/ui/Pagination";
 import {
@@ -201,13 +202,7 @@ function normalizeApiApartment(apartment: ApartmentApiResponse): Apartment {
 
 async function readApiError(response: Response) {
   const fallbackMessage = "Не удалось выполнить операцию. Повторите попытку позже.";
-
-  try {
-    const payload = (await response.json()) as { error?: unknown };
-    return typeof payload.error === "string" ? payload.error : fallbackMessage;
-  } catch {
-    return fallbackMessage;
-  }
+  return readClientApiError(response, fallbackMessage);
 }
 
 async function fetchStalkerProfiles() {

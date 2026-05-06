@@ -1,3 +1,4 @@
+import { requireApiAuth } from "@/lib/auth/require-api-auth";
 import { getPrismaClient } from "@/lib/prisma";
 import { createSystemDate } from "@/lib/stalker-utils";
 import {
@@ -24,6 +25,12 @@ function isNotFoundError(error: unknown) {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
+  const auth = await requireApiAuth();
+
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   const { id } = await context.params;
   const payload = (await request.json().catch(() => null)) as TaskPayload | null;
 
@@ -170,6 +177,12 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
+  const auth = await requireApiAuth();
+
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   const { id } = await context.params;
 
   try {

@@ -1,3 +1,4 @@
+import { requireApiAuth } from "@/lib/auth/require-api-auth";
 import { getPrismaClient } from "@/lib/prisma";
 import { createSystemDate } from "@/lib/stalker-utils";
 import {
@@ -17,6 +18,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const auth = await requireApiAuth();
+
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   const prisma = getPrismaClient();
   const tasks = await prisma.task.findMany({
     orderBy: { issuedAt: "desc" },
@@ -26,6 +33,12 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireApiAuth();
+
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   const payload = (await request.json().catch(() => null)) as TaskPayload | null;
 
   if (!payload || typeof payload !== "object") {

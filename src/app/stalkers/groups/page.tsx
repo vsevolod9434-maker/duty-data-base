@@ -7,6 +7,7 @@ import { PdaTopbar } from "@/components/layout/PdaTopbar";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { getTaskActionVisibility, TaskRecordCard } from "@/components/ui/TaskRecordCard";
 import { addActivityLogEntry } from "@/lib/activity-log";
+import { readClientApiError } from "@/lib/client-api-errors";
 import { createTask, deleteTaskRecord, fetchTasks, updateTask } from "@/lib/journal-api";
 import {
   stalkerGroups as initialStalkerGroups,
@@ -191,13 +192,7 @@ function normalizeApiGroup(group: StalkerGroupApiResponse): StalkerGroup {
 
 async function readApiError(response: Response) {
   const fallbackMessage = "Не удалось выполнить операцию. Повторите попытку позже.";
-
-  try {
-    const payload = (await response.json()) as { error?: unknown };
-    return typeof payload.error === "string" ? payload.error : fallbackMessage;
-  } catch {
-    return fallbackMessage;
-  }
+  return readClientApiError(response, fallbackMessage);
 }
 
 async function fetchStalkerProfiles() {

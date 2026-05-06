@@ -1,3 +1,4 @@
+import { requireApiAuth } from "@/lib/auth/require-api-auth";
 import { getPrismaClient } from "@/lib/prisma";
 import { createDefaultApartments } from "@/lib/apartment-utils";
 import { mapApartmentToResponse } from "../apartment-route-utils";
@@ -15,6 +16,12 @@ const apartmentInclude = {
 } as const;
 
 export async function POST() {
+  const auth = await requireApiAuth();
+
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   const prisma = getPrismaClient();
   const existingCount = await prisma.apartment.count();
 

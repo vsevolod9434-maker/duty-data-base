@@ -9,6 +9,7 @@ import { getTaskActionVisibility, TaskRecordCard } from "@/components/ui/TaskRec
 import { TradeRecordCard } from "@/components/ui/TradeRecordCard";
 import { ViolationRecordCard } from "@/components/ui/ViolationRecordCard";
 import { addActivityLogEntry } from "@/lib/activity-log";
+import { readClientApiError } from "@/lib/client-api-errors";
 import {
   createTask,
   createTradeOperation,
@@ -144,13 +145,7 @@ function normalizeDateInputValue(value: string) {
 
 async function readApiError(response: Response) {
   const fallbackMessage = "Не удалось выполнить операцию. Повторите попытку позже.";
-
-  try {
-    const payload = (await response.json()) as { error?: unknown };
-    return typeof payload.error === "string" ? payload.error : fallbackMessage;
-  } catch {
-    return fallbackMessage;
-  }
+  return readClientApiError(response, fallbackMessage);
 }
 
 async function fetchStalkerProfiles() {

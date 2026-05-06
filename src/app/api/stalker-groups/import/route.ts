@@ -1,3 +1,4 @@
+import { requireApiAuth } from "@/lib/auth/require-api-auth";
 import { getPrismaClient } from "@/lib/prisma";
 import { createSystemDate } from "@/lib/stalker-utils";
 import {
@@ -21,6 +22,12 @@ const groupInclude = {
 } as const;
 
 export async function POST(request: Request) {
+  const auth = await requireApiAuth();
+
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   const payload = (await request.json().catch(() => null)) as unknown;
 
   if (!Array.isArray(payload)) {
