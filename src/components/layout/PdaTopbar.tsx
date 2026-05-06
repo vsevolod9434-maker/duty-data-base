@@ -6,6 +6,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { navigation } from "@/lib/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
+type AccessUserResponse = {
+  login?: string | null;
+  displayName?: string | null;
+  roleLabel?: string | null;
+  email?: string | null;
+};
+
 type PdaTopbarProps = {
   activeLabel: string;
   activeSubtab?: string;
@@ -20,7 +27,8 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
   const [moscowTime, setMoscowTime] = useState<string | null>(null);
   const [isStalkersMenuOpen, setIsStalkersMenuOpen] = useState(false);
   const [isDutyBlockedModalOpen, setIsDutyBlockedModalOpen] = useState(false);
-  const [userEmail, setUserEmail] = useState("");
+  const [userLabel, setUserLabel] = useState("");
+  const [userRoleLabel, setUserRoleLabel] = useState("");
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const tabFromPath =
@@ -38,17 +46,22 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
 
     async function loadUser() {
       try {
-        const supabase = createSupabaseBrowserClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        const response = await fetch("/api/auth/me");
+
+        if (!response.ok) {
+          return;
+        }
+
+        const user = (await response.json()) as AccessUserResponse;
 
         if (!isCancelled) {
-          setUserEmail(user?.email ?? "");
+          setUserLabel(user.displayName || user.login || user.email || "");
+          setUserRoleLabel(user.roleLabel || "");
         }
       } catch {
         if (!isCancelled) {
-          setUserEmail("");
+          setUserLabel("");
+          setUserRoleLabel("");
         }
       }
     }
@@ -202,7 +215,12 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
         </nav>
 
         <div className="pda-status registry-status">
-          {userEmail ? <span className="pda-user-email">{userEmail}</span> : null}
+          {userLabel ? (
+            <span className="pda-user-email" title={userRoleLabel ? `${userLabel} — ${userRoleLabel}` : userLabel}>
+              {userLabel}
+              {userRoleLabel ? <small>{userRoleLabel}</small> : null}
+            </span>
+          ) : null}
           <button className="pda-signout-button" disabled={isSigningOut} onClick={signOut} type="button">
             {isSigningOut ? "Выход..." : "Выйти"}
           </button>

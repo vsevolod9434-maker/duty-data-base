@@ -2,11 +2,15 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+
+type LoginResponse = {
+  ok?: boolean;
+  error?: string;
+};
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -14,10 +18,10 @@ export default function LoginPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const normalizedEmail = email.trim();
+    const normalizedLogin = login.trim();
 
-    if (!normalizedEmail) {
-      setMessage("Введите email.");
+    if (!normalizedLogin) {
+      setMessage("Введите логин.");
       return;
     }
 
@@ -30,21 +34,22 @@ export default function LoginPage() {
     setMessage("");
 
     try {
-      const supabase = createSupabaseBrowserClient();
-      const { error } = await supabase.auth.signInWithPassword({
-        email: normalizedEmail,
-        password,
+      const response = await fetch("/api/auth/login", {
+        body: JSON.stringify({ login: normalizedLogin, password }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
       });
+      const payload = (await response.json().catch(() => null)) as LoginResponse | null;
 
-      if (error) {
-        setMessage("Не удалось выполнить вход. Проверьте данные.");
+      if (!response.ok || !payload?.ok) {
+        setMessage(payload?.error || "Не удалось выполнить вход. Проверьте логин и пароль.");
         return;
       }
 
       router.replace("/");
       router.refresh();
     } catch {
-      setMessage("Не удалось выполнить вход. Проверьте данные.");
+      setMessage("Не удалось выполнить вход. Проверьте логин и пароль.");
     } finally {
       setIsLoading(false);
     }
@@ -62,14 +67,14 @@ export default function LoginPage() {
 
           <form className="login-form" onSubmit={handleSubmit}>
             <label>
-              <span>Email</span>
+              <span>Логин</span>
               <input
-                autoComplete="email"
+                autoComplete="username"
                 disabled={isLoading}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="name@example.com"
-                type="email"
-                value={email}
+                onChange={(event) => setLogin(event.target.value)}
+                placeholder="Введите логин"
+                type="text"
+                value={login}
               />
             </label>
 

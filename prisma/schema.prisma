@@ -209,6 +209,29 @@ model ActivityLog {
   @@index([type])
 }
 
+model AccessUser {
+  id              String         @id @default(cuid())
+  authUserId      String         @unique
+  authEmail       String         @unique
+  login           String
+  normalizedLogin String         @unique
+  displayName     String?
+  role            AccessUserRole @default(regular)
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([role])
+  @@index([isActive])
+}
+
+enum AccessUserRole {
+  system_admin
+  officer
+  manager
+  regular
+}
+
 enum StalkerProfileStatus {
   active
   archive

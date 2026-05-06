@@ -10586,9 +10586,7 @@ body::after,
 
 .login-page {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 18% 18%, rgba(130, 24, 31, 0.28), transparent 34%),
-    linear-gradient(135deg, #090b0d 0%, #15181b 46%, #060708 100%);
+  background: #08090a;
   color: #f1eee7;
   display: grid;
   place-items: center;
@@ -10600,9 +10598,9 @@ body::after,
 }
 
 .login-card {
-  border: 1px solid rgba(151, 43, 49, 0.55);
-  background: linear-gradient(180deg, rgba(35, 38, 41, 0.96), rgba(18, 20, 22, 0.98));
-  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.56), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(110, 113, 111, 0.22);
+  background: linear-gradient(180deg, rgba(25, 27, 29, 0.98), rgba(13, 15, 16, 0.98));
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   padding: 2rem;
 }
 
@@ -10650,11 +10648,20 @@ body::after,
 
 .login-form input {
   border: 1px solid rgba(159, 154, 143, 0.22);
-  background: rgba(7, 9, 10, 0.74);
+  background: #090b0c;
   color: #f1eee7;
   font: inherit;
   outline: none;
   padding: 0.82rem 0.95rem;
+}
+
+.login-form input:-webkit-autofill,
+.login-form input:-webkit-autofill:hover,
+.login-form input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #f1eee7;
+  box-shadow: 0 0 0 1000px #090b0c inset;
+  caret-color: #f1eee7;
+  transition: background-color 9999s ease-in-out 0s;
 }
 
 .login-form input:focus {
@@ -10690,10 +10697,21 @@ body::after,
 
 .pda-user-email {
   color: #d8d2c8;
+  display: grid;
+  gap: 0.05rem;
+  line-height: 1.05;
   max-width: 220px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.pda-user-email small {
+  color: #9c958b;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pda-signout-button {

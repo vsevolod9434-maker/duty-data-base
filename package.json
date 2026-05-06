@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
+    "access-user:create": "tsx scripts/create-access-user.ts",
     "check:encoding": "node scripts/check-text-encoding.mjs"
   },
   "dependencies": {
