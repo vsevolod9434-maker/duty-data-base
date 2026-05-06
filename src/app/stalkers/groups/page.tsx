@@ -190,7 +190,7 @@ function normalizeApiGroup(group: StalkerGroupApiResponse): StalkerGroup {
 }
 
 async function readApiError(response: Response) {
-  const fallbackMessage = "Сервер вернул ошибку.";
+  const fallbackMessage = "Не удалось выполнить операцию. Повторите попытку позже.";
 
   try {
     const payload = (await response.json()) as { error?: unknown };
@@ -351,16 +351,14 @@ export default function StalkerGroupsPage() {
           }
 
           writeStoredCollection(STALKER_TASKS_STORAGE_KEY, serverTasks);
-        } catch (error) {
+        } catch {
           if (isCancelled) {
             return;
           }
 
           setProfiles(localProfiles);
           setGroupLoadMessage(
-            error instanceof Error
-              ? `Не удалось загрузить группы из базы данных: ${error.message}`
-              : "Не удалось загрузить группы из базы данных.",
+            "Не удалось загрузить группы.",
           );
 
           if (localGroups.length > 0) {
@@ -659,9 +657,9 @@ export default function StalkerGroupsPage() {
         status: "OK",
         description: profile ? getProfileTitle(profile) : profileId,
       });
-    } catch (error) {
+    } catch {
       setMemberFormMessage(
-        error instanceof Error ? `Не удалось добавить участника: ${error.message}` : "Не удалось добавить участника.",
+        "Не удалось добавить участника.",
       );
     } finally {
       setIsGroupSaving(false);
@@ -709,9 +707,9 @@ export default function StalkerGroupsPage() {
         status: "OK",
         description: profile ? getProfileTitle(profile) : "Профиль не найден",
       });
-    } catch (error) {
+    } catch {
       setMemberRoleMessage(
-        error instanceof Error ? `Не удалось обновить роль: ${error.message}` : "Не удалось обновить роль.",
+        "Не удалось обновить роль.",
       );
     } finally {
       setIsGroupSaving(false);
@@ -743,9 +741,9 @@ export default function StalkerGroupsPage() {
         status: "WARN",
         description: profile ? getProfileTitle(profile) : "Профиль не найден",
       });
-    } catch (error) {
+    } catch {
       setGroupActionMessage(
-        error instanceof Error ? `Не удалось исключить участника: ${error.message}` : "Не удалось исключить участника.",
+        "Не удалось исключить участника.",
       );
     } finally {
       setIsGroupSaving(false);
@@ -814,7 +812,7 @@ export default function StalkerGroupsPage() {
       setSelectedGroupId(newGroup.id);
       setActiveGroupTab("Состав");
       setGroupListTab(newGroup.status);
-      setTableMessage("Группа создана в базе данных.");
+      setTableMessage("Группа создана.");
       addActivityLogEntry({
         type: "group",
         title: `Создана группа: ${name}`,
@@ -824,9 +822,9 @@ export default function StalkerGroupsPage() {
 
     setGroupPage(1);
     closeGroupModal();
-    } catch (error) {
+    } catch {
       setFormMessage(
-        error instanceof Error ? `Не удалось сохранить группу: ${error.message}` : "Не удалось сохранить группу.",
+        "Не удалось сохранить группу.",
       );
     } finally {
       setIsGroupSaving(false);
@@ -866,9 +864,9 @@ export default function StalkerGroupsPage() {
             : `Группа возвращена из архива: ${group.name}`,
         status: status === "archive" ? "WARN" : "OK",
       });
-    } catch (error) {
+    } catch {
       setGroupActionMessage(
-        error instanceof Error ? `Не удалось изменить статус группы: ${error.message}` : "Не удалось изменить статус группы.",
+        "Не удалось изменить статус группы.",
       );
     } finally {
       setIsGroupSaving(false);
@@ -894,15 +892,15 @@ export default function StalkerGroupsPage() {
       setSelectedGroupId("");
       setActiveGroupTab("");
       setGroupPage(1);
-      setTableMessage("Группа удалена из базы данных. Профили участников не изменены.");
+      setTableMessage("Группа удалена. Профили участников не изменены.");
       addActivityLogEntry({
         type: "group",
         title: `Группа удалена: ${group?.name ?? "Без названия"}`,
         status: "WARN",
       });
-    } catch (error) {
+    } catch {
       setGroupActionMessage(
-        error instanceof Error ? `Не удалось удалить группу: ${error.message}` : "Не удалось удалить группу.",
+        "Не удалось удалить группу.",
       );
     } finally {
       setIsGroupDeleting(false);
@@ -938,12 +936,12 @@ export default function StalkerGroupsPage() {
       setGroupPage(1);
       setTableMessage(
         payload.skippedMembers && payload.skippedMembers > 0
-          ? `Локальные группы импортированы. Пропущено участников без профиля: ${payload.skippedMembers}.`
-          : "Локальные группы импортированы в базу данных.",
+          ? `Записи групп импортированы. Пропущено участников без профиля: ${payload.skippedMembers}.`
+          : "Записи групп импортированы.",
       );
-    } catch (error) {
+    } catch {
       setGroupActionMessage(
-        error instanceof Error ? `Не удалось импортировать локальные группы: ${error.message}` : "Не удалось импортировать локальные группы.",
+        "Не удалось выполнить импорт групп.",
       );
     } finally {
       setIsGroupImporting(false);
@@ -1061,8 +1059,8 @@ export default function StalkerGroupsPage() {
         acceptedBy: groupTaskDraft.status === "completed" ? acceptedBy : null,
         completedAt: groupTaskDraft.status === "completed" ? currentTask?.completedAt || getSystemTimestamp() : null,
         status: groupTaskDraft.status,
-      }).catch((error) => {
-        setGroupTaskFormMessage(error instanceof Error ? error.message : "Не удалось сохранить групповое задание.");
+      }).catch(() => {
+        setGroupTaskFormMessage("Не удалось сохранить групповое задание.");
         return null;
       });
 
@@ -1095,8 +1093,8 @@ export default function StalkerGroupsPage() {
       acceptedBy: groupTaskDraft.status === "completed" ? acceptedBy : null,
       completedAt,
       status: groupTaskDraft.status,
-    }).catch((error) => {
-      setGroupTaskFormMessage(error instanceof Error ? error.message : "Не удалось создать групповое задание.");
+    }).catch(() => {
+      setGroupTaskFormMessage("Не удалось создать групповое задание.");
       return null;
     });
 
@@ -1139,8 +1137,8 @@ export default function StalkerGroupsPage() {
       acceptedBy: normalizedAcceptedBy,
       completedAt: getSystemTimestamp(),
       status: "completed",
-    }).catch((error) => {
-      setCompleteGroupTaskMessage(error instanceof Error ? error.message : "Не удалось засчитать задание.");
+    }).catch(() => {
+      setCompleteGroupTaskMessage("Не удалось засчитать задание.");
       return null;
     });
 
@@ -1166,8 +1164,8 @@ export default function StalkerGroupsPage() {
   async function cancelGroupTask(taskId: string) {
     const task = tasks.find((currentTask) => currentTask.id === taskId);
 
-    const updatedTask = await updateTask(taskId, { status: "cancelled" }).catch((error) => {
-      setTableMessage(error instanceof Error ? error.message : "Не удалось отменить групповое задание.");
+    const updatedTask = await updateTask(taskId, { status: "cancelled" }).catch(() => {
+      setTableMessage("Не удалось отменить групповое задание.");
       return null;
     });
 
@@ -1273,15 +1271,15 @@ export default function StalkerGroupsPage() {
                 {tableMessage ? <p className="table-message">{tableMessage}</p> : null}
                 {localImportGroups.length > 0 ? (
                   <div className="empty-state compact-empty-state">
-                    <p>Найдены локальные группы.</p>
-                    <span>Можно импортировать {localImportGroups.length} записей в базу данных. Локальная копия не будет удалена.</span>
+                    <p>Найдены записи групп для импорта.</p>
+                    <span>Можно импортировать {localImportGroups.length} записей в базу учёта. </span>
                     <button
                       className="primary-command"
                       disabled={isGroupImporting}
                       onClick={importLocalGroups}
                       type="button"
                     >
-                      {isGroupImporting ? "Импорт..." : "Импортировать в базу данных"}
+                      {isGroupImporting ? "Импорт..." : "Импортировать записи"}
                     </button>
                   </div>
                 ) : null}
@@ -1289,7 +1287,7 @@ export default function StalkerGroupsPage() {
                 <div className="profile-list">
                   {!isStorageReady || isGroupLoading ? (
                     <div className="empty-state">
-                      <p>Загрузка групп из базы данных...</p>
+                      <p>Загрузка групп...</p>
                     </div>
                   ) : paginatedGroups.items.length > 0 ? (
                     paginatedGroups.items.map((group) => (
@@ -1324,7 +1322,7 @@ export default function StalkerGroupsPage() {
               <section className="profile-column detail-host-column">
                 {!isStorageReady || isGroupLoading ? (
                   <div className="empty-state">
-                    <p>Загрузка групп из базы данных...</p>
+                    <p>Загрузка групп...</p>
                   </div>
                 ) : selectedGroup ? (
                   <div className="profile-detail">

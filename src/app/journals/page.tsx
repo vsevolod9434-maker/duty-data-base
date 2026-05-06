@@ -432,15 +432,13 @@ export default function JournalsPage() {
           writeStoredCollection(STALKER_TASKS_STORAGE_KEY, serverTasks);
           writeStoredCollection(TRADE_OPERATIONS_STORAGE_KEY, serverTradeOperations);
           writeStoredCollection(VIOLATIONS_STORAGE_KEY, serverViolations);
-        } catch (error) {
+        } catch {
           if (isCancelled) {
             return;
           }
 
           setJournalLoadMessage(
-            error instanceof Error
-              ? `Не удалось загрузить журналы из базы данных: ${error.message}`
-              : "Не удалось загрузить журналы из базы данных.",
+            "Не удалось загрузить журналы.",
           );
         } finally {
           if (!isCancelled) {
@@ -520,10 +518,10 @@ export default function JournalsPage() {
       setJournalImportMessage(
         result.skippedLinks
           ? `Задания импортированы. Записей с отсутствующими связями: ${result.skippedLinks}.`
-          : "Задания импортированы в базу данных.",
+          : "Задания импортированы.",
       );
-    } catch (error) {
-      setJournalImportMessage(error instanceof Error ? error.message : "Не удалось импортировать задания.");
+    } catch {
+      setJournalImportMessage("Не удалось выполнить импорт заданий.");
     }
   }
 
@@ -536,10 +534,10 @@ export default function JournalsPage() {
       setJournalImportMessage(
         result.skippedLinks
           ? `Торговые операции импортированы. Записей с отсутствующими связями: ${result.skippedLinks}.`
-          : "Торговые операции импортированы в базу данных.",
+          : "Торговые операции импортированы.",
       );
-    } catch (error) {
-      setJournalImportMessage(error instanceof Error ? error.message : "Не удалось импортировать торговые операции.");
+    } catch {
+      setJournalImportMessage("Не удалось выполнить импорт торговых операций.");
     }
   }
 
@@ -552,10 +550,10 @@ export default function JournalsPage() {
       setJournalImportMessage(
         result.skippedLinks
           ? `Нарушения импортированы. Записей с отсутствующими связями: ${result.skippedLinks}.`
-          : "Нарушения импортированы в базу данных.",
+          : "Нарушения импортированы.",
       );
-    } catch (error) {
-      setJournalImportMessage(error instanceof Error ? error.message : "Не удалось импортировать нарушения.");
+    } catch {
+      setJournalImportMessage("Не удалось выполнить импорт нарушений.");
     }
   }
 
@@ -966,8 +964,8 @@ export default function JournalsPage() {
         issuedBy: tradeDraft.issuedBy.trim(),
         notes: tradeDraft.notes.trim(),
         operationDate: tradeDraft.operationDate,
-      }).catch((error) => {
-        setTradeFormMessage(error instanceof Error ? error.message : "Не удалось сохранить торговую операцию.");
+      }).catch(() => {
+        setTradeFormMessage("Не удалось сохранить торговую операцию.");
         return null;
       });
 
@@ -1041,8 +1039,8 @@ export default function JournalsPage() {
       issuedBy: tradeDraft.issuedBy.trim(),
       notes: tradeDraft.notes.trim(),
       operationDate: tradeDraft.operationDate,
-    }).catch((error) => {
-      setTradeFormMessage(error instanceof Error ? error.message : "Не удалось сохранить торговую операцию.");
+    }).catch(() => {
+      setTradeFormMessage("Не удалось сохранить торговую операцию.");
       return null;
     });
 
@@ -1119,8 +1117,8 @@ export default function JournalsPage() {
         description,
         issuedBy: violationDraft.issuedBy.trim(),
         notes: violationDraft.notes.trim(),
-      }).catch((error) => {
-        setViolationFormMessage(error instanceof Error ? error.message : "Не удалось сохранить нарушение.");
+      }).catch(() => {
+        setViolationFormMessage("Не удалось сохранить нарушение.");
         return null;
       });
 
@@ -1173,8 +1171,8 @@ export default function JournalsPage() {
       description,
       issuedBy: violationDraft.issuedBy.trim(),
       notes: violationDraft.notes.trim(),
-    }).catch((error) => {
-      setViolationFormMessage(error instanceof Error ? error.message : "Не удалось сохранить нарушение.");
+    }).catch(() => {
+      setViolationFormMessage("Не удалось сохранить нарушение.");
       return null;
     });
 
@@ -1229,8 +1227,8 @@ export default function JournalsPage() {
       status: "closed",
       closedAt: getSystemTimestamp(),
       closureNote,
-    }).catch((error) => {
-      setViolationClosureMessage(error instanceof Error ? error.message : "Не удалось погасить нарушение.");
+    }).catch(() => {
+      setViolationClosureMessage("Не удалось погасить нарушение.");
       return null;
     });
 
@@ -1326,8 +1324,8 @@ export default function JournalsPage() {
         notes: taskDraft.notes.trim(),
         issuedBy: taskDraft.issuedBy.trim(),
         acceptedBy: currentTask?.status === "completed" ? currentTask.acceptedBy : acceptedBy || null,
-      }).catch((error) => {
-        setTaskFormMessage(error instanceof Error ? error.message : "Не удалось сохранить задание.");
+      }).catch(() => {
+        setTaskFormMessage("Не удалось сохранить задание.");
         return null;
       });
 
@@ -1414,8 +1412,8 @@ export default function JournalsPage() {
       acceptedBy: null,
       completedAt: null,
       status: "active",
-    }).catch((error) => {
-      setTaskFormMessage(error instanceof Error ? error.message : "Не удалось создать задание.");
+    }).catch(() => {
+      setTaskFormMessage("Не удалось создать задание.");
       return null;
     });
 
@@ -1448,8 +1446,8 @@ export default function JournalsPage() {
       acceptedBy: normalizedAcceptedBy,
       completedAt: getSystemTimestamp(),
       status: "completed",
-    }).catch((error) => {
-      setCompleteTaskMessage(error instanceof Error ? error.message : "Не удалось завершить задание.");
+    }).catch(() => {
+      setCompleteTaskMessage("Не удалось завершить задание.");
       return null;
     });
 
@@ -1468,8 +1466,8 @@ export default function JournalsPage() {
   }
   async function cancelTask(taskId: string) {
     const task = tasks.find((currentTask) => currentTask.id === taskId);
-    const updatedTask = await updateTask(taskId, { status: "cancelled" }).catch((error) => {
-      setTaskTableMessage(error instanceof Error ? error.message : "Не удалось отменить задание.");
+    const updatedTask = await updateTask(taskId, { status: "cancelled" }).catch(() => {
+      setTaskTableMessage("Не удалось отменить задание.");
       return null;
     });
 
@@ -1546,7 +1544,7 @@ export default function JournalsPage() {
 
         {!isStorageReady ? (
           <div className="empty-state">
-            <p>Загрузка локальных данных...</p>
+            <p>Загрузка записей...</p>
           </div>
         ) : (
           <>
@@ -1631,7 +1629,7 @@ export default function JournalsPage() {
 
         {!isStorageReady ? (
           <div className="empty-state">
-            <p>Загрузка локальных данных...</p>
+            <p>Загрузка записей...</p>
           </div>
         ) : (
           <>
@@ -1697,7 +1695,7 @@ export default function JournalsPage() {
 
         {!isStorageReady ? (
           <div className="empty-state">
-            <p>Загрузка локальных данных...</p>
+            <p>Загрузка записей...</p>
           </div>
         ) : (
           <>
@@ -1830,24 +1828,24 @@ export default function JournalsPage() {
                 ))}
               </div>
 
-              {isJournalLoading ? <p className="draft-message">Загрузка журналов из базы данных...</p> : null}
+              {isJournalLoading ? <p className="draft-message">Загрузка журналов...</p> : null}
               {journalLoadMessage ? <p className="form-error">{journalLoadMessage}</p> : null}
               {journalImportMessage ? <p className="draft-message">{journalImportMessage}</p> : null}
               {localImportTasks.length > 0 || localImportTradeOperations.length > 0 || localImportViolations.length > 0 ? (
                 <div className="apartment-import-panel">
                   {localImportTasks.length > 0 ? (
                     <button className="command-row" onClick={importLocalTasks} type="button">
-                      Найдены локальные задания. Импортировать в базу данных
+                      Найдены записи заданий для импорта. Импортировать записи
                     </button>
                   ) : null}
                   {localImportTradeOperations.length > 0 ? (
                     <button className="command-row" onClick={importLocalTradeOperations} type="button">
-                      Найдены локальные торговые операции. Импортировать в базу данных
+                      Найдены торговые операции для импорта. Импортировать записи
                     </button>
                   ) : null}
                   {localImportViolations.length > 0 ? (
                     <button className="command-row" onClick={importLocalViolations} type="button">
-                      Найдены локальные нарушения. Импортировать в базу данных
+                      Найдены нарушения для импорта. Импортировать записи
                     </button>
                   ) : null}
                 </div>

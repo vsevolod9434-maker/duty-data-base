@@ -74,7 +74,7 @@ export async function POST(request: Request) {
     .filter((task): task is NonNullable<typeof task> => Boolean(task));
 
   if (candidates.length === 0) {
-    return createErrorResponse("В локальном списке нет заданий, пригодных для импорта.");
+    return createErrorResponse("В переданном списке нет заданий, пригодных для импорта.");
   }
 
   await prisma.$transaction(

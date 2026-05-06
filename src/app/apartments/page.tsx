@@ -196,7 +196,7 @@ function normalizeApiApartment(apartment: ApartmentApiResponse): Apartment {
 }
 
 async function readApiError(response: Response) {
-  const fallbackMessage = "Сервер вернул ошибку.";
+  const fallbackMessage = "Не удалось выполнить операцию. Повторите попытку позже.";
 
   try {
     const payload = (await response.json()) as { error?: unknown };
@@ -325,7 +325,7 @@ export default function ApartmentsPage() {
 
           setSelectedApartmentId("");
           setNotesDraft("");
-        } catch (error) {
+        } catch {
           if (isCancelled) {
             return;
           }
@@ -333,9 +333,7 @@ export default function ApartmentsPage() {
           setProfiles(readStoredCollection<StalkerProfile>(STALKER_PROFILES_STORAGE_KEY, []));
           setGroups(readStoredCollection<StalkerGroup>(STALKER_GROUPS_STORAGE_KEY, []));
           setApartmentLoadMessage(
-            error instanceof Error
-              ? `Не удалось загрузить квартиры из базы данных: ${error.message}`
-              : "Не удалось загрузить квартиры из базы данных.",
+            "Не удалось загрузить квартиры.",
           );
 
           if (localApartments.length > 0) {
@@ -543,9 +541,9 @@ export default function ApartmentsPage() {
         status: "OK",
         description: `Добавлено жильцов: ${profileIdsToAdd.length}`,
       });
-    } catch (error) {
+    } catch {
       setTenantMessage(
-        error instanceof Error ? `Не удалось добавить жильцов: ${error.message}` : "Не удалось добавить жильцов.",
+        "Не удалось добавить жильцов.",
       );
     } finally {
       setIsApartmentSaving(false);
@@ -598,9 +596,9 @@ export default function ApartmentsPage() {
         status: "OK",
         description: `Импортирована группа: ${group.name}`,
       });
-    } catch (error) {
+    } catch {
       setTenantMessage(
-        error instanceof Error ? `Не удалось импортировать группу: ${error.message}` : "Не удалось импортировать группу.",
+        "Не удалось импортировать группу.",
       );
     } finally {
       setIsApartmentSaving(false);
@@ -628,9 +626,9 @@ export default function ApartmentsPage() {
         status: "WARN",
         description: tenant ? getProfileTitle(tenant.profile) : "Профиль не найден",
       });
-    } catch (error) {
+    } catch {
       setTenantMessage(
-        error instanceof Error ? `Не удалось выселить жильца: ${error.message}` : "Не удалось выселить жильца.",
+        "Не удалось выселить жильца.",
       );
     } finally {
       setIsApartmentSaving(false);
@@ -754,9 +752,9 @@ export default function ApartmentsPage() {
           title: `Оплата изменена: ${selectedApartment.name}`,
           status: "OK",
         });
-      } catch (error) {
+      } catch {
         setPaymentMessage(
-          error instanceof Error ? `Не удалось обновить оплату: ${error.message}` : "Не удалось обновить оплату.",
+          "Не удалось обновить оплату.",
         );
       } finally {
         setIsApartmentSaving(false);
@@ -790,9 +788,9 @@ export default function ApartmentsPage() {
         title: `Принята оплата по квартире: ${selectedApartment.name}`,
         status: "OK",
       });
-    } catch (error) {
+    } catch {
       setPaymentMessage(
-        error instanceof Error ? `Не удалось принять оплату: ${error.message}` : "Не удалось принять оплату.",
+        "Не удалось принять оплату.",
       );
     } finally {
       setIsApartmentSaving(false);
@@ -817,9 +815,9 @@ export default function ApartmentsPage() {
         title: `Оплата удалена: ${selectedApartment.name}`,
         status: "WARN",
       });
-    } catch (error) {
+    } catch {
       setPaymentMessage(
-        error instanceof Error ? `Не удалось удалить оплату: ${error.message}` : "Не удалось удалить оплату.",
+        "Не удалось удалить оплату.",
       );
     } finally {
       setIsApartmentSaving(false);
@@ -857,9 +855,9 @@ export default function ApartmentsPage() {
         title: `Изменены заметки квартиры: ${selectedApartment.name}`,
         status: "OK",
       });
-    } catch (error) {
+    } catch {
       setNotesMessage(
-        error instanceof Error ? `Не удалось сохранить заметки: ${error.message}` : "Не удалось сохранить заметки.",
+        "Не удалось сохранить заметки.",
       );
     } finally {
       setIsApartmentSaving(false);
@@ -901,12 +899,12 @@ export default function ApartmentsPage() {
       setSelectedApartmentId("");
       setApartmentActionMessage(
         payload.skippedTenants && payload.skippedTenants > 0
-          ? `Локальные квартиры импортированы. Пропущено жильцов без профиля: ${payload.skippedTenants}.`
-          : "Локальные квартиры импортированы в базу данных.",
+          ? `Записи квартир импортированы. Пропущено жильцов без профиля: ${payload.skippedTenants}.`
+          : "Записи квартир импортированы.",
       );
-    } catch (error) {
+    } catch {
       setApartmentActionMessage(
-        error instanceof Error ? `Не удалось импортировать локальные квартиры: ${error.message}` : "Не удалось импортировать локальные квартиры.",
+        "Не удалось выполнить импорт квартир.",
       );
     } finally {
       setIsApartmentImporting(false);
@@ -931,10 +929,10 @@ export default function ApartmentsPage() {
       writeStoredCollection(APARTMENTS_STORAGE_KEY, defaultApartments);
       setLocalImportApartments([]);
       setSelectedApartmentId("");
-      setApartmentActionMessage("Базовые квартиры созданы в базе данных.");
-    } catch (error) {
+      setApartmentActionMessage("Базовые квартиры созданы.");
+    } catch {
       setApartmentActionMessage(
-        error instanceof Error ? `Не удалось создать базовые квартиры: ${error.message}` : "Не удалось создать базовые квартиры.",
+        "Не удалось создать базовые квартиры.",
       );
     } finally {
       setIsApartmentInitializing(false);
@@ -971,22 +969,22 @@ export default function ApartmentsPage() {
         {apartmentActionMessage ? <p className="table-message">{apartmentActionMessage}</p> : null}
         {localImportApartments.length > 0 ? (
           <div className="empty-state compact-empty-state">
-            <p>Найдены локальные квартиры.</p>
-            <span>Можно импортировать {localImportApartments.length} записей в базу данных. Локальная копия не будет удалена.</span>
+            <p>Найдены записи квартир для импорта.</p>
+            <span>Можно импортировать {localImportApartments.length} записей в базу учёта. </span>
             <button
               className="primary-command"
               disabled={isApartmentImporting}
               onClick={importLocalApartments}
               type="button"
             >
-              {isApartmentImporting ? "Импорт..." : "Импортировать в базу данных"}
+              {isApartmentImporting ? "Импорт..." : "Импортировать записи"}
             </button>
           </div>
         ) : null}
 
         {isStorageReady && !isApartmentLoading && apartments.length === 0 && localImportApartments.length === 0 ? (
           <div className="empty-state compact-empty-state">
-            <p>Квартиры в базе данных не найдены.</p>
+            <p>Квартиры не найдены.</p>
             <span>Для нормальной работы раздела создайте три базовые квартиры.</span>
             <button
               className="primary-command"
@@ -1001,7 +999,7 @@ export default function ApartmentsPage() {
 
         {!isStorageReady || isApartmentLoading ? (
           <div className="empty-state">
-            <p>Загрузка квартир из базы данных...</p>
+            <p>Загрузка квартир...</p>
           </div>
         ) : (
           <div className="profile-list apartment-profile-list">

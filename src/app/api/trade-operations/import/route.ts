@@ -82,7 +82,7 @@ export async function POST(request: Request) {
     .filter((operation): operation is NonNullable<typeof operation> => Boolean(operation));
 
   if (candidates.length === 0) {
-    return createErrorResponse("В локальном списке нет торговых операций, пригодных для импорта.");
+    return createErrorResponse("В переданном списке нет торговых операций, пригодных для импорта.");
   }
 
   await prisma.$transaction(

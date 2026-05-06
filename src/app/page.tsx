@@ -28,11 +28,11 @@ const summaryRows = [
 ];
 
 const systemState = [
-  { label: "База данных", value: "Отключена", warning: true },
-  { label: "Контур", value: "Локальный" },
-  { label: "Авторизация", value: "Отключена", warning: true },
+  { label: "База учёта", value: "Активна" },
+  { label: "Служебный доступ", value: "Включён" },
+  { label: "Оперативный журнал", value: "Ведётся" },
   { label: "Интерфейс", value: "Готов" },
-  { label: "Хранилище", value: "Локальные данные" },
+  { label: "Раздел состава", value: "Временно закрыт", warning: true },
 ];
 
 const quickOperations = [
@@ -119,10 +119,10 @@ export default function Home() {
         <div className="pda-content pda-dashboard-grid dashboard-command-grid">
           <Panel className="dashboard-hero-panel lg:row-span-2" id="overview" tone="accent">
             <PageHeader
-              eyebrow="Локально"
+              eyebrow="Служебная сводка"
               title="Сводка базы"
-              description="Оперативная картина по сталкерам, группам, квартирам и текущим задачам."
-              meta="Локальное хранилище"
+              description="Оперативная картина по сталкерам, группам, квартирам и текущим заданиям."
+              meta="Система учёта"
             />
 
             <div className="dashboard-stat-grid" id="summary">
@@ -133,10 +133,11 @@ export default function Home() {
 
             <div className="dashboard-briefing-grid">
               <p>
-                Экран подготовлен для служебного учёта сталкеров, групп, квартир, заданий и торговых операций.
+                Главная панель предназначена для служебного контроля профилей сталкеров, групп, квартир,
+                заданий и торговых операций.
               </p>
               <p>
-                Подключение базы данных, авторизация и внешние сервисы не активированы. Данные сохраняются локально.
+                Все основные разделы доступны допущенному личному составу после входа в систему учёта.
               </p>
             </div>
           </Panel>
@@ -151,9 +152,7 @@ export default function Home() {
               {systemState.map((item) => (
                 <div className="data-row grid-cols-[1fr_auto]" key={item.label}>
                   <dt>{item.label}</dt>
-                  <dd className={item.warning ? "text-[var(--warning)]" : ""}>
-                    {item.value}
-                  </dd>
+                  <dd className={item.warning ? "text-[var(--warning)]" : ""}>{item.value}</dd>
                 </div>
               ))}
             </dl>
@@ -189,17 +188,10 @@ export default function Home() {
               </div>
               {paginatedJournalEntries.items.length > 0 ? (
                 paginatedJournalEntries.items.map((entry) => (
-                  <div
-                    className="data-row activity-log-row"
-                    key={entry.id}
-                  >
+                  <div className="data-row activity-log-row" key={entry.id}>
                     <span className="font-mono">{formatActivityTime(entry.createdAt, entry.time)}</span>
                     <span>{entry.title}</span>
-                    <span
-                      className={getActivityStatusClass(entry.status)}
-                    >
-                      {getActivityStatusLabel(entry.status)}
-                    </span>
+                    <span className={getActivityStatusClass(entry.status)}>{getActivityStatusLabel(entry.status)}</span>
                   </div>
                 ))
               ) : (

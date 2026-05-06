@@ -143,7 +143,7 @@ function normalizeDateInputValue(value: string) {
 }
 
 async function readApiError(response: Response) {
-  const fallbackMessage = "Сервер вернул ошибку.";
+  const fallbackMessage = "Не удалось выполнить операцию. Повторите попытку позже.";
 
   try {
     const payload = (await response.json()) as { error?: unknown };
@@ -532,15 +532,13 @@ export default function StalkerProfilesPage() {
             setActiveProfileTab("");
             setProfilePhotoLoadFailed(false);
           }
-        } catch (error) {
+        } catch {
           if (isCancelled) {
             return;
           }
 
           setProfileLoadMessage(
-            error instanceof Error
-              ? `Не удалось загрузить профили из базы данных: ${error.message}`
-              : "Не удалось загрузить профили из базы данных.",
+            "Не удалось загрузить профили.",
           );
 
           if (localProfiles.length > 0) {
@@ -984,11 +982,9 @@ export default function StalkerProfilesPage() {
       setActiveProfileTab("");
       setIsProfileModalOpen(false);
       resetProfileDraft();
-    } catch (error) {
+    } catch {
       setFormMessage(
-        error instanceof Error
-          ? `Не удалось сохранить профиль: ${error.message}`
-          : "Не удалось сохранить профиль.",
+        "Не удалось сохранить профиль.",
       );
     } finally {
       setIsProfileSaving(false);
@@ -1024,11 +1020,9 @@ export default function StalkerProfilesPage() {
             : `Профиль возвращён из архива: ${profileTitle}`,
         status: status === "archive" ? "WARN" : "OK",
       });
-    } catch (error) {
+    } catch {
       setProfileActionMessage(
-        error instanceof Error
-          ? `Не удалось изменить статус профиля: ${error.message}`
-          : "Не удалось изменить статус профиля.",
+        "Не удалось изменить статус профиля.",
       );
     } finally {
       setIsProfileSaving(false);
@@ -1061,17 +1055,15 @@ export default function StalkerProfilesPage() {
       );
       setSelectedProfileId("");
       setProfilePage(1);
-      setTableMessage("Профиль удалён из базы данных. Локальные связанные записи обновлены.");
+      setTableMessage("Профиль удалён. Связанные записи обновлены.");
       addActivityLogEntry({
         type: "stalker",
         title: `Профиль удалён: ${profile ? getProfileTitle(profile) : "Без имени"}`,
         status: "WARN",
       });
-    } catch (error) {
+    } catch {
       setProfileActionMessage(
-        error instanceof Error
-          ? `Не удалось удалить профиль: ${error.message}`
-          : "Не удалось удалить профиль.",
+        "Не удалось удалить профиль.",
       );
     } finally {
       setIsProfileDeleting(false);
@@ -1104,12 +1096,10 @@ export default function StalkerProfilesPage() {
       writeStoredCollection(STALKER_PROFILES_STORAGE_KEY, importedProfiles);
       setLocalImportProfiles([]);
       setProfilePage(1);
-      setTableMessage("Локальные профили импортированы в базу данных.");
-    } catch (error) {
+      setTableMessage("Найденные записи профилей импортированы.");
+    } catch {
       setProfileActionMessage(
-        error instanceof Error
-          ? `Не удалось импортировать локальные профили: ${error.message}`
-          : "Не удалось импортировать локальные профили.",
+        "Не удалось выполнить импорт профилей.",
       );
     } finally {
       setIsImportingProfiles(false);
@@ -1259,8 +1249,8 @@ export default function StalkerProfilesPage() {
       acceptedBy: null,
       completedAt: null,
       status: "active",
-    }).catch((error) => {
-      setTaskFormMessage(error instanceof Error ? error.message : "Не удалось сохранить задание.");
+    }).catch(() => {
+      setTaskFormMessage("Не удалось сохранить задание.");
       return null;
     });
 
@@ -1325,8 +1315,8 @@ export default function StalkerProfilesPage() {
         issuedBy: tradeDraft.issuedBy.trim(),
         notes: tradeDraft.notes.trim(),
         operationDate: tradeDraft.operationDate,
-      }).catch((error) => {
-        setTradeFormMessage(error instanceof Error ? error.message : "Не удалось сохранить торговую операцию.");
+      }).catch(() => {
+        setTradeFormMessage("Не удалось сохранить торговую операцию.");
         return null;
       });
 
@@ -1353,8 +1343,8 @@ export default function StalkerProfilesPage() {
       issuedBy: tradeDraft.issuedBy.trim(),
       notes: tradeDraft.notes.trim(),
       operationDate: tradeDraft.operationDate,
-    }).catch((error) => {
-      setTradeFormMessage(error instanceof Error ? error.message : "Не удалось сохранить торговую операцию.");
+    }).catch(() => {
+      setTradeFormMessage("Не удалось сохранить торговую операцию.");
       return null;
     });
 
@@ -1415,8 +1405,8 @@ export default function StalkerProfilesPage() {
         description,
         issuedBy: violationDraft.issuedBy.trim(),
         notes: violationDraft.notes.trim(),
-      }).catch((error) => {
-        setViolationFormMessage(error instanceof Error ? error.message : "Не удалось сохранить нарушение.");
+      }).catch(() => {
+        setViolationFormMessage("Не удалось сохранить нарушение.");
         return null;
       });
 
@@ -1441,8 +1431,8 @@ export default function StalkerProfilesPage() {
       description,
       issuedBy: violationDraft.issuedBy.trim(),
       notes: violationDraft.notes.trim(),
-    }).catch((error) => {
-      setViolationFormMessage(error instanceof Error ? error.message : "Не удалось сохранить нарушение.");
+    }).catch(() => {
+      setViolationFormMessage("Не удалось сохранить нарушение.");
       return null;
     });
 
@@ -1491,8 +1481,8 @@ export default function StalkerProfilesPage() {
       status: "closed",
       closedAt: getSystemTimestamp(),
       closureNote,
-    }).catch((error) => {
-      setViolationClosureMessage(error instanceof Error ? error.message : "Не удалось погасить нарушение.");
+    }).catch(() => {
+      setViolationClosureMessage("Не удалось погасить нарушение.");
       return null;
     });
 
@@ -1533,8 +1523,8 @@ export default function StalkerProfilesPage() {
       reward: editTaskDraft.reward.trim(),
       notes: editTaskDraft.notes.trim(),
       issuedBy: editTaskDraft.issuedBy.trim(),
-    }).catch((error) => {
-      setEditTaskMessage(error instanceof Error ? error.message : "Не удалось сохранить задание.");
+    }).catch(() => {
+      setEditTaskMessage("Не удалось сохранить задание.");
       return null;
     });
 
@@ -1562,8 +1552,8 @@ export default function StalkerProfilesPage() {
       status: "completed",
       acceptedBy,
       completedAt: currentTask?.completedAt || getTodayDate(),
-    }).catch((error) => {
-      setCompleteTaskMessage(error instanceof Error ? error.message : "Не удалось засчитать задание.");
+    }).catch(() => {
+      setCompleteTaskMessage("Не удалось засчитать задание.");
       return null;
     });
 
@@ -1596,8 +1586,8 @@ export default function StalkerProfilesPage() {
       return;
     }
 
-    const updatedTask = await updateTask(taskId, { status: "cancelled" }).catch((error) => {
-      setTaskMessage(error instanceof Error ? error.message : "Не удалось отменить задание.");
+    const updatedTask = await updateTask(taskId, { status: "cancelled" }).catch(() => {
+      setTaskMessage("Не удалось отменить задание.");
       return null;
     });
 
@@ -1832,15 +1822,15 @@ export default function StalkerProfilesPage() {
                 {tableMessage ? <p className="table-message">{tableMessage}</p> : null}
                 {localImportProfiles.length > 0 ? (
                   <div className="empty-state compact-empty-state">
-                    <p>Найдены локальные профили.</p>
-                    <span>Можно импортировать {localImportProfiles.length} записей в базу данных. Локальная копия не будет удалена.</span>
+                    <p>Найдены записи профилей для импорта.</p>
+                    <span>Можно импортировать {localImportProfiles.length} записей в базу учёта. </span>
                     <button
                       className="primary-command"
                       disabled={isImportingProfiles}
                       onClick={importLocalProfiles}
                       type="button"
                     >
-                      {isImportingProfiles ? "Импорт..." : "Импортировать в базу данных"}
+                      {isImportingProfiles ? "Импорт..." : "Импортировать записи"}
                     </button>
                   </div>
                 ) : null}
@@ -1848,7 +1838,7 @@ export default function StalkerProfilesPage() {
                 <div className="profile-list">
                   {!isStorageReady || isProfileLoading ? (
                     <div className="empty-state">
-                      <p>Загрузка профилей из базы данных...</p>
+                      <p>Загрузка профилей...</p>
                     </div>
                   ) : paginatedProfiles.items.length > 0 ? (
                     paginatedProfiles.items.map((profile) => {
@@ -1903,7 +1893,7 @@ export default function StalkerProfilesPage() {
               <section className="profile-column detail-host-column">
                 {!isStorageReady || isProfileLoading ? (
                   <div className="empty-state">
-                    <p>Загрузка профилей из базы данных...</p>
+                    <p>Загрузка профилей...</p>
                   </div>
                 ) : selectedProfile ? (
                   <div className="profile-detail">

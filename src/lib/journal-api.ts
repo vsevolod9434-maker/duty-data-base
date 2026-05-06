@@ -13,7 +13,7 @@ async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit) {
   const response = await fetch(input, init);
 
   if (!response.ok) {
-    throw new Error(await readApiError(response, "Сервер вернул ошибку."));
+    throw new Error(await readApiError(response, "Не удалось выполнить операцию. Повторите попытку позже."));
   }
 
   return (await response.json()) as T;

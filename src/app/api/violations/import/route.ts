@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     .filter((violation): violation is NonNullable<typeof violation> => Boolean(violation));
 
   if (candidates.length === 0) {
-    return createErrorResponse("В локальном списке нет нарушений, пригодных для импорта.");
+    return createErrorResponse("В переданном списке нет нарушений, пригодных для импорта.");
   }
 
   await prisma.$transaction(

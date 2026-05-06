@@ -60,9 +60,9 @@ export default function LoginPage() {
       <section className="login-shell">
         <div className="login-card">
           <div className="login-card-header">
-            <span className="login-kicker">Duty RP Control System</span>
+            <span className="login-kicker">Внутренняя база группировки «Долг»</span>
             <h1>Вход в систему учёта</h1>
-            <p>Доступ только для допущенного личного состава.</p>
+            <p>Доступ разрешён только допущенному личному составу.</p>
           </div>
 
           <form className="login-form" onSubmit={handleSubmit}>

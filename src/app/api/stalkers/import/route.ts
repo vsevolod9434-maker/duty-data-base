@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     .filter((profile) => profile.fullName || profile.callsign);
 
   if (candidates.length === 0) {
-    return createErrorResponse("В локальном списке нет профилей, пригодных для импорта.");
+    return createErrorResponse("В переданном списке нет профилей, пригодных для импорта.");
   }
 
   const prisma = getPrismaClient();

@@ -10,7 +10,7 @@ const khand = Khand({
 
 export const metadata: Metadata = {
   title: "Система учёта «Долг»",
-  description: "Внутренняя система учёта RP-группировки Долг",
+  description: "Внутренняя база учёта группировки «Долг»",
 };
 
 export default function RootLayout({

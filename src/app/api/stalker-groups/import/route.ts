@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     .filter((group) => group.name);
 
   if (candidates.length === 0) {
-    return createErrorResponse("В локальном списке нет групп, пригодных для импорта.");
+    return createErrorResponse("В переданном списке нет групп, пригодных для импорта.");
   }
 
   await prisma.$transaction(

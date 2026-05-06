@@ -136,10 +136,10 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
       <div className="pda-shell-header registry-shell-header">
         <div className="pda-brand registry-brand">
           <span className="pda-brand-mark registry-brand-mark">
-            <Image alt="Эмблема Долга" height={42} priority src="/duty-logo.png" width={42} />
+            <Image alt="Эмблема группировки «Долг»" height={42} priority src="/duty-logo.png" width={42} />
           </span>
           <div className="pda-brand-copy registry-brand-copy">
-            <strong>ВСГ «Долг»</strong>
+            <strong>База данных «Долг»</strong>
           </div>
         </div>
 

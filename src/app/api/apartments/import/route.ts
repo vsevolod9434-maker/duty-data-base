@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     .filter((apartment) => apartment.name);
 
   if (candidates.length === 0) {
-    return createErrorResponse("В локальном списке нет квартир, пригодных для импорта.");
+    return createErrorResponse("В переданном списке нет квартир, пригодных для импорта.");
   }
 
   await prisma.$transaction(
