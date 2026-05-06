@@ -47,6 +47,7 @@ import {
   getGroupRoleLabel,
   getPaginatedItems,
   getProfileStateBadgeClass,
+  getProfileSecondaryTitle,
   getProfileTitle,
   getSystemTimestamp,
   getSystemToday,
@@ -1854,6 +1855,7 @@ export default function StalkerProfilesPage() {
                       const computedTaskMark = getComputedTaskMark(profile.id, tasks, groups);
                       const isInActiveGroup = activeGroupMemberIds.has(profile.id);
                       const activeViolationCount = activeViolationCountByProfileId.get(profile.id) ?? 0;
+                      const secondaryName = getProfileSecondaryTitle(profile);
                       const serviceBadges = getProfileServiceBadges({
                         activeViolationCount,
                         computedTaskMark,
@@ -1874,7 +1876,7 @@ export default function StalkerProfilesPage() {
                           </span>
 
                           <span className="profile-list-info-row">
-                            <span className="profile-list-meta">{profile.fullName || profile.callsign || "Без имени"}</span>
+                            {secondaryName ? <span className="profile-list-meta">{secondaryName}</span> : null}
                             <span className="profile-list-badges">
                               {serviceBadges.map((badge) => (
                                 <span className={`profile-state-badge badge-chip ${badge.className}`} key={badge.className}>

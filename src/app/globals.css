@@ -10583,3 +10583,120 @@ body::after,
     padding-right: 0;
   }
 }
+
+.login-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(130, 24, 31, 0.28), transparent 34%),
+    linear-gradient(135deg, #090b0d 0%, #15181b 46%, #060708 100%);
+  color: #f1eee7;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+}
+
+.login-shell {
+  width: min(100%, 460px);
+}
+
+.login-card {
+  border: 1px solid rgba(151, 43, 49, 0.55);
+  background: linear-gradient(180deg, rgba(35, 38, 41, 0.96), rgba(18, 20, 22, 0.98));
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.56), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  padding: 2rem;
+}
+
+.login-card-header {
+  display: grid;
+  gap: 0.65rem;
+  margin-bottom: 1.5rem;
+}
+
+.login-kicker {
+  color: #c75c62;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.login-card h1 {
+  font-size: clamp(2rem, 8vw, 3.2rem);
+  font-weight: 700;
+  line-height: 0.95;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.login-card p {
+  color: #bcb5aa;
+  margin: 0;
+}
+
+.login-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.login-form label {
+  display: grid;
+  gap: 0.42rem;
+  color: #d8d2c8;
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.login-form input {
+  border: 1px solid rgba(159, 154, 143, 0.22);
+  background: rgba(7, 9, 10, 0.74);
+  color: #f1eee7;
+  font: inherit;
+  outline: none;
+  padding: 0.82rem 0.95rem;
+}
+
+.login-form input:focus {
+  border-color: rgba(196, 65, 72, 0.82);
+  box-shadow: 0 0 0 3px rgba(151, 43, 49, 0.22);
+}
+
+.login-error {
+  border-left: 3px solid #b64046;
+  background: rgba(151, 43, 49, 0.13);
+  color: #ffd7d7;
+  padding: 0.75rem 0.9rem;
+}
+
+.login-submit,
+.pda-signout-button {
+  border: 1px solid rgba(169, 48, 55, 0.78);
+  background: linear-gradient(180deg, rgba(135, 31, 39, 0.96), rgba(80, 18, 24, 0.96));
+  color: #fff3ee;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 0.78rem 1rem;
+  text-transform: uppercase;
+}
+
+.login-submit:disabled,
+.pda-signout-button:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.pda-user-email {
+  color: #d8d2c8;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pda-signout-button {
+  padding: 0.38rem 0.62rem;
+  font-size: 0.72rem;
+}

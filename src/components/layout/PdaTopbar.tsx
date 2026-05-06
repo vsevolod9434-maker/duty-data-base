@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { navigation } from "@/lib/navigation";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type PdaTopbarProps = {
   activeLabel: string;
@@ -14,10 +15,13 @@ type PdaTopbarProps = {
 
 export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaTopbarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const stalkersMenuRef = useRef<HTMLDivElement | null>(null);
   const [moscowTime, setMoscowTime] = useState<string | null>(null);
   const [isStalkersMenuOpen, setIsStalkersMenuOpen] = useState(false);
   const [isDutyBlockedModalOpen, setIsDutyBlockedModalOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const tabFromPath =
     navigation.find((tab) => tab.href === pathname || tab.subtabs.some((subtab) => subtab.href === pathname)) ??
@@ -28,6 +32,45 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
     activeSubtab ??
     activeTab.subtabs.find((subtab) => subtab.href === pathname)?.label ??
     null;
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function loadUser() {
+      try {
+        const supabase = createSupabaseBrowserClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!isCancelled) {
+          setUserEmail(user?.email ?? "");
+        }
+      } catch {
+        if (!isCancelled) {
+          setUserEmail("");
+        }
+      }
+    }
+
+    void loadUser();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  async function signOut() {
+    setIsSigningOut(true);
+
+    try {
+      const supabase = createSupabaseBrowserClient();
+      await supabase.auth.signOut();
+    } finally {
+      router.replace("/login");
+      router.refresh();
+    }
+  }
 
   useEffect(() => {
     const updateTime = () => {
@@ -159,6 +202,10 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
         </nav>
 
         <div className="pda-status registry-status">
+          {userEmail ? <span className="pda-user-email">{userEmail}</span> : null}
+          <button className="pda-signout-button" disabled={isSigningOut} onClick={signOut} type="button">
+            {isSigningOut ? "Выход..." : "Выйти"}
+          </button>
           <span className="pda-clock">{moscowTime ?? "--:--"}</span>
           <span className="pda-signal" aria-hidden="true" />
           <span className="battery" aria-label="Батарея" />

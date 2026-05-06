@@ -206,11 +206,17 @@ export function getAffiliationLabel(affiliation?: StalkerAffiliation) {
 }
 
 export function getProfileTitle(profile: StalkerProfile) {
-  return profile.fullName || profile.callsign || "Без имени";
+  const callsign = profile.callsign.trim();
+  const fullName = profile.fullName.trim();
+
+  return callsign || fullName || "Без имени";
 }
 
 export function getProfileSecondaryTitle(profile: StalkerProfile) {
-  return profile.callsign && profile.fullName ? profile.callsign : "";
+  const callsign = profile.callsign.trim();
+  const fullName = profile.fullName.trim();
+
+  return callsign && fullName ? fullName : "";
 }
 
 export function getGroupRoleLabel(roleType: StalkerGroupRoleType, customRoleName: string | null) {
