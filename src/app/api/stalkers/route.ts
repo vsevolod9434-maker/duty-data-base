@@ -11,6 +11,9 @@ import {
   type StalkerPayload,
 } from "./stalker-route-utils";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const prisma = getPrismaClient();
   const stalkers = await prisma.stalker.findMany({
