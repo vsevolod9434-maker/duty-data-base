@@ -205,6 +205,21 @@ export function getAffiliationLabel(affiliation?: StalkerAffiliation) {
   return affiliation ? affiliationLabels[affiliation] : "Не указана";
 }
 
+export function normalizeSearchValue(value: unknown) {
+  return String(value ?? "").trim().toLocaleLowerCase("ru-RU");
+}
+
+export function matchesStalkerProfileSearch(profile: StalkerProfile, query: string) {
+  const normalizedQuery = normalizeSearchValue(query);
+
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  return [profile.registryNumber, profile.callsign, profile.fullName]
+    .some((value) => normalizeSearchValue(value).includes(normalizedQuery));
+}
+
 export function getProfileTitle(profile: StalkerProfile) {
   const callsign = profile.callsign.trim();
   const fullName = profile.fullName.trim();

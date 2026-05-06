@@ -5324,6 +5324,11 @@ button {
 }
 
 @media (max-width: 640px) {
+  .profiles-page .profiles-list-column .profile-list > .profile-list-item .profile-list-name {
+    font-size: 1rem;
+    line-height: 1.16;
+  }
+
   .pda-screen {
     min-height: 100vh;
     height: 100vh;
@@ -8149,9 +8154,10 @@ body::after,
 
 .profiles-page .profiles-list-column .profile-list > .profile-list-item .profile-list-name {
   color: var(--profiles-text);
-  font-size: 0.9rem;
+  width: 100%;
+  font-size: 1.08rem;
   font-weight: 900;
-  line-height: 1.18;
+  line-height: 1.14;
 }
 
 .profiles-page .profiles-list-column .profile-list > .profile-list-item .profile-list-meta {

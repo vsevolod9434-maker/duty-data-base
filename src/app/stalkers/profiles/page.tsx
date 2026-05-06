@@ -55,6 +55,7 @@ import {
   getTodayDate,
   groupRoleLabels,
   isTaskOverdue,
+  matchesStalkerProfileSearch,
   readStoredCollection,
   SYSTEM_DATE_MAX,
   SYSTEM_DATE_MIN,
@@ -728,20 +729,9 @@ export default function StalkerProfilesPage() {
   }
 
   const visibleProfiles = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-
     return profiles
       .filter((profile) => profile.status === profileListTab)
-      .filter((profile) => {
-        if (!query) {
-          return true;
-        }
-
-        return [profile.fullName, profile.callsign, profile.registryNumber]
-          .join(" ")
-          .toLowerCase()
-          .includes(query);
-      });
+      .filter((profile) => matchesStalkerProfileSearch(profile, searchQuery));
   }, [profileListTab, profiles, searchQuery]);
 
   const paginatedProfiles = getPaginatedItems(visibleProfiles, profilePage);
@@ -1948,7 +1938,7 @@ export default function StalkerProfilesPage() {
                     </span>
                     <input
                       onChange={(event) => changeSearchQuery(event.target.value)}
-                      placeholder="ФИО, позывной, внутренний номер"
+                      placeholder="Поиск по номеру, позывному или ФИО"
                       type="text"
                       value={searchQuery}
                     />
@@ -2018,7 +2008,13 @@ export default function StalkerProfilesPage() {
                     })
                   ) : (
                     <div className="empty-state">
-                      <p>{profileListTab === "active" ? "Активные профили не найдены." : "Архив пуст."}</p>
+                      <p>
+                        {searchQuery.trim()
+                          ? "По вашему запросу ничего не найдено."
+                          : profileListTab === "active"
+                            ? "Активные профили не найдены."
+                            : "Архив пуст."}
+                      </p>
                     </div>
                   )}
                 </div>
