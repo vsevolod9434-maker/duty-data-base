@@ -17,6 +17,7 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
   const stalkersMenuRef = useRef<HTMLDivElement | null>(null);
   const [moscowTime, setMoscowTime] = useState<string | null>(null);
   const [isStalkersMenuOpen, setIsStalkersMenuOpen] = useState(false);
+  const [isDutyBlockedModalOpen, setIsDutyBlockedModalOpen] = useState(false);
 
   const tabFromPath =
     navigation.find((tab) => tab.href === pathname || tab.subtabs.some((subtab) => subtab.href === pathname)) ??
@@ -130,6 +131,20 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
               );
             }
 
+            if (tab.href === "/duty-members") {
+              return (
+                <button
+                  aria-current={isActive ? "page" : undefined}
+                  className={`pda-tab registry-nav-tab ${isActive ? "pda-tab-active registry-nav-tab-active" : ""}`}
+                  key={tab.label}
+                  onClick={() => setIsDutyBlockedModalOpen(true)}
+                  type="button"
+                >
+                  {tab.label}
+                </button>
+              );
+            }
+
             return (
               <a
                 aria-current={isActive ? "page" : undefined}
@@ -149,6 +164,23 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
           <span className="battery" aria-label="Батарея" />
         </div>
       </div>
+      {isDutyBlockedModalOpen ? (
+        <div className="pda-modal-backdrop">
+          <div className="pda-modal task-modal">
+            <div className="section-header modal-header">
+              <div className="min-w-0">
+                <h1>Состав</h1>
+                <p>Функционал временно недоступен. Обратитесь к системному администратору.</p>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button className="primary-command" onClick={() => setIsDutyBlockedModalOpen(false)} type="button">
+                Закрыть
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </header>
   );
 }

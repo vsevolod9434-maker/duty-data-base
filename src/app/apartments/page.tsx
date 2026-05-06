@@ -35,6 +35,63 @@ import {
 } from "@/lib/stalker-utils";
 import type { Apartment, ApartmentPayment, StalkerGroup, StalkerProfile } from "@/lib/types";
 
+type StalkerProfileApiResponse = {
+  id: string;
+  registryNumber: string | null;
+  fullName: string;
+  callsign: string;
+  birthDate: string | null;
+  affiliation: StalkerProfile["affiliation"] | null;
+  photoUrl: string | null;
+  appearance: string | null;
+  notes: string | null;
+  status: StalkerProfile["status"];
+  taskMark?: StalkerProfile["taskMark"];
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string | null;
+  updatedBy: string | null;
+};
+
+type StalkerGroupApiResponse = {
+  id: string;
+  name: string;
+  photoUrl: string | null;
+  status: StalkerGroup["status"];
+  notes: string | null;
+  members: StalkerGroup["members"];
+  createdAt: string;
+  updatedAt: string;
+};
+
+type ApartmentApiResponse = {
+  id: string;
+  name: string;
+  status: Apartment["status"];
+  tenants: Apartment["tenants"];
+  payments: Array<{
+    id: string;
+    paidAt: string;
+    amount: number;
+    paymentType: ApartmentPayment["paymentType"] | null;
+    paymentMethod: string | null;
+    paidUntil: string;
+    notes: string | null;
+    createdAt: string;
+    acceptedBy: string | null;
+    issuedBy: string | null;
+    responsibleBy: string | null;
+  }>;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type ApartmentImportResponse = {
+  apartments: ApartmentApiResponse[];
+  skippedTenants?: number;
+};
+
 function formatDate(value: string) {
   return value ? new Date(value).toLocaleDateString("ru-RU") : "не указано";
 }
@@ -80,11 +137,136 @@ function getPaymentResponsibleLabel(payment?: ApartmentPayment) {
   );
 }
 
+function normalizeApiProfile(profile: StalkerProfileApiResponse): StalkerProfile {
+  return {
+    id: profile.id,
+    registryNumber: profile.registryNumber ?? undefined,
+    fullName: profile.fullName,
+    callsign: profile.callsign,
+    birthDate: profile.birthDate ?? "",
+    affiliation: profile.affiliation ?? undefined,
+    photoUrl: profile.photoUrl ?? undefined,
+    appearance: profile.appearance ?? "",
+    notes: profile.notes ?? "",
+    status: profile.status,
+    taskMark: profile.taskMark ?? "none",
+    createdAt: profile.createdAt,
+    updatedAt: profile.updatedAt,
+    createdBy: profile.createdBy ?? undefined,
+    updatedBy: profile.updatedBy ?? undefined,
+  };
+}
+
+function normalizeApiGroup(group: StalkerGroupApiResponse): StalkerGroup {
+  return {
+    id: group.id,
+    name: group.name,
+    photoUrl: group.photoUrl ?? undefined,
+    status: group.status,
+    notes: group.notes ?? "",
+    members: group.members,
+    createdAt: group.createdAt,
+    updatedAt: group.updatedAt,
+  };
+}
+
+function normalizeApiApartment(apartment: ApartmentApiResponse): Apartment {
+  return {
+    id: apartment.id,
+    name: apartment.name,
+    status: apartment.status,
+    tenants: apartment.tenants,
+    payments: apartment.payments.map((payment) => ({
+      id: payment.id,
+      paidAt: payment.paidAt,
+      amount: payment.amount,
+      paymentType: payment.paymentType ?? undefined,
+      paymentMethod: payment.paymentMethod ?? undefined,
+      paidUntil: payment.paidUntil,
+      notes: payment.notes ?? "",
+      createdAt: payment.createdAt,
+      acceptedBy: payment.acceptedBy ?? undefined,
+      issuedBy: payment.issuedBy ?? undefined,
+      responsibleBy: payment.responsibleBy ?? undefined,
+    })),
+    notes: apartment.notes ?? "",
+    createdAt: apartment.createdAt,
+    updatedAt: apartment.updatedAt,
+  };
+}
+
+async function readApiError(response: Response) {
+  const fallbackMessage = "Сервер вернул ошибку.";
+
+  try {
+    const payload = (await response.json()) as { error?: unknown };
+    return typeof payload.error === "string" ? payload.error : fallbackMessage;
+  } catch {
+    return fallbackMessage;
+  }
+}
+
+async function fetchStalkerProfiles() {
+  const response = await fetch("/api/stalkers", { cache: "no-store" });
+
+  if (!response.ok) {
+    throw new Error(await readApiError(response));
+  }
+
+  const payload = (await response.json()) as StalkerProfileApiResponse[];
+  return payload.map(normalizeApiProfile);
+}
+
+async function fetchStalkerGroups() {
+  const response = await fetch("/api/stalker-groups", { cache: "no-store" });
+
+  if (!response.ok) {
+    throw new Error(await readApiError(response));
+  }
+
+  const payload = (await response.json()) as StalkerGroupApiResponse[];
+  return payload.map(normalizeApiGroup);
+}
+
+async function fetchApartments() {
+  const response = await fetch("/api/apartments", { cache: "no-store" });
+
+  if (!response.ok) {
+    throw new Error(await readApiError(response));
+  }
+
+  const payload = (await response.json()) as ApartmentApiResponse[];
+  return payload.map(normalizeApiApartment);
+}
+
+async function saveApartmentRequest(apartment: Apartment) {
+  const response = await fetch(`/api/apartments/${encodeURIComponent(apartment.id)}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(apartment),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readApiError(response));
+  }
+
+  return normalizeApiApartment((await response.json()) as ApartmentApiResponse);
+}
+
 export default function ApartmentsPage() {
   const [apartments, setApartments] = useState<Apartment[]>([]);
   const [profiles, setProfiles] = useState<StalkerProfile[]>([]);
   const [groups, setGroups] = useState<StalkerGroup[]>([]);
   const [isStorageReady, setIsStorageReady] = useState(false);
+  const [isApartmentLoading, setIsApartmentLoading] = useState(true);
+  const [isApartmentSaving, setIsApartmentSaving] = useState(false);
+  const [isApartmentImporting, setIsApartmentImporting] = useState(false);
+  const [isApartmentInitializing, setIsApartmentInitializing] = useState(false);
+  const [apartmentLoadMessage, setApartmentLoadMessage] = useState("");
+  const [apartmentActionMessage, setApartmentActionMessage] = useState("");
+  const [localImportApartments, setLocalImportApartments] = useState<Apartment[]>([]);
   const [selectedApartmentId, setSelectedApartmentId] = useState("");
   const [isTenantModalOpen, setIsTenantModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -99,7 +281,9 @@ export default function ApartmentsPage() {
     title: string;
     message: string;
     confirmLabel: string;
-    onConfirm: () => void;
+    variant?: "danger" | "default" | "warning";
+    loading?: boolean;
+    onConfirm: () => void | Promise<void>;
   } | null>(null);
   const [tenantMessage, setTenantMessage] = useState("");
   const [paymentMessage, setPaymentMessage] = useState("");
@@ -108,18 +292,70 @@ export default function ApartmentsPage() {
   const [paymentPage, setPaymentPage] = useState(1);
 
   useEffect(() => {
-    const storageReadHandle = window.setTimeout(() => {
-      const storedApartments = normalizeApartments(readStoredCollection<Apartment>(APARTMENTS_STORAGE_KEY, []));
+    let isCancelled = false;
 
-      setProfiles(readStoredCollection<StalkerProfile>(STALKER_PROFILES_STORAGE_KEY, []));
-      setGroups(readStoredCollection<StalkerGroup>(STALKER_GROUPS_STORAGE_KEY, []));
-      setApartments(storedApartments);
-      setSelectedApartmentId("");
-      setNotesDraft("");
-      setIsStorageReady(true);
+    const storageReadHandle = window.setTimeout(() => {
+      const localApartments = readStoredCollection<Apartment>(APARTMENTS_STORAGE_KEY, []);
+
+      async function loadServerData() {
+        setIsApartmentLoading(true);
+        setApartmentLoadMessage("");
+
+        try {
+          const [serverProfiles, serverGroups, serverApartments] = await Promise.all([
+            fetchStalkerProfiles().catch(() => readStoredCollection<StalkerProfile>(STALKER_PROFILES_STORAGE_KEY, [])),
+            fetchStalkerGroups().catch(() => readStoredCollection<StalkerGroup>(STALKER_GROUPS_STORAGE_KEY, [])),
+            fetchApartments(),
+          ]);
+
+          if (isCancelled) {
+            return;
+          }
+
+          setProfiles(serverProfiles);
+          setGroups(serverGroups);
+          setApartments(serverApartments);
+          writeStoredCollection(APARTMENTS_STORAGE_KEY, serverApartments);
+
+          if (serverApartments.length === 0 && localApartments.length > 0) {
+            setLocalImportApartments(normalizeApartments(localApartments));
+          } else {
+            setLocalImportApartments([]);
+          }
+
+          setSelectedApartmentId("");
+          setNotesDraft("");
+        } catch (error) {
+          if (isCancelled) {
+            return;
+          }
+
+          setProfiles(readStoredCollection<StalkerProfile>(STALKER_PROFILES_STORAGE_KEY, []));
+          setGroups(readStoredCollection<StalkerGroup>(STALKER_GROUPS_STORAGE_KEY, []));
+          setApartmentLoadMessage(
+            error instanceof Error
+              ? `Не удалось загрузить квартиры из базы данных: ${error.message}`
+              : "Не удалось загрузить квартиры из базы данных.",
+          );
+
+          if (localApartments.length > 0) {
+            setLocalImportApartments(normalizeApartments(localApartments));
+          }
+        } finally {
+          if (!isCancelled) {
+            setIsStorageReady(true);
+            setIsApartmentLoading(false);
+          }
+        }
+      }
+
+      void loadServerData();
     }, 0);
 
-    return () => window.clearTimeout(storageReadHandle);
+    return () => {
+      isCancelled = true;
+      window.clearTimeout(storageReadHandle);
+    };
   }, []);
 
   useEffect(() => {
@@ -127,8 +363,12 @@ export default function ApartmentsPage() {
       return;
     }
 
+    if (apartments.length === 0 && localImportApartments.length > 0) {
+      return;
+    }
+
     writeStoredCollection(APARTMENTS_STORAGE_KEY, apartments);
-  }, [apartments, isStorageReady]);
+  }, [apartments, isStorageReady, localImportApartments.length]);
 
   const profileById = useMemo(() => {
     return new Map(profiles.map((profile) => [profile.id, profile]));
@@ -193,22 +433,26 @@ export default function ApartmentsPage() {
     return grouped;
   }, [groups]);
 
-  function updateApartment(apartmentId: string, updater: (apartment: Apartment) => Apartment) {
+  async function updateApartment(apartmentId: string, updater: (apartment: Apartment) => Apartment) {
+    const currentApartment = apartments.find((apartment) => apartment.id === apartmentId);
+
+    if (!currentApartment) {
+      throw new Error("Квартира не найдена.");
+    }
+
+    const updatedApartment = updater(currentApartment);
+    const nextApartment = {
+      ...updatedApartment,
+      status: getApartmentOccupancyStatus(updatedApartment),
+      updatedAt: getSystemTimestamp(),
+    };
+    const savedApartment = await saveApartmentRequest(nextApartment);
+
     setApartments((currentApartments) =>
-      currentApartments.map((apartment) => {
-        if (apartment.id !== apartmentId) {
-          return apartment;
-        }
-
-        const updatedApartment = updater(apartment);
-
-        return {
-          ...updatedApartment,
-          status: getApartmentOccupancyStatus(updatedApartment),
-          updatedAt: getSystemTimestamp(),
-        };
-      }),
+      currentApartments.map((apartment) => (apartment.id === apartmentId ? savedApartment : apartment)),
     );
+
+    return savedApartment;
   }
 
   function openApartment(apartmentId: string) {
@@ -262,7 +506,7 @@ export default function ApartmentsPage() {
     setTenantMessage("");
   }
 
-  function addSelectedProfiles() {
+  async function addSelectedProfiles() {
     if (!selectedApartment) {
       return;
     }
@@ -277,28 +521,38 @@ export default function ApartmentsPage() {
 
     const now = getSystemTimestamp();
 
-    updateApartment(selectedApartment.id, (apartment) => ({
-      ...apartment,
-      tenants: [
-        ...apartment.tenants,
-        ...profileIdsToAdd.map((profileId) => ({
-          id: `apartment-tenant-${profileId}-${Date.now()}`,
-          profileId,
-          addedAt: now,
-        })),
-      ],
-    }));
-    setTenantMessage("Выбранные профили добавлены в жильцы.");
-    setSelectedProfileIds([]);
-    addActivityLogEntry({
-      type: "apartment",
-      title: `Выполнено заселение: ${selectedApartment.name}`,
-      status: "OK",
-      description: `Добавлено жильцов: ${profileIdsToAdd.length}`,
-    });
+    setIsApartmentSaving(true);
+
+    try {
+      await updateApartment(selectedApartment.id, (apartment) => ({
+        ...apartment,
+        tenants: [
+          ...apartment.tenants,
+          ...profileIdsToAdd.map((profileId) => ({
+            id: `apartment-tenant-${profileId}-${Date.now()}`,
+            profileId,
+            addedAt: now,
+          })),
+        ],
+      }));
+      setTenantMessage("Выбранные профили добавлены в жильцы.");
+      setSelectedProfileIds([]);
+      addActivityLogEntry({
+        type: "apartment",
+        title: `Выполнено заселение: ${selectedApartment.name}`,
+        status: "OK",
+        description: `Добавлено жильцов: ${profileIdsToAdd.length}`,
+      });
+    } catch (error) {
+      setTenantMessage(
+        error instanceof Error ? `Не удалось добавить жильцов: ${error.message}` : "Не удалось добавить жильцов.",
+      );
+    } finally {
+      setIsApartmentSaving(false);
+    }
   }
 
-  function importSelectedGroup() {
+  async function importSelectedGroup() {
     if (!selectedApartment) {
       return;
     }
@@ -322,45 +576,65 @@ export default function ApartmentsPage() {
 
     const now = getSystemTimestamp();
 
-    updateApartment(selectedApartment.id, (apartment) => ({
-      ...apartment,
-      tenants: [
-        ...apartment.tenants,
-        ...profileIdsToAdd.map((profileId) => ({
-          id: `apartment-tenant-${profileId}-${Date.now()}`,
-          profileId,
-          addedAt: now,
-        })),
-      ],
-    }));
-    setTenantMessage(`Импортировано жильцов: ${profileIdsToAdd.length}.`);
-    setSelectedGroupId("");
-    addActivityLogEntry({
-      type: "apartment",
-      title: `Выполнено заселение: ${selectedApartment.name}`,
-      status: "OK",
-      description: `Импортирована группа: ${group.name}`,
-    });
+    setIsApartmentSaving(true);
+
+    try {
+      await updateApartment(selectedApartment.id, (apartment) => ({
+        ...apartment,
+        tenants: [
+          ...apartment.tenants,
+          ...profileIdsToAdd.map((profileId) => ({
+            id: `apartment-tenant-${profileId}-${Date.now()}`,
+            profileId,
+            addedAt: now,
+          })),
+        ],
+      }));
+      setTenantMessage(`Импортировано жильцов: ${profileIdsToAdd.length}.`);
+      setSelectedGroupId("");
+      addActivityLogEntry({
+        type: "apartment",
+        title: `Выполнено заселение: ${selectedApartment.name}`,
+        status: "OK",
+        description: `Импортирована группа: ${group.name}`,
+      });
+    } catch (error) {
+      setTenantMessage(
+        error instanceof Error ? `Не удалось импортировать группу: ${error.message}` : "Не удалось импортировать группу.",
+      );
+    } finally {
+      setIsApartmentSaving(false);
+    }
   }
 
-  function evictTenant(tenantId: string) {
+  async function evictTenant(tenantId: string) {
     if (!selectedApartment) {
       return;
     }
 
     const tenant = selectedApartmentTenants.find((currentTenant) => currentTenant.tenant.id === tenantId);
 
-    updateApartment(selectedApartment.id, (apartment) => ({
-      ...apartment,
-      tenants: apartment.tenants.filter((tenant) => tenant.id !== tenantId),
-    }));
-    setTenantMessage("Жилец выселен.");
-    addActivityLogEntry({
-      type: "apartment",
-      title: `Жилец выселен: ${selectedApartment.name}`,
-      status: "WARN",
-      description: tenant ? getProfileTitle(tenant.profile) : "Профиль не найден",
-    });
+    setIsApartmentSaving(true);
+
+    try {
+      await updateApartment(selectedApartment.id, (apartment) => ({
+        ...apartment,
+        tenants: apartment.tenants.filter((tenant) => tenant.id !== tenantId),
+      }));
+      setTenantMessage("Жилец выселен.");
+      addActivityLogEntry({
+        type: "apartment",
+        title: `Жилец выселен: ${selectedApartment.name}`,
+        status: "WARN",
+        description: tenant ? getProfileTitle(tenant.profile) : "Профиль не найден",
+      });
+    } catch (error) {
+      setTenantMessage(
+        error instanceof Error ? `Не удалось выселить жильца: ${error.message}` : "Не удалось выселить жильца.",
+      );
+    } finally {
+      setIsApartmentSaving(false);
+    }
   }
 
   function requestEvictTenant(tenantId: string) {
@@ -368,6 +642,7 @@ export default function ApartmentsPage() {
       title: "Выселить жильца?",
       message: "Жилец будет удалён из этой квартиры.",
       confirmLabel: "Выселить",
+      variant: "warning",
       onConfirm: () => evictTenant(tenantId),
     });
   }
@@ -426,7 +701,7 @@ export default function ApartmentsPage() {
     setPaymentMessage("");
   }
 
-  function submitPayment(event: FormEvent<HTMLFormElement>) {
+  async function submitPayment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!selectedApartment) {
@@ -453,29 +728,39 @@ export default function ApartmentsPage() {
     }
 
     if (editingPaymentId) {
-      updateApartment(selectedApartment.id, (apartment) => ({
-        ...apartment,
-        payments: apartment.payments.map((payment) =>
-          payment.id === editingPaymentId
-            ? {
-                ...payment,
-                paidAt: paymentDraft.paidAt,
-                amount,
-                paymentType,
-                paymentMethod: paymentType === "other" ? paymentMethod : "",
-                paidUntil: paymentDraft.paidUntil,
-                notes: paymentDraft.notes.trim(),
-              }
-            : payment,
-        ),
-      }));
-      closePaymentModal();
-      setPaymentMessage("Оплата обновлена.");
-      addActivityLogEntry({
-        type: "apartment",
-        title: `Оплата изменена: ${selectedApartment.name}`,
-        status: "OK",
-      });
+      setIsApartmentSaving(true);
+
+      try {
+        await updateApartment(selectedApartment.id, (apartment) => ({
+          ...apartment,
+          payments: apartment.payments.map((payment) =>
+            payment.id === editingPaymentId
+              ? {
+                  ...payment,
+                  paidAt: paymentDraft.paidAt,
+                  amount,
+                  paymentType,
+                  paymentMethod: paymentType === "other" ? paymentMethod : "",
+                  paidUntil: paymentDraft.paidUntil,
+                  notes: paymentDraft.notes.trim(),
+                }
+              : payment,
+          ),
+        }));
+        closePaymentModal();
+        setPaymentMessage("Оплата обновлена.");
+        addActivityLogEntry({
+          type: "apartment",
+          title: `Оплата изменена: ${selectedApartment.name}`,
+          status: "OK",
+        });
+      } catch (error) {
+        setPaymentMessage(
+          error instanceof Error ? `Не удалось обновить оплату: ${error.message}` : "Не удалось обновить оплату.",
+        );
+      } finally {
+        setIsApartmentSaving(false);
+      }
       return;
     }
 
@@ -491,34 +776,54 @@ export default function ApartmentsPage() {
       createdAt: now,
     };
 
-    updateApartment(selectedApartment.id, (apartment) => ({
-      ...apartment,
-      payments: [payment, ...apartment.payments],
-    }));
-    closePaymentModal();
-    setPaymentMessage("Оплата принята.");
-    addActivityLogEntry({
-      type: "apartment",
-      title: `Принята оплата по квартире: ${selectedApartment.name}`,
-      status: "OK",
-    });
+    setIsApartmentSaving(true);
+
+    try {
+      await updateApartment(selectedApartment.id, (apartment) => ({
+        ...apartment,
+        payments: [payment, ...apartment.payments],
+      }));
+      closePaymentModal();
+      setPaymentMessage("Оплата принята.");
+      addActivityLogEntry({
+        type: "apartment",
+        title: `Принята оплата по квартире: ${selectedApartment.name}`,
+        status: "OK",
+      });
+    } catch (error) {
+      setPaymentMessage(
+        error instanceof Error ? `Не удалось принять оплату: ${error.message}` : "Не удалось принять оплату.",
+      );
+    } finally {
+      setIsApartmentSaving(false);
+    }
   }
 
-  function deletePayment(paymentId: string) {
+  async function deletePayment(paymentId: string) {
     if (!selectedApartment) {
       return;
     }
 
-    updateApartment(selectedApartment.id, (apartment) => ({
-      ...apartment,
-      payments: apartment.payments.filter((payment) => payment.id !== paymentId),
-    }));
-    setPaymentMessage("Запись об оплате удалена.");
-    addActivityLogEntry({
-      type: "apartment",
-      title: `Оплата удалена: ${selectedApartment.name}`,
-      status: "WARN",
-    });
+    setIsApartmentSaving(true);
+
+    try {
+      await updateApartment(selectedApartment.id, (apartment) => ({
+        ...apartment,
+        payments: apartment.payments.filter((payment) => payment.id !== paymentId),
+      }));
+      setPaymentMessage("Запись об оплате удалена.");
+      addActivityLogEntry({
+        type: "apartment",
+        title: `Оплата удалена: ${selectedApartment.name}`,
+        status: "WARN",
+      });
+    } catch (error) {
+      setPaymentMessage(
+        error instanceof Error ? `Не удалось удалить оплату: ${error.message}` : "Не удалось удалить оплату.",
+      );
+    } finally {
+      setIsApartmentSaving(false);
+    }
   }
 
   function requestDeletePayment(paymentId: string) {
@@ -526,34 +831,114 @@ export default function ApartmentsPage() {
       title: "Удалить запись об оплате?",
       message: "Запись об оплате будет удалена из истории квартиры.",
       confirmLabel: "Удалить",
+      variant: "danger",
       onConfirm: () => deletePayment(paymentId),
     });
   }
 
-  function saveNotes(event: FormEvent<HTMLFormElement>) {
+  async function saveNotes(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!selectedApartment) {
       return;
     }
 
-    updateApartment(selectedApartment.id, (apartment) => ({
-      ...apartment,
-      notes: notesDraft.trim(),
-    }));
-    setNotesMessage("Заметки сохранены.");
-    setIsEditingNotes(false);
-    addActivityLogEntry({
-      type: "apartment",
-      title: `Изменены заметки квартиры: ${selectedApartment.name}`,
-      status: "OK",
-    });
+    setIsApartmentSaving(true);
+
+    try {
+      await updateApartment(selectedApartment.id, (apartment) => ({
+        ...apartment,
+        notes: notesDraft.trim(),
+      }));
+      setNotesMessage("Заметки сохранены.");
+      setIsEditingNotes(false);
+      addActivityLogEntry({
+        type: "apartment",
+        title: `Изменены заметки квартиры: ${selectedApartment.name}`,
+        status: "OK",
+      });
+    } catch (error) {
+      setNotesMessage(
+        error instanceof Error ? `Не удалось сохранить заметки: ${error.message}` : "Не удалось сохранить заметки.",
+      );
+    } finally {
+      setIsApartmentSaving(false);
+    }
   }
 
   function cancelNotesEditing() {
     setNotesDraft(selectedApartment?.notes ?? "");
     setNotesMessage("");
     setIsEditingNotes(false);
+  }
+
+  async function importLocalApartments() {
+    if (localImportApartments.length === 0) {
+      return;
+    }
+
+    setIsApartmentImporting(true);
+    setApartmentActionMessage("");
+
+    try {
+      const response = await fetch("/api/apartments/import", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(localImportApartments),
+      });
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response));
+      }
+
+      const payload = (await response.json()) as ApartmentImportResponse;
+      const importedApartments = payload.apartments.map(normalizeApiApartment);
+      setApartments(importedApartments);
+      writeStoredCollection(APARTMENTS_STORAGE_KEY, importedApartments);
+      setLocalImportApartments([]);
+      setSelectedApartmentId("");
+      setApartmentActionMessage(
+        payload.skippedTenants && payload.skippedTenants > 0
+          ? `Локальные квартиры импортированы. Пропущено жильцов без профиля: ${payload.skippedTenants}.`
+          : "Локальные квартиры импортированы в базу данных.",
+      );
+    } catch (error) {
+      setApartmentActionMessage(
+        error instanceof Error ? `Не удалось импортировать локальные квартиры: ${error.message}` : "Не удалось импортировать локальные квартиры.",
+      );
+    } finally {
+      setIsApartmentImporting(false);
+    }
+  }
+
+  async function createDefaultServerApartments() {
+    setIsApartmentInitializing(true);
+    setApartmentActionMessage("");
+
+    try {
+      const response = await fetch("/api/apartments/defaults", {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response));
+      }
+
+      const defaultApartments = ((await response.json()) as ApartmentApiResponse[]).map(normalizeApiApartment);
+      setApartments(defaultApartments);
+      writeStoredCollection(APARTMENTS_STORAGE_KEY, defaultApartments);
+      setLocalImportApartments([]);
+      setSelectedApartmentId("");
+      setApartmentActionMessage("Базовые квартиры созданы в базе данных.");
+    } catch (error) {
+      setApartmentActionMessage(
+        error instanceof Error ? `Не удалось создать базовые квартиры: ${error.message}` : "Не удалось создать базовые квартиры.",
+      );
+    } finally {
+      setIsApartmentInitializing(false);
+    }
   }
 
   function renderPaymentBadge(apartment: Apartment) {
@@ -582,9 +967,41 @@ export default function ApartmentsPage() {
           </div>
         </div>
 
-        {!isStorageReady ? (
+        {apartmentLoadMessage ? <p className="draft-message">{apartmentLoadMessage}</p> : null}
+        {apartmentActionMessage ? <p className="table-message">{apartmentActionMessage}</p> : null}
+        {localImportApartments.length > 0 ? (
+          <div className="empty-state compact-empty-state">
+            <p>Найдены локальные квартиры.</p>
+            <span>Можно импортировать {localImportApartments.length} записей в базу данных. Локальная копия не будет удалена.</span>
+            <button
+              className="primary-command"
+              disabled={isApartmentImporting}
+              onClick={importLocalApartments}
+              type="button"
+            >
+              {isApartmentImporting ? "Импорт..." : "Импортировать в базу данных"}
+            </button>
+          </div>
+        ) : null}
+
+        {isStorageReady && !isApartmentLoading && apartments.length === 0 && localImportApartments.length === 0 ? (
+          <div className="empty-state compact-empty-state">
+            <p>Квартиры в базе данных не найдены.</p>
+            <span>Для нормальной работы раздела создайте три базовые квартиры.</span>
+            <button
+              className="primary-command"
+              disabled={isApartmentInitializing}
+              onClick={createDefaultServerApartments}
+              type="button"
+            >
+              {isApartmentInitializing ? "Создание..." : "Создать базовые квартиры"}
+            </button>
+          </div>
+        ) : null}
+
+        {!isStorageReady || isApartmentLoading ? (
           <div className="empty-state">
-            <p>Загрузка локальных данных...</p>
+            <p>Загрузка квартир из базы данных...</p>
           </div>
         ) : (
           <div className="profile-list apartment-profile-list">
@@ -704,8 +1121,8 @@ export default function ApartmentsPage() {
                     <button className="command-row task-action-button" onClick={cancelNotesEditing} type="button">
                       Отмена
                     </button>
-                    <button className="command-row task-action-button" type="submit">
-                      Сохранить
+                    <button className="command-row task-action-button" disabled={isApartmentSaving} type="submit">
+                      {isApartmentSaving ? "Сохранение..." : "Сохранить"}
                     </button>
                   </div>
                 </form>
@@ -724,7 +1141,7 @@ export default function ApartmentsPage() {
           <section className="task-section apartment-section-block">
             <div className="task-section-header">
               <span>Жильцы</span>
-              <button className="command-row" onClick={openTenantModal} type="button">
+              <button className="command-row" disabled={isApartmentSaving} onClick={openTenantModal} type="button">
                 Добавить жильцов
               </button>
             </div>
@@ -822,10 +1239,10 @@ export default function ApartmentsPage() {
                           </span>
                         </div>
                         <div className="task-actions">
-                          <button className="command-row task-action-button" onClick={() => openEditPaymentModal(payment)} type="button">
+                          <button className="command-row task-action-button" disabled={isApartmentSaving} onClick={() => openEditPaymentModal(payment)} type="button">
                             Редактировать
                           </button>
-                          <button className="command-row task-action-button" onClick={() => requestDeletePayment(payment.id)} type="button">
+                          <button className="command-row task-action-button" disabled={isApartmentSaving} onClick={() => requestDeletePayment(payment.id)} type="button">
                             Удалить
                           </button>
                         </div>
@@ -964,8 +1381,8 @@ export default function ApartmentsPage() {
                   )}
                 </div>
 
-                <button className="command-row tenant-modal-command" onClick={addSelectedProfiles} type="button">
-                  Добавить выбранные профили
+                <button className="command-row tenant-modal-command" disabled={isApartmentSaving} onClick={addSelectedProfiles} type="button">
+                  {isApartmentSaving ? "Добавление..." : "Добавить выбранные профили"}
                 </button>
               </section>
 
@@ -987,8 +1404,8 @@ export default function ApartmentsPage() {
                     </select>
                   </label>
                 </div>
-                <button className="command-row tenant-modal-command" onClick={importSelectedGroup} type="button">
-                  Импортировать состав группы
+                <button className="command-row tenant-modal-command" disabled={isApartmentSaving} onClick={importSelectedGroup} type="button">
+                  {isApartmentSaving ? "Импорт..." : "Импортировать состав группы"}
                 </button>
               </section>
             </div>
@@ -1071,8 +1488,8 @@ export default function ApartmentsPage() {
               <button className="command-row" onClick={closePaymentModal} type="button">
                 Отмена
               </button>
-              <button className="primary-command" type="submit">
-                {editingPaymentId ? "Сохранить изменения" : "Сохранить оплату"}
+              <button className="primary-command" disabled={isApartmentSaving} type="submit">
+                {isApartmentSaving ? "Сохранение..." : editingPaymentId ? "Сохранить изменения" : "Сохранить оплату"}
               </button>
             </div>
           </form>
@@ -1084,9 +1501,11 @@ export default function ApartmentsPage() {
           title={confirmDialog.title}
           message={confirmDialog.message}
           confirmLabel={confirmDialog.confirmLabel}
+          variant={confirmDialog.variant}
+          loading={confirmDialog.loading || isApartmentSaving}
           onCancel={() => setConfirmDialog(null)}
-          onConfirm={() => {
-            confirmDialog.onConfirm();
+          onConfirm={async () => {
+            await confirmDialog.onConfirm();
             setConfirmDialog(null);
           }}
         />

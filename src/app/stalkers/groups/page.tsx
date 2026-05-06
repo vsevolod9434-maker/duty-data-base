@@ -4,8 +4,10 @@
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { getTaskActionVisibility, TaskRecordCard } from "@/components/ui/TaskRecordCard";
 import { addActivityLogEntry } from "@/lib/activity-log";
+import { createTask, deleteTaskRecord, fetchTasks, updateTask } from "@/lib/journal-api";
 import {
   stalkerGroups as initialStalkerGroups,
   stalkerProfiles as initialStalkerProfiles,
@@ -43,6 +45,46 @@ import {
 const statusLabels: Record<StalkerGroup["status"], string> = {
   active: "Активна",
   archive: "Архив",
+};
+
+type StalkerProfileApiResponse = {
+  id: string;
+  registryNumber: string | null;
+  fullName: string;
+  callsign: string;
+  birthDate: string | null;
+  affiliation: StalkerProfile["affiliation"] | null;
+  photoUrl: string | null;
+  appearance: string | null;
+  notes: string | null;
+  status: StalkerProfile["status"];
+  taskMark?: StalkerProfile["taskMark"];
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string | null;
+  updatedBy: string | null;
+};
+
+type StalkerGroupApiResponse = {
+  id: string;
+  name: string;
+  photoUrl: string | null;
+  status: StalkerGroup["status"];
+  notes: string | null;
+  members: Array<{
+    id: string;
+    stalkerId: string;
+    roleType: StalkerGroupRoleType;
+    customRoleName: string | null;
+    joinedAt: string;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type StalkerGroupImportResponse = {
+  groups: StalkerGroupApiResponse[];
+  skippedMembers?: number;
 };
 
 const groupTabs = ["Состав", "Задания"] as const;
@@ -114,6 +156,92 @@ function formatDate(value: string) {
   return value ? new Date(value).toLocaleDateString("ru-RU") : "Не указана";
 }
 
+function normalizeApiProfile(profile: StalkerProfileApiResponse): StalkerProfile {
+  return {
+    id: profile.id,
+    registryNumber: profile.registryNumber ?? undefined,
+    fullName: profile.fullName,
+    callsign: profile.callsign,
+    birthDate: profile.birthDate ?? "",
+    affiliation: profile.affiliation ?? undefined,
+    photoUrl: profile.photoUrl ?? undefined,
+    appearance: profile.appearance ?? "",
+    notes: profile.notes ?? "",
+    status: profile.status,
+    taskMark: profile.taskMark ?? "none",
+    createdAt: profile.createdAt,
+    updatedAt: profile.updatedAt,
+    createdBy: profile.createdBy ?? undefined,
+    updatedBy: profile.updatedBy ?? undefined,
+  };
+}
+
+function normalizeApiGroup(group: StalkerGroupApiResponse): StalkerGroup {
+  return {
+    id: group.id,
+    name: group.name,
+    photoUrl: group.photoUrl ?? undefined,
+    status: group.status,
+    notes: group.notes ?? "",
+    members: group.members,
+    createdAt: group.createdAt,
+    updatedAt: group.updatedAt,
+  };
+}
+
+async function readApiError(response: Response) {
+  const fallbackMessage = "Сервер вернул ошибку.";
+
+  try {
+    const payload = (await response.json()) as { error?: unknown };
+    return typeof payload.error === "string" ? payload.error : fallbackMessage;
+  } catch {
+    return fallbackMessage;
+  }
+}
+
+async function fetchStalkerProfiles() {
+  const response = await fetch("/api/stalkers", { cache: "no-store" });
+
+  if (!response.ok) {
+    throw new Error(await readApiError(response));
+  }
+
+  const payload = (await response.json()) as StalkerProfileApiResponse[];
+  return payload.map(normalizeApiProfile);
+}
+
+async function fetchStalkerGroups() {
+  const response = await fetch("/api/stalker-groups", { cache: "no-store" });
+
+  if (!response.ok) {
+    throw new Error(await readApiError(response));
+  }
+
+  const payload = (await response.json()) as StalkerGroupApiResponse[];
+  return payload.map(normalizeApiGroup);
+}
+
+async function saveStalkerGroupRequest(
+  method: "POST" | "PATCH",
+  url: string,
+  payload: Record<string, unknown>,
+) {
+  const response = await fetch(url, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readApiError(response));
+  }
+
+  return normalizeApiGroup((await response.json()) as StalkerGroupApiResponse);
+}
+
 function getTaskStatusLabel(task: Task) {
   if (task.status === "completed") {
     return taskStatusLabels.completed;
@@ -143,6 +271,13 @@ export default function StalkerGroupsPage() {
   const [groups, setGroups] = useState<StalkerGroup[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isStorageReady, setIsStorageReady] = useState(false);
+  const [isGroupLoading, setIsGroupLoading] = useState(true);
+  const [isGroupSaving, setIsGroupSaving] = useState(false);
+  const [isGroupDeleting, setIsGroupDeleting] = useState(false);
+  const [isGroupImporting, setIsGroupImporting] = useState(false);
+  const [groupLoadMessage, setGroupLoadMessage] = useState("");
+  const [groupActionMessage, setGroupActionMessage] = useState("");
+  const [localImportGroups, setLocalImportGroups] = useState<StalkerGroup[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState("");
   const [groupListTab, setGroupListTab] = useState<StalkerGroup["status"]>("active");
   const [activeGroupTab, setActiveGroupTab] = useState("Состав");
@@ -164,20 +299,88 @@ export default function StalkerGroupsPage() {
   const [memberRoleMessage, setMemberRoleMessage] = useState("");
   const [groupTaskFormMessage, setGroupTaskFormMessage] = useState("");
   const [tableMessage, setTableMessage] = useState("");
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string;
+    message: string;
+    confirmLabel: string;
+    variant?: "danger" | "default" | "warning";
+    loading?: boolean;
+    onConfirm: () => void | Promise<void>;
+  } | null>(null);
+  const [completingGroupTaskId, setCompletingGroupTaskId] = useState("");
+  const [completeGroupTaskAcceptedBy, setCompleteGroupTaskAcceptedBy] = useState("");
+  const [completeGroupTaskMessage, setCompleteGroupTaskMessage] = useState("");
 
   const profileById = useMemo(() => {
     return new Map(profiles.map((profile) => [profile.id, profile]));
   }, [profiles]);
 
   useEffect(() => {
+    let isCancelled = false;
+
     const storageReadHandle = window.setTimeout(() => {
-      setProfiles(readStoredCollection<StalkerProfile>(STALKER_PROFILES_STORAGE_KEY, initialStalkerProfiles));
-      setGroups(readStoredCollection<StalkerGroup>(STALKER_GROUPS_STORAGE_KEY, initialStalkerGroups));
-      setTasks(readStoredCollection<Task>(STALKER_TASKS_STORAGE_KEY, initialTasks));
-      setIsStorageReady(true);
+      const localProfiles = readStoredCollection<StalkerProfile>(STALKER_PROFILES_STORAGE_KEY, initialStalkerProfiles);
+      const localGroups = readStoredCollection<StalkerGroup>(STALKER_GROUPS_STORAGE_KEY, initialStalkerGroups);
+      const localTasks = readStoredCollection<Task>(STALKER_TASKS_STORAGE_KEY, initialTasks);
+      setTasks(localTasks);
+
+      async function loadServerData() {
+        setIsGroupLoading(true);
+        setGroupLoadMessage("");
+
+        try {
+          const [serverProfiles, serverGroups] = await Promise.all([
+            fetchStalkerProfiles().catch(() => localProfiles),
+            fetchStalkerGroups(),
+          ]);
+          const serverTasks = await fetchTasks().catch(() => localTasks);
+
+          if (isCancelled) {
+            return;
+          }
+
+          setProfiles(serverProfiles);
+          setGroups(serverGroups);
+          setTasks(serverTasks);
+
+          if (serverGroups.length > 0) {
+            writeStoredCollection(STALKER_GROUPS_STORAGE_KEY, serverGroups);
+            setLocalImportGroups([]);
+          } else if (localGroups.length > 0) {
+            setLocalImportGroups(localGroups);
+          }
+
+          writeStoredCollection(STALKER_TASKS_STORAGE_KEY, serverTasks);
+        } catch (error) {
+          if (isCancelled) {
+            return;
+          }
+
+          setProfiles(localProfiles);
+          setGroupLoadMessage(
+            error instanceof Error
+              ? `Не удалось загрузить группы из базы данных: ${error.message}`
+              : "Не удалось загрузить группы из базы данных.",
+          );
+
+          if (localGroups.length > 0) {
+            setLocalImportGroups(localGroups);
+          }
+        } finally {
+          if (!isCancelled) {
+            setIsStorageReady(true);
+            setIsGroupLoading(false);
+          }
+        }
+      }
+
+      void loadServerData();
     }, 0);
 
-    return () => window.clearTimeout(storageReadHandle);
+    return () => {
+      isCancelled = true;
+      window.clearTimeout(storageReadHandle);
+    };
   }, []);
 
   useEffect(() => {
@@ -185,8 +388,12 @@ export default function StalkerGroupsPage() {
       return;
     }
 
+    if (groups.length === 0 && localImportGroups.length > 0) {
+      return;
+    }
+
     writeStoredCollection(STALKER_GROUPS_STORAGE_KEY, groups);
-  }, [groups, isStorageReady]);
+  }, [groups, isStorageReady, localImportGroups.length]);
 
   useEffect(() => {
     if (!isStorageReady) {
@@ -380,7 +587,31 @@ export default function StalkerGroupsPage() {
     }));
   }
 
-  function addMemberToSelectedGroup() {
+  function buildGroupPayload(group: StalkerGroup, nextMembers = group.members) {
+    return {
+      name: group.name,
+      photoUrl: group.photoUrl ?? null,
+      notes: group.notes,
+      status: group.status,
+      members: nextMembers,
+    };
+  }
+
+  async function patchSelectedGroup(nextGroup: StalkerGroup, successMessage: string) {
+    const updatedGroup = await saveStalkerGroupRequest(
+      "PATCH",
+      `/api/stalker-groups/${encodeURIComponent(nextGroup.id)}`,
+      buildGroupPayload(nextGroup),
+    );
+
+    setGroups((currentGroups) =>
+      currentGroups.map((group) => (group.id === updatedGroup.id ? updatedGroup : group)),
+    );
+    setTableMessage(successMessage);
+    return updatedGroup;
+  }
+
+  async function addMemberToSelectedGroup() {
     if (!selectedGroup) {
       return;
     }
@@ -400,38 +631,44 @@ export default function StalkerGroupsPage() {
     }
 
     const now = getSystemTimestamp();
+    const nextMembers = [
+      ...selectedGroup.members,
+      {
+        id: `member-${profileId}-${Date.now()}`,
+        stalkerId: profileId,
+        roleType: selectedGroupMemberDraft.roleType,
+        customRoleName: selectedGroupMemberDraft.roleType === "custom" ? customRoleName : null,
+        joinedAt: now,
+      },
+    ];
+    const nextGroup = {
+      ...selectedGroup,
+      members: nextMembers,
+      updatedAt: now,
+    };
 
-    setGroups((currentGroups) =>
-      currentGroups.map((group) =>
-        group.id === selectedGroup.id
-          ? {
-              ...group,
-              members: [
-                ...group.members,
-                {
-                  id: `member-${profileId}-${Date.now()}`,
-                  stalkerId: profileId,
-                  roleType: selectedGroupMemberDraft.roleType,
-                  customRoleName: selectedGroupMemberDraft.roleType === "custom" ? customRoleName : null,
-                  joinedAt: now,
-                },
-              ],
-              updatedAt: now,
-            }
-          : group,
-      ),
-    );
-    closeGroupMemberModal();
-    addActivityLogEntry({
-      type: "group",
-      title: `Сталкер добавлен в группу: ${selectedGroup.name}`,
-      status: "OK",
-      description: profile ? getProfileTitle(profile) : profileId,
-    });
-    setTableMessage("Участник добавлен в группу.");
+    setIsGroupSaving(true);
+    setGroupActionMessage("");
+
+    try {
+      await patchSelectedGroup(nextGroup, "Участник добавлен в группу.");
+      closeGroupMemberModal();
+      addActivityLogEntry({
+        type: "group",
+        title: `Сталкер добавлен в группу: ${selectedGroup.name}`,
+        status: "OK",
+        description: profile ? getProfileTitle(profile) : profileId,
+      });
+    } catch (error) {
+      setMemberFormMessage(
+        error instanceof Error ? `Не удалось добавить участника: ${error.message}` : "Не удалось добавить участника.",
+      );
+    } finally {
+      setIsGroupSaving(false);
+    }
   }
 
-  function saveSelectedGroupMemberRole() {
+  async function saveSelectedGroupMemberRole() {
     if (!selectedGroup || !editingMemberRoleId) {
       return;
     }
@@ -445,66 +682,77 @@ export default function StalkerGroupsPage() {
       return;
     }
 
-    setGroups((currentGroups) =>
-      currentGroups.map((group) =>
-        group.id === selectedGroupId
+    const now = getSystemTimestamp();
+    const nextGroup = {
+      ...selectedGroup,
+      members: selectedGroup.members.map((member) =>
+        member.id === editingMemberRoleId
           ? {
-              ...group,
-              members: group.members.map((member) =>
-                member.id === editingMemberRoleId
-                  ? {
-                      ...member,
-                      roleType: memberRoleDraft.roleType,
-                      customRoleName: memberRoleDraft.roleType === "custom" ? customRoleName : null,
-                    }
-                  : member,
-              ),
-              updatedAt: getSystemTimestamp(),
+              ...member,
+              roleType: memberRoleDraft.roleType,
+              customRoleName: memberRoleDraft.roleType === "custom" ? customRoleName : null,
             }
-          : group,
+          : member,
       ),
-    );
-    closeEditMemberRoleModal();
-    setTableMessage("Роль участника обновлена.");
-    addActivityLogEntry({
-      type: "group",
-      title: `Изменена роль участника группы: ${selectedGroup.name}`,
-      status: "OK",
-      description: profile ? getProfileTitle(profile) : "Профиль не найден",
-    });
+      updatedAt: now,
+    };
+
+    setIsGroupSaving(true);
+    setGroupActionMessage("");
+
+    try {
+      await patchSelectedGroup(nextGroup, "Роль участника обновлена.");
+      closeEditMemberRoleModal();
+      addActivityLogEntry({
+        type: "group",
+        title: `Изменена роль участника группы: ${selectedGroup.name}`,
+        status: "OK",
+        description: profile ? getProfileTitle(profile) : "Профиль не найден",
+      });
+    } catch (error) {
+      setMemberRoleMessage(
+        error instanceof Error ? `Не удалось обновить роль: ${error.message}` : "Не удалось обновить роль.",
+      );
+    } finally {
+      setIsGroupSaving(false);
+    }
   }
 
-  function removeSelectedGroupMember(memberId: string) {
+  async function removeSelectedGroupMember(memberId: string) {
     const member = selectedGroup?.members.find((currentMember) => currentMember.id === memberId);
     const profile = member ? profileById.get(member.stalkerId) : null;
 
-    if (!window.confirm("Исключить участника из группы? Профиль сталкера останется в базе.")) {
+    if (!selectedGroup) {
       return;
     }
 
-    setGroups((currentGroups) =>
-      currentGroups.map((group) =>
-        group.id === selectedGroupId
-          ? {
-              ...group,
-              members: group.members.filter((member) => member.id !== memberId),
-              updatedAt: getSystemTimestamp(),
-            }
-          : group,
-      ),
-    );
-    setTableMessage("Участник исключён из группы.");
-    if (selectedGroup) {
+    const nextGroup = {
+      ...selectedGroup,
+      members: selectedGroup.members.filter((member) => member.id !== memberId),
+      updatedAt: getSystemTimestamp(),
+    };
+
+    setIsGroupSaving(true);
+    setGroupActionMessage("");
+
+    try {
+      await patchSelectedGroup(nextGroup, "Участник исключён из группы.");
       addActivityLogEntry({
         type: "group",
         title: `Сталкер удалён из группы: ${selectedGroup.name}`,
         status: "WARN",
         description: profile ? getProfileTitle(profile) : "Профиль не найден",
       });
+    } catch (error) {
+      setGroupActionMessage(
+        error instanceof Error ? `Не удалось исключить участника: ${error.message}` : "Не удалось исключить участника.",
+      );
+    } finally {
+      setIsGroupSaving(false);
     }
   }
 
-  function handleGroupSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleGroupSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const name = draft.name.trim();
@@ -524,53 +772,49 @@ export default function StalkerGroupsPage() {
       return;
     }
 
-    const now = getSystemTimestamp();
     const normalizedMembers = draft.members.map((member) => ({
       ...member,
       customRoleName:
         member.roleType === "custom" ? member.customRoleName?.trim() || null : null,
     }));
+    const payload = {
+      name,
+      photoUrl: photoUrl || null,
+      notes: draft.notes.trim(),
+      status: draft.status,
+      members: normalizedMembers,
+    };
 
-    if (editingGroupId) {
+    setIsGroupSaving(true);
+    setFormMessage("");
+    setGroupActionMessage("");
+
+    try {
+      if (editingGroupId) {
+        const updatedGroup = await saveStalkerGroupRequest(
+          "PATCH",
+          `/api/stalker-groups/${encodeURIComponent(editingGroupId)}`,
+          payload,
+        );
+
       setGroups((currentGroups) =>
-        currentGroups.map((group) =>
-          group.id === editingGroupId
-            ? {
-                ...group,
-                name,
-                photoUrl: photoUrl || undefined,
-                notes: draft.notes.trim(),
-                status: draft.status,
-                members: normalizedMembers,
-                updatedAt: now,
-              }
-            : group,
-        ),
+        currentGroups.map((group) => (group.id === updatedGroup.id ? updatedGroup : group)),
       );
-      setGroupListTab(draft.status);
-      setTableMessage("Группа обновлена и сохранена локально.");
+      setGroupListTab(updatedGroup.status);
+      setTableMessage("Группа обновлена в базе данных.");
       addActivityLogEntry({
         type: "group",
         title: `Изменена группа: ${name}`,
         status: "OK",
       });
     } else {
-      const newGroup: StalkerGroup = {
-        id: `temp-group-${Date.now()}`,
-        name,
-        photoUrl: photoUrl || undefined,
-        notes: draft.notes.trim(),
-        status: draft.status,
-        members: normalizedMembers,
-        createdAt: now,
-        updatedAt: now,
-      };
+      const newGroup = await saveStalkerGroupRequest("POST", "/api/stalker-groups", payload);
 
       setGroups((currentGroups) => [newGroup, ...currentGroups]);
       setSelectedGroupId(newGroup.id);
       setActiveGroupTab("Состав");
       setGroupListTab(newGroup.status);
-      setTableMessage("Группа создана и сохранена локально.");
+      setTableMessage("Группа создана в базе данных.");
       addActivityLogEntry({
         type: "group",
         title: `Создана группа: ${name}`,
@@ -580,50 +824,130 @@ export default function StalkerGroupsPage() {
 
     setGroupPage(1);
     closeGroupModal();
+    } catch (error) {
+      setFormMessage(
+        error instanceof Error ? `Не удалось сохранить группу: ${error.message}` : "Не удалось сохранить группу.",
+      );
+    } finally {
+      setIsGroupSaving(false);
+    }
   }
 
-  function setGroupStatus(groupId: string, status: StalkerGroup["status"]) {
+  async function setGroupStatus(groupId: string, status: StalkerGroup["status"]) {
     const group = groups.find((currentGroup) => currentGroup.id === groupId);
 
-    setGroups((currentGroups) =>
-      currentGroups.map((group) =>
-        group.id === groupId
-          ? { ...group, status, updatedAt: getSystemTimestamp() }
-          : group,
-      ),
-    );
-    setGroupListTab(status);
-    setSelectedGroupId("");
-    setActiveGroupTab("");
-    setGroupPage(1);
-    setTableMessage(status === "archive" ? "Группа перенесена в архив." : "Группа возвращена в активные.");
-    addActivityLogEntry({
-      type: "group",
-      title:
-        status === "archive"
-          ? `Группа перенесена в архив: ${group?.name ?? "Без названия"}`
-          : `Группа возвращена из архива: ${group?.name ?? "Без названия"}`,
-      status: status === "archive" ? "WARN" : "OK",
-    });
-  }
-
-  function deleteGroup(groupId: string) {
-    const group = groups.find((currentGroup) => currentGroup.id === groupId);
-
-    if (!window.confirm("Удалить группу окончательно? Профили участников останутся.")) {
+    if (!group) {
       return;
     }
 
-    setGroups((currentGroups) => currentGroups.filter((group) => group.id !== groupId));
-    setSelectedGroupId("");
-    setActiveGroupTab("");
-    setGroupPage(1);
-    setTableMessage("Группа удалена. Профили участников не изменены.");
-    addActivityLogEntry({
-      type: "group",
-      title: `Группа удалена: ${group?.name ?? "Без названия"}`,
-      status: "WARN",
-    });
+    setIsGroupSaving(true);
+    setGroupActionMessage("");
+
+    try {
+      const updatedGroup = await saveStalkerGroupRequest(
+        "PATCH",
+        `/api/stalker-groups/${encodeURIComponent(groupId)}`,
+        { status },
+      );
+
+      setGroups((currentGroups) =>
+        currentGroups.map((group) => (group.id === groupId ? updatedGroup : group)),
+      );
+      setGroupListTab(status);
+      setSelectedGroupId("");
+      setActiveGroupTab("");
+      setGroupPage(1);
+      setTableMessage(status === "archive" ? "Группа перенесена в архив." : "Группа возвращена в активные.");
+      addActivityLogEntry({
+        type: "group",
+        title:
+          status === "archive"
+            ? `Группа перенесена в архив: ${group.name}`
+            : `Группа возвращена из архива: ${group.name}`,
+        status: status === "archive" ? "WARN" : "OK",
+      });
+    } catch (error) {
+      setGroupActionMessage(
+        error instanceof Error ? `Не удалось изменить статус группы: ${error.message}` : "Не удалось изменить статус группы.",
+      );
+    } finally {
+      setIsGroupSaving(false);
+    }
+  }
+
+  async function deleteGroup(groupId: string) {
+    const group = groups.find((currentGroup) => currentGroup.id === groupId);
+
+    setIsGroupDeleting(true);
+    setGroupActionMessage("");
+
+    try {
+      const response = await fetch(`/api/stalker-groups/${encodeURIComponent(groupId)}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response));
+      }
+
+      setGroups((currentGroups) => currentGroups.filter((group) => group.id !== groupId));
+      setSelectedGroupId("");
+      setActiveGroupTab("");
+      setGroupPage(1);
+      setTableMessage("Группа удалена из базы данных. Профили участников не изменены.");
+      addActivityLogEntry({
+        type: "group",
+        title: `Группа удалена: ${group?.name ?? "Без названия"}`,
+        status: "WARN",
+      });
+    } catch (error) {
+      setGroupActionMessage(
+        error instanceof Error ? `Не удалось удалить группу: ${error.message}` : "Не удалось удалить группу.",
+      );
+    } finally {
+      setIsGroupDeleting(false);
+    }
+  }
+
+  async function importLocalGroups() {
+    if (localImportGroups.length === 0) {
+      return;
+    }
+
+    setIsGroupImporting(true);
+    setGroupActionMessage("");
+
+    try {
+      const response = await fetch("/api/stalker-groups/import", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(localImportGroups),
+      });
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response));
+      }
+
+      const payload = (await response.json()) as StalkerGroupImportResponse;
+      const importedGroups = payload.groups.map(normalizeApiGroup);
+      setGroups(importedGroups);
+      writeStoredCollection(STALKER_GROUPS_STORAGE_KEY, importedGroups);
+      setLocalImportGroups([]);
+      setGroupPage(1);
+      setTableMessage(
+        payload.skippedMembers && payload.skippedMembers > 0
+          ? `Локальные группы импортированы. Пропущено участников без профиля: ${payload.skippedMembers}.`
+          : "Локальные группы импортированы в базу данных.",
+      );
+    } catch (error) {
+      setGroupActionMessage(
+        error instanceof Error ? `Не удалось импортировать локальные группы: ${error.message}` : "Не удалось импортировать локальные группы.",
+      );
+    } finally {
+      setIsGroupImporting(false);
+    }
   }
 
   function changeListTab(tab: StalkerGroup["status"]) {
@@ -686,6 +1010,12 @@ export default function StalkerGroupsPage() {
     setGroupTaskFormMessage("");
   }
 
+  function closeCompleteGroupTaskModal() {
+    setCompletingGroupTaskId("");
+    setCompleteGroupTaskAcceptedBy("");
+    setCompleteGroupTaskMessage("");
+  }
+
   function updateGroupTaskDraft<Field extends keyof typeof groupTaskDraft>(
     field: Field,
     value: (typeof groupTaskDraft)[Field],
@@ -699,7 +1029,7 @@ export default function StalkerGroupsPage() {
     setGroupTaskFormMessage("");
   }
 
-  function handleGroupTaskSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleGroupTaskSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!selectedGroup) {
@@ -719,28 +1049,28 @@ export default function StalkerGroupsPage() {
       return;
     }
 
-    const now = getSystemTimestamp();
-
     if (editingGroupTaskId) {
-      setTasks((currentTasks) =>
-        currentTasks.map((task) =>
-          task.id === editingGroupTaskId
-            ? {
-                ...task,
-                issuedAt: groupTaskDraft.issuedAt,
-                dueAt: groupTaskDraft.dueAt,
-                description,
-                reward: groupTaskDraft.reward.trim(),
-                notes: groupTaskDraft.notes.trim(),
-                issuedBy: groupTaskDraft.issuedBy.trim(),
-                acceptedBy: groupTaskDraft.status === "completed" ? acceptedBy : null,
-                completedAt: groupTaskDraft.status === "completed" ? task.completedAt ?? now : null,
-                status: groupTaskDraft.status,
-                updatedAt: now,
-              }
-            : task,
-        ),
-      );
+      const currentTask = tasks.find((task) => task.id === editingGroupTaskId);
+      const updatedTask = await updateTask(editingGroupTaskId, {
+        issuedAt: groupTaskDraft.issuedAt,
+        dueAt: groupTaskDraft.dueAt,
+        description,
+        reward: groupTaskDraft.reward.trim(),
+        notes: groupTaskDraft.notes.trim(),
+        issuedBy: groupTaskDraft.issuedBy.trim(),
+        acceptedBy: groupTaskDraft.status === "completed" ? acceptedBy : null,
+        completedAt: groupTaskDraft.status === "completed" ? currentTask?.completedAt || getSystemTimestamp() : null,
+        status: groupTaskDraft.status,
+      }).catch((error) => {
+        setGroupTaskFormMessage(error instanceof Error ? error.message : "Не удалось сохранить групповое задание.");
+        return null;
+      });
+
+      if (!updatedTask) {
+        return;
+      }
+
+      setTasks((currentTasks) => currentTasks.map((task) => (task.id === editingGroupTaskId ? updatedTask : task)));
       setTableMessage("Групповое задание обновлено.");
       addActivityLogEntry({
         type: "task",
@@ -751,8 +1081,8 @@ export default function StalkerGroupsPage() {
       return;
     }
 
-    const newTask: Task = {
-      id: `group-task-${selectedGroup.id}-${Date.now()}`,
+    const completedAt = groupTaskDraft.status === "completed" ? getSystemTimestamp() : null;
+    const newTask = await createTask({
       assigneeType: "group",
       stalkerId: null,
       groupId: selectedGroup.id,
@@ -763,11 +1093,16 @@ export default function StalkerGroupsPage() {
       notes: groupTaskDraft.notes.trim(),
       issuedBy: groupTaskDraft.issuedBy.trim(),
       acceptedBy: groupTaskDraft.status === "completed" ? acceptedBy : null,
-      completedAt: groupTaskDraft.status === "completed" ? now : null,
+      completedAt,
       status: groupTaskDraft.status,
-      createdAt: now,
-      updatedAt: now,
-    };
+    }).catch((error) => {
+      setGroupTaskFormMessage(error instanceof Error ? error.message : "Не удалось создать групповое задание.");
+      return null;
+    });
+
+    if (!newTask) {
+      return;
+    }
 
     setTasks((currentTasks) => [newTask, ...currentTasks]);
     setTableMessage("Групповое задание создано.");
@@ -780,39 +1115,47 @@ export default function StalkerGroupsPage() {
   }
 
   function completeGroupTask(taskId: string) {
-    const task = tasks.find((currentTask) => currentTask.id === taskId);
-    const acceptedBy = window.prompt("Кто принял выполнение задания?");
+    setCompletingGroupTaskId(taskId);
+    setCompleteGroupTaskAcceptedBy("");
+    setCompleteGroupTaskMessage("");
+  }
 
-    if (acceptedBy === null) {
+  async function submitCompleteGroupTask(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const task = tasks.find((currentTask) => currentTask.id === completingGroupTaskId);
+    const normalizedAcceptedBy = completeGroupTaskAcceptedBy.trim();
+
+    if (!task) {
       return;
     }
-
-    const normalizedAcceptedBy = acceptedBy.trim();
 
     if (!normalizedAcceptedBy) {
-      setTableMessage("Укажите, кто принял выполнение задания.");
+      setCompleteGroupTaskMessage("Укажите, кто принял выполнение задания.");
       return;
     }
 
-    setTasks((currentTasks) =>
-      currentTasks.map((task) =>
-        task.id === taskId
-          ? {
-              ...task,
-              acceptedBy: normalizedAcceptedBy,
-              completedAt: getSystemTimestamp(),
-              status: "completed",
-              updatedAt: getSystemTimestamp(),
-            }
-          : task,
-      ),
-    );
+    const updatedTask = await updateTask(completingGroupTaskId, {
+      acceptedBy: normalizedAcceptedBy,
+      completedAt: getSystemTimestamp(),
+      status: "completed",
+    }).catch((error) => {
+      setCompleteGroupTaskMessage(error instanceof Error ? error.message : "Не удалось засчитать задание.");
+      return null;
+    });
+
+    if (!updatedTask) {
+      return;
+    }
+
+    setTasks((currentTasks) => currentTasks.map((task) => (task.id === completingGroupTaskId ? updatedTask : task)));
     setTableMessage("Групповое задание засчитано.");
     addActivityLogEntry({
       type: "task",
       title: `Групповое задание выполнено: ${selectedGroup?.name ?? "Группа не найдена"} — ${task?.description ?? "Без описания"}`,
       status: "OK",
     });
+    closeCompleteGroupTaskModal();
   }
 
   function openGroup(groupId: string) {
@@ -820,14 +1163,19 @@ export default function StalkerGroupsPage() {
     setActiveGroupTab("Состав");
   }
 
-  function cancelGroupTask(taskId: string) {
+  async function cancelGroupTask(taskId: string) {
     const task = tasks.find((currentTask) => currentTask.id === taskId);
 
-    setTasks((currentTasks) =>
-      currentTasks.map((task) =>
-        task.id === taskId ? { ...task, status: "cancelled", updatedAt: getSystemTimestamp() } : task,
-      ),
-    );
+    const updatedTask = await updateTask(taskId, { status: "cancelled" }).catch((error) => {
+      setTableMessage(error instanceof Error ? error.message : "Не удалось отменить групповое задание.");
+      return null;
+    });
+
+    if (!updatedTask) {
+      return;
+    }
+
+    setTasks((currentTasks) => currentTasks.map((task) => (task.id === taskId ? updatedTask : task)));
     setTableMessage("Групповое задание отменено.");
     addActivityLogEntry({
       type: "task",
@@ -839,16 +1187,22 @@ export default function StalkerGroupsPage() {
   function deleteGroupTask(taskId: string) {
     const task = tasks.find((currentTask) => currentTask.id === taskId);
 
-    if (!window.confirm("Удалить групповое задание окончательно?")) {
-      return;
-    }
-
-    setTasks((currentTasks) => currentTasks.filter((task) => task.id !== taskId));
-    setTableMessage("Групповое задание удалено.");
-    addActivityLogEntry({
-      type: "task",
-      title: `Групповое задание удалено: ${selectedGroup?.name ?? "Группа не найдена"} — ${task?.description ?? "Без описания"}`,
-      status: "WARN",
+    setConfirmDialog({
+      title: "Удаление задания",
+      message: "Удалить групповое задание окончательно?",
+      confirmLabel: "Удалить",
+      variant: "danger",
+      onConfirm: async () => {
+        await deleteTaskRecord(taskId);
+        setTasks((currentTasks) => currentTasks.filter((task) => task.id !== taskId));
+        setTableMessage("Групповое задание удалено.");
+        addActivityLogEntry({
+          type: "task",
+          title: `Групповое задание удалено: ${selectedGroup?.name ?? "Группа не найдена"} — ${task?.description ?? "Без описания"}`,
+          status: "WARN",
+        });
+        setConfirmDialog(null);
+      },
     });
   }
 
@@ -914,12 +1268,28 @@ export default function StalkerGroupsPage() {
                   </label>
                 </div>
 
+                {groupLoadMessage ? <p className="draft-message">{groupLoadMessage}</p> : null}
+                {groupActionMessage ? <p className="draft-message">{groupActionMessage}</p> : null}
                 {tableMessage ? <p className="table-message">{tableMessage}</p> : null}
+                {localImportGroups.length > 0 ? (
+                  <div className="empty-state compact-empty-state">
+                    <p>Найдены локальные группы.</p>
+                    <span>Можно импортировать {localImportGroups.length} записей в базу данных. Локальная копия не будет удалена.</span>
+                    <button
+                      className="primary-command"
+                      disabled={isGroupImporting}
+                      onClick={importLocalGroups}
+                      type="button"
+                    >
+                      {isGroupImporting ? "Импорт..." : "Импортировать в базу данных"}
+                    </button>
+                  </div>
+                ) : null}
 
                 <div className="profile-list">
-                  {!isStorageReady ? (
+                  {!isStorageReady || isGroupLoading ? (
                     <div className="empty-state">
-                      <p>Загрузка локальных данных...</p>
+                      <p>Загрузка групп из базы данных...</p>
                     </div>
                   ) : paginatedGroups.items.length > 0 ? (
                     paginatedGroups.items.map((group) => (
@@ -946,15 +1316,15 @@ export default function StalkerGroupsPage() {
                   )}
                 </div>
 
-                {isStorageReady ? (
+                {isStorageReady && !isGroupLoading ? (
                   <Pagination page={paginatedGroups.page} pageCount={paginatedGroups.pageCount} onPageChange={setGroupPage} />
                 ) : null}
               </section>
 
               <section className="profile-column detail-host-column">
-                {!isStorageReady ? (
+                {!isStorageReady || isGroupLoading ? (
                   <div className="empty-state">
-                    <p>Загрузка локальных данных...</p>
+                    <p>Загрузка групп из базы данных...</p>
                   </div>
                 ) : selectedGroup ? (
                   <div className="profile-detail">
@@ -995,19 +1365,36 @@ export default function StalkerGroupsPage() {
                         </div>
                       </div>
                       <div className="detail-actions group-hero-actions">
-                        <button className="command-row task-action-button" onClick={() => openEditGroup(selectedGroup)} type="button">
+                        <button className="command-row task-action-button" disabled={isGroupSaving || isGroupDeleting} onClick={() => openEditGroup(selectedGroup)} type="button">
                           Редактировать
                         </button>
                         {selectedGroup.status === "active" ? (
-                          <button className="command-row task-action-button" onClick={() => setGroupStatus(selectedGroup.id, "archive")} type="button">
+                        <button className="command-row task-action-button" disabled={isGroupSaving || isGroupDeleting} onClick={() => setGroupStatus(selectedGroup.id, "archive")} type="button">
                             В архив
                           </button>
                         ) : (
-                          <button className="command-row task-action-button" onClick={() => setGroupStatus(selectedGroup.id, "active")} type="button">
+                          <button className="command-row task-action-button" disabled={isGroupSaving || isGroupDeleting} onClick={() => setGroupStatus(selectedGroup.id, "active")} type="button">
                             Вернуть из архива
                           </button>
                         )}
-                        <button className="command-row task-action-button" onClick={() => deleteGroup(selectedGroup.id)} type="button">
+                        <button
+                          className="command-row task-action-button"
+                          disabled={isGroupSaving || isGroupDeleting}
+                          onClick={() =>
+                            setConfirmDialog({
+                              title: "Удаление группы",
+                              message: "Удалить группу окончательно? Профили участников удалены не будут.",
+                              confirmLabel: "Удалить",
+                              variant: "danger",
+                              loading: isGroupDeleting,
+                              onConfirm: async () => {
+                                await deleteGroup(selectedGroup.id);
+                                setConfirmDialog(null);
+                              },
+                            })
+                          }
+                          type="button"
+                        >
                           Удалить
                         </button>
                       </div>
@@ -1122,7 +1509,23 @@ export default function StalkerGroupsPage() {
                                     <button className="command-row task-action-button" onClick={() => openEditMemberRoleModal(member)} type="button">
                                       Редактировать
                                     </button>
-                                    <button className="command-row task-action-button group-remove-button" onClick={() => removeSelectedGroupMember(member.id)} type="button">
+                                    <button
+                                      className="command-row task-action-button group-remove-button"
+                                      onClick={() =>
+                                        setConfirmDialog({
+                                          title: "Исключение участника",
+                                          message: "Исключить участника из группы? Профиль сталкера останется в базе.",
+                                          confirmLabel: "Исключить",
+                                          variant: "warning",
+                                          loading: isGroupSaving,
+                                          onConfirm: async () => {
+                                            await removeSelectedGroupMember(member.id);
+                                            setConfirmDialog(null);
+                                          },
+                                        })
+                                      }
+                                      type="button"
+                                    >
                                       Исключить
                                     </button>
                                   </div>
@@ -1157,7 +1560,7 @@ export default function StalkerGroupsPage() {
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>{editingGroupId ? "Редактирование группы" : "Создание группы"}</h1>
-                <p>Группа сохраняется локально в браузере</p>
+                <p>Группа сохраняется в базе данных</p>
               </div>
             </div>
 
@@ -1323,8 +1726,8 @@ export default function StalkerGroupsPage() {
               <button className="command-row" onClick={closeGroupModal} type="button">
                 Отмена
               </button>
-              <button className="primary-command" type="submit">
-                {editingGroupId ? "Сохранить изменения" : "Сохранить группу"}
+              <button className="primary-command" disabled={isGroupSaving} type="submit">
+                {isGroupSaving ? "Сохранение..." : editingGroupId ? "Сохранить изменения" : "Сохранить группу"}
               </button>
             </div>
           </form>
@@ -1490,8 +1893,8 @@ export default function StalkerGroupsPage() {
               <button className="command-row" onClick={closeGroupMemberModal} type="button">
                 Отмена
               </button>
-              <button className="primary-command" onClick={addMemberToSelectedGroup} type="button">
-                Добавить
+              <button className="primary-command" disabled={isGroupSaving} onClick={addMemberToSelectedGroup} type="button">
+                {isGroupSaving ? "Добавление..." : "Добавить"}
               </button>
             </div>
           </div>
@@ -1569,12 +1972,72 @@ export default function StalkerGroupsPage() {
               <button className="command-row" onClick={closeEditMemberRoleModal} type="button">
                 Отмена
               </button>
-              <button className="primary-command" onClick={saveSelectedGroupMemberRole} type="button">
-                Сохранить
+              <button className="primary-command" disabled={isGroupSaving} onClick={saveSelectedGroupMemberRole} type="button">
+                {isGroupSaving ? "Сохранение..." : "Сохранить"}
               </button>
             </div>
           </div>
         </div>
+      ) : null}
+
+      {completingGroupTaskId ? (
+        <div className="pda-modal-backdrop">
+          <form className="pda-modal task-complete-modal" onSubmit={submitCompleteGroupTask}>
+            <div className="section-header modal-header">
+              <div className="min-w-0">
+                <h1>Засчитать групповое задание</h1>
+                <p>Укажите, кто принял выполнение задания.</p>
+              </div>
+            </div>
+
+            <div className="modal-body">
+              <section className="form-section">
+                <div className="form-section-heading">
+                  <h2>Подтверждение</h2>
+                  <span>Задание перейдёт в выполненные</span>
+                </div>
+                <label className="filter-field">
+                  <span>Кто принял выполнение</span>
+                  <input
+                    autoFocus
+                    onChange={(event) => {
+                      setCompleteGroupTaskAcceptedBy(event.target.value);
+                      setCompleteGroupTaskMessage("");
+                    }}
+                    placeholder="Позывной или должность"
+                    type="text"
+                    value={completeGroupTaskAcceptedBy}
+                  />
+                </label>
+              </section>
+            </div>
+
+            <div className="modal-message-slot">
+              {completeGroupTaskMessage ? <p className="draft-message">{completeGroupTaskMessage}</p> : null}
+            </div>
+
+            <div className="modal-actions">
+              <button className="command-row" onClick={closeCompleteGroupTaskModal} type="button">
+                Отмена
+              </button>
+              <button className="primary-command" type="submit">
+                Засчитать
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+      {confirmDialog ? (
+        <ConfirmDialog
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          confirmLabel={confirmDialog.confirmLabel}
+          variant={confirmDialog.variant}
+          loading={confirmDialog.loading || isGroupSaving || isGroupDeleting}
+          onCancel={() => setConfirmDialog(null)}
+          onConfirm={confirmDialog.onConfirm}
+        />
       ) : null}
     </main>
   );

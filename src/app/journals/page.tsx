@@ -10,6 +10,23 @@ import { TradeRecordCard } from "@/components/ui/TradeRecordCard";
 import { ViolationRecordCard } from "@/components/ui/ViolationRecordCard";
 import { addActivityLogEntry } from "@/lib/activity-log";
 import {
+  createTask,
+  createTradeOperation,
+  createViolation,
+  deleteTaskRecord,
+  deleteTradeOperationRecord,
+  deleteViolationRecord,
+  fetchTasks,
+  fetchTradeOperations,
+  fetchViolations,
+  importTasks,
+  importTradeOperations,
+  importViolations,
+  updateTask,
+  updateTradeOperation,
+  updateViolation,
+} from "@/lib/journal-api";
+import {
   stalkerGroups as initialStalkerGroups,
   stalkerProfiles as initialStalkerProfiles,
   tasks as initialTasks,
@@ -79,6 +96,26 @@ type EntitySearchResult = {
   description: string;
   meta?: string;
 };
+
+async function fetchReferenceCollection<T>(url: string, fallback: T[]) {
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    return fallback;
+  }
+
+  return ((await response.json()) as T[]).map((item) => normalizeReferenceRecord(item));
+}
+
+function normalizeReferenceRecord<T>(item: T): T {
+  if (!item || typeof item !== "object") {
+    return item;
+  }
+
+  return Object.fromEntries(
+    Object.entries(item).map(([key, value]) => [key, value ?? (key === "members" ? [] : "")]),
+  ) as T;
+}
 
 type JournalConfirmDialogState = {
   title: string;
@@ -292,6 +329,12 @@ export default function JournalsPage() {
   const [tradeOperations, setTradeOperations] = useState<TradeOperation[]>([]);
   const [violations, setViolations] = useState<Violation[]>([]);
   const [isStorageReady, setIsStorageReady] = useState(false);
+  const [isJournalLoading, setIsJournalLoading] = useState(false);
+  const [journalLoadMessage, setJournalLoadMessage] = useState("");
+  const [localImportTasks, setLocalImportTasks] = useState<Task[]>([]);
+  const [localImportTradeOperations, setLocalImportTradeOperations] = useState<TradeOperation[]>([]);
+  const [localImportViolations, setLocalImportViolations] = useState<Violation[]>([]);
+  const [journalImportMessage, setJournalImportMessage] = useState("");
   const [taskStatusFilter, setTaskStatusFilter] = useState<TaskStatusFilter>("active");
   const [violationStatusFilter, setViolationStatusFilter] = useState<ViolationStatusFilter>("all");
   const [taskPage, setTaskPage] = useState(1);
@@ -328,16 +371,92 @@ export default function JournalsPage() {
   const [violationProfileSearch, setViolationProfileSearch] = useState(createEntitySearchState);
 
   useEffect(() => {
+    let isCancelled = false;
+
     const storageReadHandle = window.setTimeout(() => {
-      setProfiles(readStoredCollection<StalkerProfile>(STALKER_PROFILES_STORAGE_KEY, initialStalkerProfiles));
-      setGroups(readStoredCollection<StalkerGroup>(STALKER_GROUPS_STORAGE_KEY, initialStalkerGroups));
-      setTasks(readStoredCollection<Task>(STALKER_TASKS_STORAGE_KEY, initialTasks));
-      setTradeOperations(readStoredCollection<TradeOperation>(TRADE_OPERATIONS_STORAGE_KEY, initialTradeOperations));
-      setViolations(readStoredCollection<Violation>(VIOLATIONS_STORAGE_KEY, []));
-      setIsStorageReady(true);
+      const localProfiles = readStoredCollection<StalkerProfile>(STALKER_PROFILES_STORAGE_KEY, initialStalkerProfiles);
+      const localGroups = readStoredCollection<StalkerGroup>(STALKER_GROUPS_STORAGE_KEY, initialStalkerGroups);
+      const localTasks = readStoredCollection<Task>(STALKER_TASKS_STORAGE_KEY, initialTasks);
+      const localTradeOperations = readStoredCollection<TradeOperation>(TRADE_OPERATIONS_STORAGE_KEY, initialTradeOperations);
+      const localViolations = readStoredCollection<Violation>(VIOLATIONS_STORAGE_KEY, []);
+
+      setProfiles(localProfiles);
+      setGroups(localGroups);
+      setTasks(localTasks);
+      setTradeOperations(localTradeOperations);
+      setViolations(localViolations);
+
+      async function loadJournalData() {
+        setIsJournalLoading(true);
+        setJournalLoadMessage("");
+
+        try {
+          const [serverProfiles, serverGroups, serverTasks, serverTradeOperations, serverViolations] = await Promise.all([
+            fetchReferenceCollection<StalkerProfile>("/api/stalkers", localProfiles),
+            fetchReferenceCollection<StalkerGroup>("/api/stalker-groups", localGroups),
+            fetchTasks(),
+            fetchTradeOperations(),
+            fetchViolations(),
+          ]);
+
+          if (isCancelled) {
+            return;
+          }
+
+          setProfiles(serverProfiles);
+          setGroups(serverGroups);
+          setTasks(serverTasks);
+          setTradeOperations(serverTradeOperations);
+          setViolations(serverViolations);
+
+          if (serverTasks.length > 0) {
+            setLocalImportTasks([]);
+          } else if (localTasks.length > 0) {
+            setLocalImportTasks(localTasks);
+          }
+
+          if (serverTradeOperations.length > 0) {
+            setLocalImportTradeOperations([]);
+          } else if (localTradeOperations.length > 0) {
+            setLocalImportTradeOperations(localTradeOperations);
+          }
+
+          if (serverViolations.length > 0) {
+            setLocalImportViolations([]);
+          } else if (localViolations.length > 0) {
+            setLocalImportViolations(localViolations);
+          }
+
+          writeStoredCollection(STALKER_PROFILES_STORAGE_KEY, serverProfiles);
+          writeStoredCollection(STALKER_GROUPS_STORAGE_KEY, serverGroups);
+          writeStoredCollection(STALKER_TASKS_STORAGE_KEY, serverTasks);
+          writeStoredCollection(TRADE_OPERATIONS_STORAGE_KEY, serverTradeOperations);
+          writeStoredCollection(VIOLATIONS_STORAGE_KEY, serverViolations);
+        } catch (error) {
+          if (isCancelled) {
+            return;
+          }
+
+          setJournalLoadMessage(
+            error instanceof Error
+              ? `Не удалось загрузить журналы из базы данных: ${error.message}`
+              : "Не удалось загрузить журналы из базы данных.",
+          );
+        } finally {
+          if (!isCancelled) {
+            setIsStorageReady(true);
+            setIsJournalLoading(false);
+          }
+        }
+      }
+
+      void loadJournalData();
     }, 0);
 
-    return () => window.clearTimeout(storageReadHandle);
+    return () => {
+      isCancelled = true;
+      window.clearTimeout(storageReadHandle);
+    };
   }, []);
 
   useEffect(() => {
@@ -345,24 +464,36 @@ export default function JournalsPage() {
       return;
     }
 
+    if (tasks.length === 0 && localImportTasks.length > 0) {
+      return;
+    }
+
     writeStoredCollection(STALKER_TASKS_STORAGE_KEY, tasks);
-  }, [isStorageReady, tasks]);
+  }, [isStorageReady, localImportTasks.length, tasks]);
 
   useEffect(() => {
     if (!isStorageReady) {
+      return;
+    }
+
+    if (tradeOperations.length === 0 && localImportTradeOperations.length > 0) {
       return;
     }
 
     writeStoredCollection(TRADE_OPERATIONS_STORAGE_KEY, tradeOperations);
-  }, [isStorageReady, tradeOperations]);
+  }, [isStorageReady, localImportTradeOperations.length, tradeOperations]);
 
   useEffect(() => {
     if (!isStorageReady) {
       return;
     }
 
+    if (violations.length === 0 && localImportViolations.length > 0) {
+      return;
+    }
+
     writeStoredCollection(VIOLATIONS_STORAGE_KEY, violations);
-  }, [isStorageReady, violations]);
+  }, [isStorageReady, localImportViolations.length, violations]);
 
   const profileById = useMemo(() => {
     return new Map(profiles.map((profile) => [profile.id, profile]));
@@ -379,6 +510,54 @@ export default function JournalsPage() {
   const activeGroups = useMemo(() => {
     return groups.filter((group) => group.status === "active");
   }, [groups]);
+
+  async function importLocalTasks() {
+    setJournalImportMessage("");
+    try {
+      const result = await importTasks(localImportTasks);
+      setTasks(result.tasks);
+      setLocalImportTasks([]);
+      setJournalImportMessage(
+        result.skippedLinks
+          ? `Задания импортированы. Записей с отсутствующими связями: ${result.skippedLinks}.`
+          : "Задания импортированы в базу данных.",
+      );
+    } catch (error) {
+      setJournalImportMessage(error instanceof Error ? error.message : "Не удалось импортировать задания.");
+    }
+  }
+
+  async function importLocalTradeOperations() {
+    setJournalImportMessage("");
+    try {
+      const result = await importTradeOperations(localImportTradeOperations);
+      setTradeOperations(result.tradeOperations);
+      setLocalImportTradeOperations([]);
+      setJournalImportMessage(
+        result.skippedLinks
+          ? `Торговые операции импортированы. Записей с отсутствующими связями: ${result.skippedLinks}.`
+          : "Торговые операции импортированы в базу данных.",
+      );
+    } catch (error) {
+      setJournalImportMessage(error instanceof Error ? error.message : "Не удалось импортировать торговые операции.");
+    }
+  }
+
+  async function importLocalViolations() {
+    setJournalImportMessage("");
+    try {
+      const result = await importViolations(localImportViolations);
+      setViolations(result.violations);
+      setLocalImportViolations([]);
+      setJournalImportMessage(
+        result.skippedLinks
+          ? `Нарушения импортированы. Записей с отсутствующими связями: ${result.skippedLinks}.`
+          : "Нарушения импортированы в базу данных.",
+      );
+    } catch (error) {
+      setJournalImportMessage(error instanceof Error ? error.message : "Не удалось импортировать нарушения.");
+    }
+  }
 
   const searchProfiles = (state: EntitySearchState) => {
     const query = state.appliedQuery.trim().toLowerCase();
@@ -744,7 +923,7 @@ export default function JournalsPage() {
     return group ? group.name : "";
   }
 
-  function handleTradeSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleTradeSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const itemName = tradeDraft.itemName.trim();
@@ -766,7 +945,6 @@ export default function JournalsPage() {
       return;
     }
 
-    const now = getSystemTimestamp();
     const item = {
       id: `trade-item-${Date.now()}`,
       name: itemName,
@@ -776,27 +954,29 @@ export default function JournalsPage() {
     };
 
     if (editingTradeId) {
-      setTradeOperations((currentOperations) =>
-        currentOperations.map((operation) => {
-          if (operation.id !== editingTradeId) {
-            return operation;
-          }
+      const currentOperation = tradeOperations.find((operation) => operation.id === editingTradeId);
+      const updatedOperation = await updateTradeOperation(editingTradeId, {
+        items: [
+          {
+            ...item,
+            id: currentOperation?.items[0]?.id ?? item.id,
+          },
+        ],
+        totalAmount: quantity * price,
+        issuedBy: tradeDraft.issuedBy.trim(),
+        notes: tradeDraft.notes.trim(),
+        operationDate: tradeDraft.operationDate,
+      }).catch((error) => {
+        setTradeFormMessage(error instanceof Error ? error.message : "Не удалось сохранить торговую операцию.");
+        return null;
+      });
 
-          return {
-            ...operation,
-            items: [
-              {
-                ...item,
-                id: operation.items[0]?.id ?? item.id,
-              },
-            ],
-            totalAmount: quantity * price,
-            issuedBy: tradeDraft.issuedBy.trim(),
-            notes: tradeDraft.notes.trim(),
-            operationDate: tradeDraft.operationDate,
-            updatedAt: now,
-          };
-        }),
+      if (!updatedOperation) {
+        return;
+      }
+
+      setTradeOperations((currentOperations) =>
+        currentOperations.map((operation) => (operation.id === editingTradeId ? updatedOperation : operation)),
       );
 
       if (tradeModalType === "sale") {
@@ -850,8 +1030,7 @@ export default function JournalsPage() {
       manualParticipantName = manualName;
     }
 
-    const newOperation: TradeOperation = {
-      id: `trade-${tradeDraft.type}-${Date.now()}`,
+    const newOperation = await createTradeOperation({
       type: tradeDraft.type,
       subjectType: tradeDraft.participantMode,
       stalkerId,
@@ -862,18 +1041,23 @@ export default function JournalsPage() {
       issuedBy: tradeDraft.issuedBy.trim(),
       notes: tradeDraft.notes.trim(),
       operationDate: tradeDraft.operationDate,
-      createdAt: now,
-      updatedAt: now,
-    };
+    }).catch((error) => {
+      setTradeFormMessage(error instanceof Error ? error.message : "Не удалось сохранить торговую операцию.");
+      return null;
+    });
+
+    if (!newOperation) {
+      return;
+    }
 
     setTradeOperations((currentOperations) => [newOperation, ...currentOperations]);
 
     if (tradeDraft.type === "sale") {
       setSalePage(1);
-      setSaleTableMessage("Продажа оформлена и сохранена локально.");
+      setSaleTableMessage("Продажа оформлена и сохранена в базе данных.");
     } else {
       setPurchasePage(1);
-      setPurchaseTableMessage("Покупка оформлена и сохранена локально.");
+      setPurchaseTableMessage("Покупка оформлена и сохранена в базе данных.");
     }
 
     addActivityLogEntry({
@@ -898,7 +1082,8 @@ export default function JournalsPage() {
           : "Запись о покупке будет удалена из журнала без возможности восстановления."),
       confirmLabel: "Удалить",
       confirmTone: "danger",
-      onConfirm: () => {
+      onConfirm: async () => {
+        await deleteTradeOperationRecord(operationId);
         setTradeOperations((currentOperations) =>
           currentOperations.filter((currentOperation) => currentOperation.id !== operationId),
         );
@@ -918,7 +1103,7 @@ export default function JournalsPage() {
       },
     });
   }
-  function handleViolationSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleViolationSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const description = violationDraft.description.trim();
@@ -928,22 +1113,23 @@ export default function JournalsPage() {
       return;
     }
 
-    const now = getSystemTimestamp();
-
     if (editingViolationId) {
+      const updatedViolation = await updateViolation(editingViolationId, {
+        date: violationDraft.date,
+        description,
+        issuedBy: violationDraft.issuedBy.trim(),
+        notes: violationDraft.notes.trim(),
+      }).catch((error) => {
+        setViolationFormMessage(error instanceof Error ? error.message : "Не удалось сохранить нарушение.");
+        return null;
+      });
+
+      if (!updatedViolation) {
+        return;
+      }
+
       setViolations((currentViolations) =>
-        currentViolations.map((violation) =>
-          violation.id === editingViolationId
-            ? {
-                ...violation,
-                date: violationDraft.date,
-                description,
-                issuedBy: violationDraft.issuedBy.trim(),
-                notes: violationDraft.notes.trim(),
-                updatedAt: now,
-              }
-            : violation,
-        ),
+        currentViolations.map((violation) => (violation.id === editingViolationId ? updatedViolation : violation)),
       );
       setViolationTableMessage("Нарушение обновлено.");
       addActivityLogEntry({
@@ -978,8 +1164,7 @@ export default function JournalsPage() {
       manualViolatorName = manualName;
     }
 
-    const newViolation: Violation = {
-      id: `violation-${Date.now()}`,
+    const newViolation = await createViolation({
       violatorType: violationDraft.violatorType,
       profileId,
       manualViolatorName,
@@ -988,13 +1173,18 @@ export default function JournalsPage() {
       description,
       issuedBy: violationDraft.issuedBy.trim(),
       notes: violationDraft.notes.trim(),
-      createdAt: now,
-      updatedAt: now,
-    };
+    }).catch((error) => {
+      setViolationFormMessage(error instanceof Error ? error.message : "Не удалось сохранить нарушение.");
+      return null;
+    });
+
+    if (!newViolation) {
+      return;
+    }
 
     setViolations((currentViolations) => [newViolation, ...currentViolations]);
     setViolationPage(1);
-    setViolationTableMessage("Нарушение оформлено и сохранено локально.");
+    setViolationTableMessage("Нарушение оформлено и сохранено в базе данных.");
     addActivityLogEntry({
       type: "stalker",
       title: `Оформлено нарушение: ${description}`,
@@ -1011,7 +1201,8 @@ export default function JournalsPage() {
       message: violation?.description || "Запись о нарушении будет удалена из журнала без возможности восстановления.",
       confirmLabel: "Удалить",
       confirmTone: "danger",
-      onConfirm: () => {
+      onConfirm: async () => {
+        await deleteViolationRecord(violationId);
         setViolations((currentViolations) =>
           currentViolations.filter((currentViolation) => currentViolation.id !== violationId),
         );
@@ -1024,7 +1215,7 @@ export default function JournalsPage() {
       },
     });
   }
-  function closeViolationRecord(event: FormEvent<HTMLFormElement>) {
+  async function closeViolationRecord(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const closureNote = violationClosureNote.trim();
@@ -1034,20 +1225,21 @@ export default function JournalsPage() {
       return;
     }
 
-    const now = getSystemTimestamp();
+    const updatedViolation = await updateViolation(closingViolationId, {
+      status: "closed",
+      closedAt: getSystemTimestamp(),
+      closureNote,
+    }).catch((error) => {
+      setViolationClosureMessage(error instanceof Error ? error.message : "Не удалось погасить нарушение.");
+      return null;
+    });
+
+    if (!updatedViolation) {
+      return;
+    }
 
     setViolations((currentViolations) =>
-      currentViolations.map((violation) =>
-        violation.id === closingViolationId
-          ? {
-              ...violation,
-              status: "closed",
-              closedAt: now,
-              closureNote,
-              updatedAt: now,
-            }
-          : violation,
-      ),
+      currentViolations.map((violation) => (violation.id === closingViolationId ? updatedViolation : violation)),
     );
     setViolationTableMessage("Нарушение погашено.");
     const violation = violations.find((currentViolation) => currentViolation.id === closingViolationId);
@@ -1113,7 +1305,7 @@ export default function JournalsPage() {
     });
   }
 
-  function handleTaskSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleTaskSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const description = taskDraft.description.trim();
@@ -1124,25 +1316,27 @@ export default function JournalsPage() {
     }
 
     if (editingTaskId) {
-      const now = getSystemTimestamp();
       const acceptedBy = taskDraft.acceptedBy.trim();
+      const currentTask = tasks.find((task) => task.id === editingTaskId);
+      const updatedTask = await updateTask(editingTaskId, {
+        issuedAt: taskDraft.issuedAt,
+        dueAt: taskDraft.dueAt,
+        description,
+        reward: taskDraft.reward.trim(),
+        notes: taskDraft.notes.trim(),
+        issuedBy: taskDraft.issuedBy.trim(),
+        acceptedBy: currentTask?.status === "completed" ? currentTask.acceptedBy : acceptedBy || null,
+      }).catch((error) => {
+        setTaskFormMessage(error instanceof Error ? error.message : "Не удалось сохранить задание.");
+        return null;
+      });
+
+      if (!updatedTask) {
+        return;
+      }
 
       setTasks((currentTasks) =>
-        currentTasks.map((task) =>
-          task.id === editingTaskId
-            ? {
-                ...task,
-                issuedAt: taskDraft.issuedAt,
-                dueAt: taskDraft.dueAt,
-                description,
-                reward: taskDraft.reward.trim(),
-                notes: taskDraft.notes.trim(),
-                issuedBy: taskDraft.issuedBy.trim(),
-                acceptedBy: task.status === "completed" ? task.acceptedBy : acceptedBy || null,
-                updatedAt: now,
-              }
-            : task,
-        ),
+        currentTasks.map((task) => (task.id === editingTaskId ? updatedTask : task)),
       );
       setTaskTableMessage("Задание обновлено.");
       addActivityLogEntry({
@@ -1206,9 +1400,7 @@ export default function JournalsPage() {
       manualAssigneeName = manualName;
     }
 
-    const now = getSystemTimestamp();
-    const newTask: Task = {
-      id: `journal-task-${Date.now()}`,
+    const newTask = await createTask({
       assigneeType,
       stalkerId,
       groupId,
@@ -1222,14 +1414,19 @@ export default function JournalsPage() {
       acceptedBy: null,
       completedAt: null,
       status: "active",
-      createdAt: now,
-      updatedAt: now,
-    };
+    }).catch((error) => {
+      setTaskFormMessage(error instanceof Error ? error.message : "Не удалось создать задание.");
+      return null;
+    });
+
+    if (!newTask) {
+      return;
+    }
 
     setTasks((currentTasks) => [newTask, ...currentTasks]);
     setTaskStatusFilter("active");
     setTaskPage(1);
-    setTaskTableMessage("Задание создано и сохранено локально.");
+    setTaskTableMessage("Задание создано и сохранено в базе данных.");
     addActivityLogEntry({
       type: "task",
       title: getTaskActivityTitle(newTask, "created"),
@@ -1239,7 +1436,7 @@ export default function JournalsPage() {
     closeTaskModal();
   }
 
-  function handleCompleteTaskSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleCompleteTaskSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const task = tasks.find((currentTask) => currentTask.id === completingTaskId);
     const normalizedAcceptedBy = completeTaskAcceptedBy.trim();
@@ -1247,18 +1444,20 @@ export default function JournalsPage() {
       setCompleteTaskMessage("Укажите, кто принял выполнение задания.");
       return;
     }
-    setTasks((currentTasks) =>
-      currentTasks.map((currentTask) =>
-        currentTask.id === completingTaskId
-          ? {
-              ...currentTask,
-              acceptedBy: normalizedAcceptedBy,
-              completedAt: getSystemTimestamp(),
-              status: "completed",
-            }
-          : currentTask,
-      ),
-    );
+    const updatedTask = await updateTask(completingTaskId, {
+      acceptedBy: normalizedAcceptedBy,
+      completedAt: getSystemTimestamp(),
+      status: "completed",
+    }).catch((error) => {
+      setCompleteTaskMessage(error instanceof Error ? error.message : "Не удалось завершить задание.");
+      return null;
+    });
+
+    if (!updatedTask) {
+      return;
+    }
+
+    setTasks((currentTasks) => currentTasks.map((currentTask) => (currentTask.id === completingTaskId ? updatedTask : currentTask)));
     setTaskTableMessage("Задание завершено.");
     addActivityLogEntry({
       type: "task",
@@ -1267,13 +1466,18 @@ export default function JournalsPage() {
     });
     closeCompleteTaskModal();
   }
-  function cancelTask(taskId: string) {
+  async function cancelTask(taskId: string) {
     const task = tasks.find((currentTask) => currentTask.id === taskId);
-    setTasks((currentTasks) =>
-      currentTasks.map((task) =>
-        task.id === taskId ? { ...task, status: "cancelled" } : task,
-      ),
-    );
+    const updatedTask = await updateTask(taskId, { status: "cancelled" }).catch((error) => {
+      setTaskTableMessage(error instanceof Error ? error.message : "Не удалось отменить задание.");
+      return null;
+    });
+
+    if (!updatedTask) {
+      return;
+    }
+
+    setTasks((currentTasks) => currentTasks.map((task) => (task.id === taskId ? updatedTask : task)));
     setTaskTableMessage("Задание отменено.");
     addActivityLogEntry({
       type: "task",
@@ -1289,7 +1493,8 @@ export default function JournalsPage() {
       message: task?.description || "Запись будет удалена из журнала без возможности восстановления.",
       confirmLabel: "Удалить",
       confirmTone: "danger",
-      onConfirm: () => {
+      onConfirm: async () => {
+        await deleteTaskRecord(taskId);
         setTasks((currentTasks) => currentTasks.filter((currentTask) => currentTask.id !== taskId));
         setTaskTableMessage("Задание удалено.");
         addActivityLogEntry({
@@ -1625,6 +1830,29 @@ export default function JournalsPage() {
                 ))}
               </div>
 
+              {isJournalLoading ? <p className="draft-message">Загрузка журналов из базы данных...</p> : null}
+              {journalLoadMessage ? <p className="form-error">{journalLoadMessage}</p> : null}
+              {journalImportMessage ? <p className="draft-message">{journalImportMessage}</p> : null}
+              {localImportTasks.length > 0 || localImportTradeOperations.length > 0 || localImportViolations.length > 0 ? (
+                <div className="apartment-import-panel">
+                  {localImportTasks.length > 0 ? (
+                    <button className="command-row" onClick={importLocalTasks} type="button">
+                      Найдены локальные задания. Импортировать в базу данных
+                    </button>
+                  ) : null}
+                  {localImportTradeOperations.length > 0 ? (
+                    <button className="command-row" onClick={importLocalTradeOperations} type="button">
+                      Найдены локальные торговые операции. Импортировать в базу данных
+                    </button>
+                  ) : null}
+                  {localImportViolations.length > 0 ? (
+                    <button className="command-row" onClick={importLocalViolations} type="button">
+                      Найдены локальные нарушения. Импортировать в базу данных
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+
               <div className="profile-detail journals-detail">{renderActiveJournal()}</div>
             </div>
           </section>
@@ -1685,7 +1913,7 @@ export default function JournalsPage() {
                 <p>
                   {isEditingTask
                     ? "Исполнитель и статус задания сохраняются без изменений"
-                    : "Запись будет добавлена в общий журнал заданий и сохранена локально"}
+                    : "Запись будет добавлена в общий журнал заданий и сохранена в базе данных"}
                 </p>
               </div>
             </div>
@@ -2013,7 +2241,7 @@ export default function JournalsPage() {
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>{isEditingViolation ? "Редактирование нарушения" : "Оформление нарушения"}</h1>
-                <p>Запись будет добавлена в общий журнал нарушений и сохранена локально</p>
+                <p>Запись будет добавлена в общий журнал нарушений и сохранена в базе данных</p>
               </div>
             </div>
 

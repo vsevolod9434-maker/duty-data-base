@@ -3,11 +3,26 @@
 /* eslint-disable @next/next/no-img-element */
 import { useEffect, useMemo, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Pagination } from "@/components/ui/Pagination";
 import { getTaskActionVisibility, TaskRecordCard } from "@/components/ui/TaskRecordCard";
 import { TradeRecordCard } from "@/components/ui/TradeRecordCard";
 import { ViolationRecordCard } from "@/components/ui/ViolationRecordCard";
 import { addActivityLogEntry } from "@/lib/activity-log";
+import {
+  createTask,
+  createTradeOperation,
+  createViolation,
+  deleteTaskRecord,
+  deleteTradeOperationRecord,
+  deleteViolationRecord as deleteViolationRecordRequest,
+  fetchTasks,
+  fetchTradeOperations,
+  fetchViolations,
+  updateTask,
+  updateTradeOperation,
+  updateViolation,
+} from "@/lib/journal-api";
 import {
   stalkerGroups as initialStalkerGroups,
   stalkerProfiles as initialStalkerProfiles,
@@ -445,6 +460,14 @@ export default function StalkerProfilesPage() {
   const [taskMessage, setTaskMessage] = useState("");
   const [tradeMessage, setTradeMessage] = useState("");
   const [violationMessage, setViolationMessage] = useState("");
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string;
+    message: string;
+    confirmLabel: string;
+    variant?: "danger" | "default" | "warning";
+    loading?: boolean;
+    onConfirm: () => void | Promise<void>;
+  } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [groupMemberDraft, setGroupMemberDraft] = useState(emptyGroupMemberDraft);
   const [appliedGroupSearchQuery, setAppliedGroupSearchQuery] = useState<string | null>(null);
@@ -456,24 +479,36 @@ export default function StalkerProfilesPage() {
     const storageReadHandle = window.setTimeout(() => {
       const localProfiles = readStoredCollection<StalkerProfile>(STALKER_PROFILES_STORAGE_KEY, initialStalkerProfiles);
       const queryProfileId = new URLSearchParams(window.location.search).get("profileId");
+      const localTasks = readStoredCollection<Task>(STALKER_TASKS_STORAGE_KEY, initialTasks);
+      const localGroups = readStoredCollection<StalkerGroup>(STALKER_GROUPS_STORAGE_KEY, initialStalkerGroups);
+      const localTradeOperations = readStoredCollection<TradeOperation>(TRADE_OPERATIONS_STORAGE_KEY, initialTradeOperations);
+      const localViolations = readStoredCollection<Violation>(VIOLATIONS_STORAGE_KEY, []);
 
-      setTasks(readStoredCollection<Task>(STALKER_TASKS_STORAGE_KEY, initialTasks));
-      setGroups(readStoredCollection<StalkerGroup>(STALKER_GROUPS_STORAGE_KEY, initialStalkerGroups));
-      setTradeOperations(readStoredCollection<TradeOperation>(TRADE_OPERATIONS_STORAGE_KEY, initialTradeOperations));
-      setViolations(readStoredCollection<Violation>(VIOLATIONS_STORAGE_KEY, []));
+      setTasks(localTasks);
+      setGroups(localGroups);
+      setTradeOperations(localTradeOperations);
+      setViolations(localViolations);
 
       async function loadProfiles() {
         setIsProfileLoading(true);
         setProfileLoadMessage("");
 
         try {
-          const serverProfiles = await fetchStalkerProfiles();
+          const [serverProfiles, serverTasks, serverTradeOperations, serverViolations] = await Promise.all([
+            fetchStalkerProfiles(),
+            fetchTasks().catch(() => localTasks),
+            fetchTradeOperations().catch(() => localTradeOperations),
+            fetchViolations().catch(() => localViolations),
+          ]);
 
           if (isCancelled) {
             return;
           }
 
           setProfiles(serverProfiles);
+          setTasks(serverTasks);
+          setTradeOperations(serverTradeOperations);
+          setViolations(serverViolations);
 
           if (serverProfiles.length > 0) {
             writeStoredCollection(STALKER_PROFILES_STORAGE_KEY, serverProfiles);
@@ -481,6 +516,10 @@ export default function StalkerProfilesPage() {
           } else if (localProfiles.length > 0) {
             setLocalImportProfiles(localProfiles);
           }
+
+          writeStoredCollection(STALKER_TASKS_STORAGE_KEY, serverTasks);
+          writeStoredCollection(TRADE_OPERATIONS_STORAGE_KEY, serverTradeOperations);
+          writeStoredCollection(VIOLATIONS_STORAGE_KEY, serverViolations);
 
           const profileFromQuery = queryProfileId
             ? serverProfiles.find((profile) => profile.id === queryProfileId)
@@ -998,10 +1037,6 @@ export default function StalkerProfilesPage() {
   async function deleteProfile(profileId: string) {
     const profile = profiles.find((currentProfile) => currentProfile.id === profileId);
 
-    if (!window.confirm("Удалить профиль окончательно?")) {
-      return;
-    }
-
     setProfileActionMessage("");
     setIsProfileDeleting(true);
 
@@ -1191,7 +1226,7 @@ export default function StalkerProfilesPage() {
     setViolationClosureMessage("");
   }
 
-  function handleTaskSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleTaskSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!selectedProfile) {
@@ -1210,8 +1245,7 @@ export default function StalkerProfilesPage() {
       return;
     }
 
-    const newTask: Task = {
-      id: `temp-task-${Date.now()}`,
+    const newTask = await createTask({
       assigneeType: "stalker",
       stalkerId: selectedProfile.id,
       groupId: null,
@@ -1224,11 +1258,18 @@ export default function StalkerProfilesPage() {
       acceptedBy: null,
       completedAt: null,
       status: "active",
-    };
+    }).catch((error) => {
+      setTaskFormMessage(error instanceof Error ? error.message : "Не удалось сохранить задание.");
+      return null;
+    });
+
+    if (!newTask) {
+      return;
+    }
 
     setTasks((currentTasks) => [newTask, ...currentTasks]);
     closeTaskDialog();
-    setTaskMessage("Задание сохранено локально.");
+    setTaskMessage("Задание сохранено в базе данных.");
     addActivityLogEntry({
       type: "task",
       title: `Выдано задание из профиля: ${description}`,
@@ -1237,7 +1278,7 @@ export default function StalkerProfilesPage() {
     });
   }
 
-  function handleTradeSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleTradeSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!selectedProfile) {
@@ -1263,7 +1304,6 @@ export default function StalkerProfilesPage() {
       return;
     }
 
-    const now = getSystemTimestamp();
     const item = {
       id: `profile-trade-item-${Date.now()}`,
       name: itemName,
@@ -1273,27 +1313,28 @@ export default function StalkerProfilesPage() {
     };
 
     if (editingTradeId) {
-      setTradeOperations((currentOperations) =>
-        currentOperations.map((operation) => {
-          if (operation.id !== editingTradeId) {
-            return operation;
-          }
+      const currentOperation = tradeOperations.find((operation) => operation.id === editingTradeId);
+      const updatedOperation = await updateTradeOperation(editingTradeId, {
+        items: [
+          {
+            ...item,
+            id: currentOperation?.items[0]?.id ?? item.id,
+          },
+        ],
+        issuedBy: tradeDraft.issuedBy.trim(),
+        notes: tradeDraft.notes.trim(),
+        operationDate: tradeDraft.operationDate,
+      }).catch((error) => {
+        setTradeFormMessage(error instanceof Error ? error.message : "Не удалось сохранить торговую операцию.");
+        return null;
+      });
 
-          return {
-            ...operation,
-            items: [
-              {
-                ...item,
-                id: operation.items[0]?.id ?? item.id,
-              },
-            ],
-            totalAmount: quantity * price,
-            issuedBy: tradeDraft.issuedBy.trim(),
-            notes: tradeDraft.notes.trim(),
-            operationDate: tradeDraft.operationDate,
-            updatedAt: now,
-          };
-        }),
+      if (!updatedOperation) {
+        return;
+      }
+
+      setTradeOperations((currentOperations) =>
+        currentOperations.map((operation) => (operation.id === editingTradeId ? updatedOperation : operation)),
       );
       setTradeMessage(tradeDraft.type === "sale" ? "Продажа обновлена." : "Покупка обновлена.");
       setActiveProfileTab(tradeDraft.type === "sale" ? "Продажи" : "Покупки");
@@ -1301,8 +1342,7 @@ export default function StalkerProfilesPage() {
       return;
     }
 
-    const newOperation: TradeOperation = {
-      id: `profile-trade-${tradeDraft.type}-${Date.now()}`,
+    const newOperation = await createTradeOperation({
       type: tradeDraft.type,
       subjectType: "stalker",
       stalkerId: selectedProfile.id,
@@ -1312,12 +1352,17 @@ export default function StalkerProfilesPage() {
       issuedBy: tradeDraft.issuedBy.trim(),
       notes: tradeDraft.notes.trim(),
       operationDate: tradeDraft.operationDate,
-      createdAt: now,
-      updatedAt: now,
-    };
+    }).catch((error) => {
+      setTradeFormMessage(error instanceof Error ? error.message : "Не удалось сохранить торговую операцию.");
+      return null;
+    });
+
+    if (!newOperation) {
+      return;
+    }
 
     setTradeOperations((currentOperations) => [newOperation, ...currentOperations]);
-    setTradeMessage(tradeDraft.type === "sale" ? "Продажа сохранена локально." : "Покупка сохранена локально.");
+    setTradeMessage(tradeDraft.type === "sale" ? "Продажа сохранена в базе данных." : "Покупка сохранена в базе данных.");
     setActiveProfileTab(tradeDraft.type === "sale" ? "Продажи" : "Покупки");
     closeTradeModal();
     addActivityLogEntry({
@@ -1333,17 +1378,23 @@ export default function StalkerProfilesPage() {
   function deleteTradeOperation(operation: TradeOperation) {
     const confirmMessage = operation.type === "sale" ? "Удалить запись о продаже?" : "Удалить запись о покупке?";
 
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
-
-    setTradeOperations((currentOperations) =>
-      currentOperations.filter((currentOperation) => currentOperation.id !== operation.id),
-    );
-    setTradeMessage(operation.type === "sale" ? "Продажа удалена." : "Покупка удалена.");
+    setConfirmDialog({
+      title: operation.type === "sale" ? "Удаление продажи" : "Удаление покупки",
+      message: confirmMessage,
+      confirmLabel: "Удалить",
+      variant: "danger",
+      onConfirm: async () => {
+        await deleteTradeOperationRecord(operation.id);
+        setTradeOperations((currentOperations) =>
+          currentOperations.filter((currentOperation) => currentOperation.id !== operation.id),
+        );
+        setTradeMessage(operation.type === "sale" ? "Продажа удалена." : "Покупка удалена.");
+        setConfirmDialog(null);
+      },
+    });
   }
 
-  function handleViolationSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleViolationSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!selectedProfile) {
@@ -1357,22 +1408,23 @@ export default function StalkerProfilesPage() {
       return;
     }
 
-    const now = getSystemTimestamp();
-
     if (editingViolationId) {
+      const updatedViolation = await updateViolation(editingViolationId, {
+        date: violationDraft.date,
+        description,
+        issuedBy: violationDraft.issuedBy.trim(),
+        notes: violationDraft.notes.trim(),
+      }).catch((error) => {
+        setViolationFormMessage(error instanceof Error ? error.message : "Не удалось сохранить нарушение.");
+        return null;
+      });
+
+      if (!updatedViolation) {
+        return;
+      }
+
       setViolations((currentViolations) =>
-        currentViolations.map((violation) =>
-          violation.id === editingViolationId
-            ? {
-                ...violation,
-                date: violationDraft.date,
-                description,
-                issuedBy: violationDraft.issuedBy.trim(),
-                notes: violationDraft.notes.trim(),
-                updatedAt: now,
-              }
-            : violation,
-        ),
+        currentViolations.map((violation) => (violation.id === editingViolationId ? updatedViolation : violation)),
       );
       setViolationMessage("Нарушение обновлено.");
       setActiveProfileTab("Нарушения");
@@ -1380,8 +1432,7 @@ export default function StalkerProfilesPage() {
       return;
     }
 
-    const newViolation: Violation = {
-      id: `profile-violation-${Date.now()}`,
+    const newViolation = await createViolation({
       violatorType: "profile",
       profileId: selectedProfile.id,
       status: "active",
@@ -1389,12 +1440,17 @@ export default function StalkerProfilesPage() {
       description,
       issuedBy: violationDraft.issuedBy.trim(),
       notes: violationDraft.notes.trim(),
-      createdAt: now,
-      updatedAt: now,
-    };
+    }).catch((error) => {
+      setViolationFormMessage(error instanceof Error ? error.message : "Не удалось сохранить нарушение.");
+      return null;
+    });
+
+    if (!newViolation) {
+      return;
+    }
 
     setViolations((currentViolations) => [newViolation, ...currentViolations]);
-    setViolationMessage("Нарушение сохранено локально.");
+    setViolationMessage("Нарушение сохранено в базе данных.");
     setActiveProfileTab("Нарушения");
     closeViolationModal();
     addActivityLogEntry({
@@ -1406,15 +1462,21 @@ export default function StalkerProfilesPage() {
   }
 
   function deleteViolationRecord(violationId: string) {
-    if (!window.confirm("Удалить запись о нарушении?")) {
-      return;
-    }
-
-    setViolations((currentViolations) => currentViolations.filter((violation) => violation.id !== violationId));
-    setViolationMessage("Нарушение удалено.");
+    setConfirmDialog({
+      title: "Удаление нарушения",
+      message: "Удалить запись о нарушении?",
+      confirmLabel: "Удалить",
+      variant: "danger",
+      onConfirm: async () => {
+        await deleteViolationRecordRequest(violationId);
+        setViolations((currentViolations) => currentViolations.filter((violation) => violation.id !== violationId));
+        setViolationMessage("Нарушение удалено.");
+        setConfirmDialog(null);
+      },
+    });
   }
 
-  function closeViolationRecord(event: React.FormEvent<HTMLFormElement>) {
+  async function closeViolationRecord(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const closureNote = violationClosureNote.trim();
@@ -1424,20 +1486,21 @@ export default function StalkerProfilesPage() {
       return;
     }
 
-    const now = getSystemTimestamp();
+    const updatedViolation = await updateViolation(closingViolationId, {
+      status: "closed",
+      closedAt: getSystemTimestamp(),
+      closureNote,
+    }).catch((error) => {
+      setViolationClosureMessage(error instanceof Error ? error.message : "Не удалось погасить нарушение.");
+      return null;
+    });
+
+    if (!updatedViolation) {
+      return;
+    }
 
     setViolations((currentViolations) =>
-      currentViolations.map((violation) =>
-        violation.id === closingViolationId
-          ? {
-              ...violation,
-              status: "closed",
-              closedAt: now,
-              closureNote,
-              updatedAt: now,
-            }
-          : violation,
-      ),
+      currentViolations.map((violation) => (violation.id === closingViolationId ? updatedViolation : violation)),
     );
     setViolationMessage("Нарушение погашено.");
     setActiveProfileTab("Нарушения");
@@ -1452,7 +1515,7 @@ export default function StalkerProfilesPage() {
     }
   }
 
-  function handleEditTaskSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleEditTaskSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const description = editTaskDraft.description.trim();
@@ -1462,26 +1525,28 @@ export default function StalkerProfilesPage() {
       return;
     }
 
-    setTasks((currentTasks) =>
-      currentTasks.map((task) =>
-        task.id === editingTaskId
-          ? {
-              ...task,
-              issuedAt: editTaskDraft.issuedAt,
-              dueAt: editTaskDraft.dueAt,
-              description,
-              reward: editTaskDraft.reward.trim(),
-              notes: editTaskDraft.notes.trim(),
-              issuedBy: editTaskDraft.issuedBy.trim(),
-            }
-          : task,
-      ),
-    );
+    const updatedTask = await updateTask(editingTaskId, {
+      issuedAt: editTaskDraft.issuedAt,
+      dueAt: editTaskDraft.dueAt,
+      description,
+      reward: editTaskDraft.reward.trim(),
+      notes: editTaskDraft.notes.trim(),
+      issuedBy: editTaskDraft.issuedBy.trim(),
+    }).catch((error) => {
+      setEditTaskMessage(error instanceof Error ? error.message : "Не удалось сохранить задание.");
+      return null;
+    });
+
+    if (!updatedTask) {
+      return;
+    }
+
+    setTasks((currentTasks) => currentTasks.map((task) => (task.id === editingTaskId ? updatedTask : task)));
     closeEditTaskDialog();
     setTaskMessage("Задание обновлено.");
   }
 
-  function handleCompleteTaskSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleCompleteTaskSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const acceptedBy = completeTaskDraft.acceptedBy.trim();
@@ -1491,18 +1556,21 @@ export default function StalkerProfilesPage() {
       return;
     }
 
-    setTasks((currentTasks) =>
-      currentTasks.map((task) =>
-        task.id === completingTaskId
-          ? {
-              ...task,
-              status: "completed",
-              acceptedBy,
-              completedAt: task.completedAt || getTodayDate(),
-            }
-          : task,
-      ),
-    );
+    const currentTask = tasks.find((task) => task.id === completingTaskId);
+    const updatedTask = await updateTask(completingTaskId, {
+      status: "completed",
+      acceptedBy,
+      completedAt: currentTask?.completedAt || getTodayDate(),
+    }).catch((error) => {
+      setCompleteTaskMessage(error instanceof Error ? error.message : "Не удалось засчитать задание.");
+      return null;
+    });
+
+    if (!updatedTask) {
+      return;
+    }
+
+    setTasks((currentTasks) => currentTasks.map((task) => (task.id === completingTaskId ? updatedTask : task)));
     closeCompleteTaskDialog();
     setTaskMessage("Задание засчитано.");
     if (selectedProfile) {
@@ -1520,23 +1588,23 @@ export default function StalkerProfilesPage() {
     }
   }
 
-  function cancelTask(taskId: string) {
+  async function cancelTask(taskId: string) {
     const task = tasks.find((currentTask) => currentTask.id === taskId);
 
     if (!task || task.status !== "active") {
       return;
     }
 
-    setTasks((currentTasks) =>
-      currentTasks.map((currentTask) =>
-        currentTask.id === taskId
-          ? {
-              ...currentTask,
-              status: "cancelled",
-            }
-          : currentTask,
-      ),
-    );
+    const updatedTask = await updateTask(taskId, { status: "cancelled" }).catch((error) => {
+      setTaskMessage(error instanceof Error ? error.message : "Не удалось отменить задание.");
+      return null;
+    });
+
+    if (!updatedTask) {
+      return;
+    }
+
+    setTasks((currentTasks) => currentTasks.map((currentTask) => (currentTask.id === taskId ? updatedTask : currentTask)));
     setTaskMessage("Задание отменено.");
     addActivityLogEntry({
       type: "task",
@@ -1550,12 +1618,18 @@ export default function StalkerProfilesPage() {
   }
 
   function deleteTask(taskId: string) {
-    if (!window.confirm("Удалить задание окончательно?")) {
-      return;
-    }
-
-    setTasks((currentTasks) => currentTasks.filter((task) => task.id !== taskId));
-    setTaskMessage("Задание удалено.");
+    setConfirmDialog({
+      title: "Удаление задания",
+      message: "Удалить задание окончательно?",
+      confirmLabel: "Удалить",
+      variant: "danger",
+      onConfirm: async () => {
+        await deleteTaskRecord(taskId);
+        setTasks((currentTasks) => currentTasks.filter((task) => task.id !== taskId));
+        setTaskMessage("Задание удалено.");
+        setConfirmDialog(null);
+      },
+    });
   }
 
   function changeListTab(tab: StalkerProfile["status"]) {
@@ -1916,7 +1990,24 @@ export default function StalkerProfilesPage() {
                             Вернуть из архива
                           </button>
                         )}
-                        <button className="command-row task-action-button" disabled={isProfileSaving || isProfileDeleting} onClick={() => deleteProfile(selectedProfile.id)} type="button">
+                        <button
+                          className="command-row task-action-button"
+                          disabled={isProfileSaving || isProfileDeleting}
+                          onClick={() =>
+                            setConfirmDialog({
+                              title: "Удаление профиля",
+                              message: "Удалить профиль окончательно? Это действие нельзя отменить.",
+                              confirmLabel: "Удалить",
+                              variant: "danger",
+                              loading: isProfileDeleting,
+                              onConfirm: async () => {
+                                await deleteProfile(selectedProfile.id);
+                                setConfirmDialog(null);
+                              },
+                            })
+                          }
+                          type="button"
+                        >
                           Удалить
                         </button>
                       </div>
@@ -2309,7 +2400,7 @@ export default function StalkerProfilesPage() {
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>Редактирование задания</h1>
-                <p>Изменения сохраняются локально в браузере</p>
+                <p>Изменения сохраняются в базе данных</p>
               </div>
             </div>
 
@@ -2379,7 +2470,7 @@ export default function StalkerProfilesPage() {
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>Засчитать выполнение задания</h1>
-                <p>Статус выполнения сохранится локально после подтверждения</p>
+                <p>Статус выполнения сохранится в базе данных после подтверждения</p>
               </div>
             </div>
 
@@ -2691,6 +2782,18 @@ export default function StalkerProfilesPage() {
             </div>
           </form>
         </div>
+      ) : null}
+
+      {confirmDialog ? (
+        <ConfirmDialog
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          confirmLabel={confirmDialog.confirmLabel}
+          variant={confirmDialog.variant}
+          loading={confirmDialog.loading || isProfileDeleting}
+          onCancel={() => setConfirmDialog(null)}
+          onConfirm={confirmDialog.onConfirm}
+        />
       ) : null}
     </main>
   );
