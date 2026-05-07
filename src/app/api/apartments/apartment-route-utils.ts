@@ -61,6 +61,33 @@ type DatabaseApartment = {
   }>;
 };
 
+export const apartmentResponseInclude = {
+  tenants: {
+    orderBy: { addedAt: "asc" },
+    select: {
+      id: true,
+      profileId: true,
+      addedAt: true,
+    },
+  },
+  payments: {
+    orderBy: { paidAt: "desc" },
+    select: {
+      id: true,
+      paidAt: true,
+      amount: true,
+      paymentType: true,
+      paymentMethod: true,
+      paidUntil: true,
+      notes: true,
+      createdAt: true,
+      acceptedBy: true,
+      issuedBy: true,
+      responsibleBy: true,
+    },
+  },
+} as const;
+
 export function createErrorResponse(message: string, status = 400) {
   return Response.json({ error: message }, { status });
 }

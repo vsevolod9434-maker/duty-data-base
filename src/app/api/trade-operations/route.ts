@@ -10,17 +10,12 @@ import {
   normalizeTradeItems,
   normalizeTradeSubject,
   parseNullableDate,
+  tradeOperationResponseInclude,
   type TradeOperationPayload,
 } from "./trade-operation-route-utils";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const tradeOperationInclude = {
-  items: {
-    orderBy: { name: "asc" },
-  },
-} as const;
 
 export async function GET() {
   const auth = await requireApiAuth();
@@ -31,7 +26,7 @@ export async function GET() {
 
   const prisma = getPrismaClient();
   const operations = await prisma.tradeOperation.findMany({
-    include: tradeOperationInclude,
+    include: tradeOperationResponseInclude,
     orderBy: { createdAt: "desc" },
   });
 
@@ -90,7 +85,7 @@ export async function POST(request: Request) {
         create: items,
       },
     },
-    include: tradeOperationInclude,
+    include: tradeOperationResponseInclude,
   });
 
   return Response.json(mapTradeOperationToResponse(operation), { status: 201 });

@@ -3,6 +3,7 @@ import { getPrismaClient } from "@/lib/prisma";
 import { createSystemDate } from "@/lib/stalker-utils";
 import {
   createErrorResponse,
+  groupResponseInclude,
   isStalkerGroupStatus,
   mapGroupToResponse,
   normalizeMemberPayloads,
@@ -14,12 +15,6 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const groupInclude = {
-  members: {
-    orderBy: { joinedAt: "asc" },
-  },
-} as const;
-
 export async function GET() {
   const auth = await requireApiAuth();
 
@@ -29,7 +24,7 @@ export async function GET() {
 
   const prisma = getPrismaClient();
   const groups = await prisma.stalkerGroup.findMany({
-    include: groupInclude,
+    include: groupResponseInclude,
     orderBy: [{ createdAt: "desc" }, { name: "asc" }],
   });
 
@@ -78,7 +73,7 @@ export async function POST(request: Request) {
         create: members,
       },
     },
-    include: groupInclude,
+    include: groupResponseInclude,
   });
 
   return Response.json(mapGroupToResponse(group), { status: 201 });

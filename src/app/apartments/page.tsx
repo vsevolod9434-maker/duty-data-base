@@ -5,7 +5,7 @@ import type { FormEvent, KeyboardEvent, MouseEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
 import { addActivityLogEntry } from "@/lib/activity-log";
-import { readClientApiError } from "@/lib/client-api-errors";
+import { apiFetchJson } from "@/lib/api-client";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Pagination } from "@/components/ui/Pagination";
 import {
@@ -200,46 +200,23 @@ function normalizeApiApartment(apartment: ApartmentApiResponse): Apartment {
   };
 }
 
-async function readApiError(response: Response) {
-  const fallbackMessage = "Не удалось выполнить операцию. Повторите попытку позже.";
-  return readClientApiError(response, fallbackMessage);
-}
-
 async function fetchStalkerProfiles() {
-  const response = await fetch("/api/stalkers", { cache: "no-store" });
-
-  if (!response.ok) {
-    throw new Error(await readApiError(response));
-  }
-
-  const payload = (await response.json()) as StalkerProfileApiResponse[];
+  const payload = await apiFetchJson<StalkerProfileApiResponse[]>("/api/stalkers", { cache: "no-store" });
   return payload.map(normalizeApiProfile);
 }
 
 async function fetchStalkerGroups() {
-  const response = await fetch("/api/stalker-groups", { cache: "no-store" });
-
-  if (!response.ok) {
-    throw new Error(await readApiError(response));
-  }
-
-  const payload = (await response.json()) as StalkerGroupApiResponse[];
+  const payload = await apiFetchJson<StalkerGroupApiResponse[]>("/api/stalker-groups", { cache: "no-store" });
   return payload.map(normalizeApiGroup);
 }
 
 async function fetchApartments() {
-  const response = await fetch("/api/apartments", { cache: "no-store" });
-
-  if (!response.ok) {
-    throw new Error(await readApiError(response));
-  }
-
-  const payload = (await response.json()) as ApartmentApiResponse[];
+  const payload = await apiFetchJson<ApartmentApiResponse[]>("/api/apartments", { cache: "no-store" });
   return payload.map(normalizeApiApartment);
 }
 
 async function saveApartmentRequest(apartment: Apartment) {
-  const response = await fetch(`/api/apartments/${encodeURIComponent(apartment.id)}`, {
+  const responsePayload = await apiFetchJson<ApartmentApiResponse>(`/api/apartments/${encodeURIComponent(apartment.id)}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
@@ -247,11 +224,7 @@ async function saveApartmentRequest(apartment: Apartment) {
     body: JSON.stringify(apartment),
   });
 
-  if (!response.ok) {
-    throw new Error(await readApiError(response));
-  }
-
-  return normalizeApiApartment((await response.json()) as ApartmentApiResponse);
+  return normalizeApiApartment(responsePayload);
 }
 
 export default function ApartmentsPage() {
@@ -391,13 +364,20 @@ export default function ApartmentsPage() {
       );
   }, [profileById, selectedApartment]);
 
-  const paginatedTenants = getPaginatedItems(selectedApartmentTenants, tenantPage);
-  const selectedPayments = selectedApartment ? selectedApartment.payments : [];
-  const paginatedPayments = getPaginatedItems(selectedPayments, paymentPage);
+  const paginatedTenants = useMemo(
+    () => getPaginatedItems(selectedApartmentTenants, tenantPage),
+    [selectedApartmentTenants, tenantPage],
+  );
+  const selectedPayments = useMemo(() => (selectedApartment ? selectedApartment.payments : []), [selectedApartment]);
+  const paginatedPayments = useMemo(
+    () => getPaginatedItems(selectedPayments, paymentPage),
+    [paymentPage, selectedPayments],
+  );
 
-  const occupiedTenantIds = selectedApartment
-    ? new Set(selectedApartment.tenants.map((tenant) => tenant.profileId))
-    : new Set<string>();
+  const occupiedTenantIds = useMemo(
+    () => (selectedApartment ? new Set(selectedApartment.tenants.map((tenant) => tenant.profileId)) : new Set<string>()),
+    [selectedApartment],
+  );
 
   const tenantSearchResults = useMemo(() => {
     const query = tenantSearchQuery.trim().toLowerCase();
@@ -931,7 +911,7 @@ export default function ApartmentsPage() {
     setApartmentActionMessage("");
 
     try {
-      const response = await fetch("/api/apartments/import", {
+      const payload = await apiFetchJson<ApartmentImportResponse>("/api/apartments/import", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -939,11 +919,6 @@ export default function ApartmentsPage() {
         body: JSON.stringify(localImportApartments),
       });
 
-      if (!response.ok) {
-        throw new Error(await readApiError(response));
-      }
-
-      const payload = (await response.json()) as ApartmentImportResponse;
       const importedApartments = payload.apartments.map(normalizeApiApartment);
       setApartments(importedApartments);
       writeStoredCollection(APARTMENTS_STORAGE_KEY, importedApartments);
@@ -968,15 +943,10 @@ export default function ApartmentsPage() {
     setApartmentActionMessage("");
 
     try {
-      const response = await fetch("/api/apartments/defaults", {
+      const defaultApartmentPayload = await apiFetchJson<ApartmentApiResponse[]>("/api/apartments/defaults", {
         method: "POST",
       });
-
-      if (!response.ok) {
-        throw new Error(await readApiError(response));
-      }
-
-      const defaultApartments = ((await response.json()) as ApartmentApiResponse[]).map(normalizeApiApartment);
+      const defaultApartments = defaultApartmentPayload.map(normalizeApiApartment);
       setApartments(defaultApartments);
       writeStoredCollection(APARTMENTS_STORAGE_KEY, defaultApartments);
       setLocalImportApartments([]);

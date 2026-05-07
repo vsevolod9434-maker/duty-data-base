@@ -77,7 +77,16 @@ export async function PATCH(request: Request, context: RouteContext) {
       const [stalkers, groups] = await Promise.all([
         prisma.stalker.findMany({ select: { affiliation: true, id: true } }),
         prisma.stalkerGroup.findMany({
-          include: { members: { include: { stalker: { select: { affiliation: true } } } } },
+          select: {
+            id: true,
+            members: {
+              select: {
+                stalker: {
+                  select: { affiliation: true },
+                },
+              },
+            },
+          },
         }),
       ]);
       const existingStalkerIds = new Set(stalkers.map((stalker) => stalker.id));

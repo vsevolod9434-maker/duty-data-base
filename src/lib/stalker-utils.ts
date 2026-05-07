@@ -179,7 +179,13 @@ export function writeStoredCollection<T>(key: string, value: T[]) {
     return;
   }
 
-  window.localStorage.setItem(key, JSON.stringify(normalizeSystemDates(value)));
+  const serializedValue = JSON.stringify(normalizeSystemDates(value));
+
+  if (window.localStorage.getItem(key) === serializedValue) {
+    return;
+  }
+
+  window.localStorage.setItem(key, serializedValue);
 }
 
 export function getPageCount(totalItems: number) {

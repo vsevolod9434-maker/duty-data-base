@@ -2,6 +2,7 @@ import { requireApiAuth } from "@/lib/auth/require-api-auth";
 import { getPrismaClient } from "@/lib/prisma";
 import { createSystemDate } from "@/lib/stalker-utils";
 import {
+  apartmentResponseInclude,
   createErrorResponse,
   getOccupancyStatus,
   isApartmentStatus,
@@ -19,15 +20,6 @@ export const dynamic = "force-dynamic";
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
-
-const apartmentInclude = {
-  tenants: {
-    orderBy: { addedAt: "asc" },
-  },
-  payments: {
-    orderBy: { paidAt: "desc" },
-  },
-} as const;
 
 function isNotFoundError(error: unknown) {
   return (
@@ -129,7 +121,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       });
 
       return tx.apartment.findUniqueOrThrow({
-        include: apartmentInclude,
+        include: apartmentResponseInclude,
         where: { id },
       });
     });

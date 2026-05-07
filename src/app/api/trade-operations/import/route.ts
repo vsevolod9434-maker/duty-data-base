@@ -11,17 +11,12 @@ import {
   normalizeTradeSubject,
   parseNullableDate,
   parseStoredDate,
+  tradeOperationResponseInclude,
   type TradeOperationPayload,
 } from "../trade-operation-route-utils";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const tradeOperationInclude = {
-  items: {
-    orderBy: { name: "asc" },
-  },
-} as const;
 
 export async function POST(request: Request) {
   const auth = await requireApiAuth();
@@ -136,7 +131,7 @@ export async function POST(request: Request) {
   );
 
   const operations = await prisma.tradeOperation.findMany({
-    include: tradeOperationInclude,
+    include: tradeOperationResponseInclude,
     orderBy: { createdAt: "desc" },
   });
 

@@ -1,115 +1,241 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
-import { Pagination } from "@/components/ui/Pagination";
 import { EmptyState, PageHeader, Panel, StatCard } from "@/components/ui/PdaPatterns";
-import { ACTIVITY_LOG_UPDATED_EVENT, readActivityLog } from "@/lib/activity-log";
-import { dashboardSummary, journalEntries } from "@/lib/mock-data";
-import { getPaginatedItems } from "@/lib/stalker-utils";
+import { apiFetchJson } from "@/lib/api-client";
+import type { DashboardSummaryResponse } from "@/lib/dashboard-summary";
 
-const summaryRows = [
-  { code: "СТЛ", label: "Сталкеров в базе", value: dashboardSummary.stalkersCount },
-  {
-    code: "ГРП",
-    label: "Активных групп",
-    value: dashboardSummary.activeGroupsCount,
-  },
-  {
-    code: "КВР",
-    label: "Занятых квартир",
-    value: dashboardSummary.occupiedApartmentsCount,
-  },
-  {
-    code: "ЗАД",
-    label: "Активных заданий",
-    value: dashboardSummary.activeTasksCount,
-  },
-];
+function formatMoney(value: number) {
+  return `${value.toLocaleString("ru-RU")} руб.`;
+}
 
-const systemState = [
-  { label: "База учёта", value: "Активна" },
-  { label: "Служебный доступ", value: "Включён" },
-  { label: "Оперативный журнал", value: "Ведётся" },
-  { label: "Интерфейс", value: "Готов" },
-  { label: "Раздел состава", value: "Временно закрыт", warning: true },
-];
+function formatDate(value: string | null) {
+  if (!value) {
+    return "Срок не указан";
+  }
 
-const quickOperations = [
-  {
-    label: "Профили сталкеров",
-    description: "Открыть реестр и личные дела сталкеров",
-    href: "/stalkers/profiles",
-  },
-  {
-    label: "Группы сталкеров",
-    description: "Перейти к составу, ролям и групповым заданиям",
-    href: "/stalkers/groups",
-  },
-  {
-    label: "Журналы",
-    description: "Оформить задания, продажи, покупки и нарушения",
-    href: "/journals",
-  },
-  {
-    label: "Квартиры",
-    description: "Проверить жильцов и оплату проживания",
-    href: "/apartments",
-  },
-];
+  return new Date(value).toLocaleDateString("ru-RU");
+}
 
-const activityStatusLabels: Record<string, string> = {
-  OK: "Норма",
-  WAIT: "Ожидание",
-  WARN: "Внимание",
+function getTaskStatusLabel(status: DashboardSummaryResponse["recent"]["tasks"][number]["status"]) {
+  switch (status) {
+    case "completed":
+      return "Выполнено";
+    case "cancelled":
+      return "Отменено";
+    default:
+      return "Активно";
+  }
+}
+
+function getViolationStatusLabel(status: DashboardSummaryResponse["recent"]["violations"][number]["status"]) {
+  return status === "closed" ? "Закрыто" : "Активно";
+}
+
+function getTradeTypeLabel(type: DashboardSummaryResponse["recent"]["tradeOperations"][number]["type"]) {
+  return type === "sale" ? "Продажа" : "Покупка";
+}
+
+function getTaskStatusClass(status: DashboardSummaryResponse["recent"]["tasks"][number]["status"]) {
+  switch (status) {
+    case "completed":
+      return "badge-task-completed";
+    case "cancelled":
+      return "badge-task-cancelled";
+    default:
+      return "badge-task-active";
+  }
+}
+
+function getViolationStatusClass(status: DashboardSummaryResponse["recent"]["violations"][number]["status"]) {
+  return status === "closed" ? "badge-task-completed" : "badge-task-active";
+}
+
+function getTradeTypeClass(type: DashboardSummaryResponse["recent"]["tradeOperations"][number]["type"]) {
+  return type === "sale" ? "badge-task-active" : "badge-neutral";
+}
+
+type SummaryMetric = {
+  label: string;
+  value: number | string;
+  tone?: "default" | "danger" | "warning";
 };
 
-function getActivityStatusLabel(status: string) {
-  return activityStatusLabels[status] ?? status;
+type SummarySectionProps = {
+  title: string;
+  caption: string;
+  overviewLabel: string;
+  metrics: SummaryMetric[];
+};
+
+function SummarySection({ title, caption, overviewLabel, metrics }: SummarySectionProps) {
+  const [primaryMetric, ...secondaryMetrics] = metrics;
+
+  return (
+    <Panel className="dashboard-summary-panel animate-panel-in interactive-card">
+      <div className="dashboard-summary-header">
+        <div>
+          <p className="dashboard-summary-caption">{caption}</p>
+          <h2>{title}</h2>
+        </div>
+        <span className="dashboard-summary-chip">{overviewLabel}</span>
+      </div>
+
+      <div className="dashboard-summary-overview">
+        <span>{primaryMetric.label}</span>
+        <strong
+          className={
+            primaryMetric.tone === "danger"
+              ? "dashboard-summary-value dashboard-summary-value-danger"
+              : primaryMetric.tone === "warning"
+                ? "dashboard-summary-value dashboard-summary-value-warning"
+                : "dashboard-summary-value"
+          }
+        >
+          {primaryMetric.value}
+        </strong>
+      </div>
+
+      <dl className="dashboard-summary-metrics">
+        {secondaryMetrics.map((metric) => (
+          <div className="dashboard-summary-metric" key={metric.label}>
+            <dt>{metric.label}</dt>
+            <dd
+              className={
+                metric.tone === "danger"
+                  ? "dashboard-summary-value-danger"
+                  : metric.tone === "warning"
+                    ? "dashboard-summary-value-warning"
+                    : ""
+              }
+            >
+              {metric.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </Panel>
+  );
 }
 
-function getActivityStatusClass(status: string) {
-  if (status === "WAIT" || status === "WARN") {
-    return "text-[var(--warning)]";
-  }
+type RecentPanelProps = {
+  title: string;
+  caption: string;
+  emptyTitle: string;
+  children: ReactNode;
+  hasItems: boolean;
+};
 
-  return "text-[var(--ok)]";
+function RecentPanel({ title, caption, emptyTitle, children, hasItems }: RecentPanelProps) {
+  return (
+    <Panel className="dashboard-recent-panel animate-panel-in">
+      <div className="dashboard-summary-header">
+        <div>
+          <p className="dashboard-summary-caption">{caption}</p>
+          <h2>{title}</h2>
+        </div>
+        <span className="dashboard-summary-chip">Лента</span>
+      </div>
+
+      {hasItems ? <div className="dashboard-recent-list">{children}</div> : <EmptyState className="mt-3" title={emptyTitle} />}
+    </Panel>
+  );
 }
 
-function formatActivityTime(createdAt: string | undefined, fallbackTime: string) {
-  if (!createdAt) {
-    return fallbackTime;
-  }
+type RecentEntryProps = {
+  title: string;
+  meta: string;
+  dateLabel: string;
+  badgeLabel: string;
+  badgeClassName: string;
+  secondaryValue?: string;
+};
 
-  return new Date(createdAt).toLocaleString("ru-RU", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function RecentEntry({ title, meta, dateLabel, badgeLabel, badgeClassName, secondaryValue }: RecentEntryProps) {
+  return (
+    <article className="dashboard-recent-entry interactive-card animate-list-item-in">
+      <div className="dashboard-recent-entry-top">
+        <strong className="dashboard-recent-entry-title">{title}</strong>
+        <span className={`badge-chip ${badgeClassName}`}>{badgeLabel}</span>
+      </div>
+
+      <p className="dashboard-recent-entry-meta">{meta}</p>
+
+      <div className="dashboard-recent-entry-bottom">
+        <span>{dateLabel}</span>
+        {secondaryValue ? <strong>{secondaryValue}</strong> : null}
+      </div>
+    </article>
+  );
+}
+
+function DashboardState({ children, tone = "default" }: { children: ReactNode; tone?: "default" | "error" }) {
+  return (
+    <Panel className="dashboard-state-panel animate-panel-in" tone={tone === "error" ? "muted" : "default"}>
+      <div className="panel-heading">
+        <h2>Состояние панели</h2>
+        <span>{tone === "error" ? "Сбой загрузки" : "Подготовка сводки"}</span>
+      </div>
+
+      <div className="dashboard-state-copy">{children}</div>
+    </Panel>
+  );
 }
 
 export default function Home() {
-  const [journalPage, setJournalPage] = useState(1);
-  const [activityEntries, setActivityEntries] = useState(journalEntries);
+  const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
-    const syncActivityLog = () => {
-      setActivityEntries(readActivityLog(journalEntries));
-    };
+    let isCancelled = false;
 
-    syncActivityLog();
+    async function loadSummary() {
+      setIsLoading(true);
+      setErrorMessage("");
 
-    window.addEventListener("storage", syncActivityLog);
-    window.addEventListener(ACTIVITY_LOG_UPDATED_EVENT, syncActivityLog);
+      try {
+        const nextSummary = await apiFetchJson<DashboardSummaryResponse>(
+          "/api/dashboard/summary",
+          undefined,
+          "Не удалось загрузить оперативную сводку.",
+        );
+
+        if (!isCancelled) {
+          setSummary(nextSummary);
+        }
+      } catch {
+        if (!isCancelled) {
+          setErrorMessage("Не удалось загрузить оперативную сводку.");
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadSummary();
 
     return () => {
-      window.removeEventListener("storage", syncActivityLog);
-      window.removeEventListener(ACTIVITY_LOG_UPDATED_EVENT, syncActivityLog);
+      isCancelled = true;
     };
   }, []);
 
-  const paginatedJournalEntries = getPaginatedItems(activityEntries, journalPage);
+  const primaryStats = useMemo(() => {
+    if (!summary) {
+      return [];
+    }
+
+    return [
+      { code: "ПРФ", label: "Активные профили", value: summary.profiles.active },
+      { code: "ГРП", label: "Активные группы", value: summary.groups.active },
+      { code: "КВР", label: "Занятые квартиры", value: summary.apartments.occupied },
+      { code: "СРОК", label: "Просроченные задания", value: summary.tasks.overdue },
+    ];
+  }, [summary]);
 
   return (
     <main className="pda-page">
@@ -117,93 +243,181 @@ export default function Home() {
         <PdaTopbar activeLabel="Главная" />
 
         <div className="pda-content pda-dashboard-grid dashboard-command-grid">
-          <Panel className="dashboard-hero-panel lg:row-span-2" id="overview" tone="accent">
+          <Panel className="dashboard-hero-panel lg:row-span-2 animate-panel-in" id="overview" tone="accent">
             <PageHeader
-              eyebrow="Служебная сводка"
-              title="Сводка базы"
-              description="Оперативная картина по сталкерам, группам, квартирам и текущим заданиям."
-              meta="Система учёта"
+              eyebrow="Оперативная сводка"
+              title="Главная панель"
+              description="Оперативная сводка внутренней базы группировки «Долг»."
+              meta={summary ? `Обновлено: ${new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}` : undefined}
             />
 
-            <div className="dashboard-stat-grid" id="summary">
-              {summaryRows.map((row) => (
-                <StatCard code={row.code} label={row.label} value={row.value} key={row.code} />
-              ))}
-            </div>
-
-            <div className="dashboard-briefing-grid">
-              <p>
-                Главная панель предназначена для служебного контроля профилей сталкеров, групп, квартир,
-                заданий и торговых операций.
-              </p>
-              <p>
-                Все основные разделы доступны допущенному личному составу после входа в систему учёта.
-              </p>
-            </div>
-          </Panel>
-
-          <Panel id="system">
-            <div className="panel-heading">
-              <h2>Состояние системы</h2>
-              <span>Контроль</span>
-            </div>
-
-            <dl className="data-table mt-3">
-              {systemState.map((item) => (
-                <div className="data-row grid-cols-[1fr_auto]" key={item.label}>
-                  <dt>{item.label}</dt>
-                  <dd className={item.warning ? "text-[var(--warning)]" : ""}>{item.value}</dd>
+            {isLoading ? <p className="draft-message mt-4">Загрузка оперативной сводки...</p> : null}
+            {!isLoading && errorMessage ? <p className="draft-message mt-4">{errorMessage}</p> : null}
+            {!isLoading && !errorMessage && summary ? (
+              <>
+                <div className="dashboard-stat-grid mt-4" id="summary">
+                  {primaryStats.map((row) => (
+                    <StatCard code={row.code} label={row.label} value={row.value} key={row.code} />
+                  ))}
                 </div>
-              ))}
-            </dl>
+
+                <div className="dashboard-briefing-grid mt-4">
+                  <p>
+                    Под контролем находятся профили, группы, квартиры, задания, нарушения и торговые операции. Панель показывает только служебную сводку без полной загрузки реестров.
+                  </p>
+                  <p>
+                    Отдельные разделы открывайте по рабочей необходимости. Последние записи ниже помогают быстро оценить текущую обстановку.
+                  </p>
+                </div>
+              </>
+            ) : null}
           </Panel>
 
-          <Panel>
-            <div className="panel-heading">
-              <h2>Быстрые переходы</h2>
-              <span>Команды</span>
-            </div>
+          {isLoading ? (
+            <DashboardState>
+              <p>Загрузка оперативной сводки...</p>
+            </DashboardState>
+          ) : null}
 
-            <div className="quick-link-grid">
-              {quickOperations.map((operation) => (
-                <a className="command-row quick-link-row" href={operation.href} key={operation.href}>
-                  <strong>{operation.label}</strong>
-                  <span>{operation.description}</span>
-                </a>
-              ))}
-            </div>
-          </Panel>
+          {!isLoading && errorMessage ? (
+            <DashboardState tone="error">
+              <p>Не удалось загрузить оперативную сводку.</p>
+            </DashboardState>
+          ) : null}
 
-          <Panel className="lg:col-span-2">
-            <div className="panel-heading">
-              <h2>Последние действия</h2>
-              <span>Журнал</span>
-            </div>
+          {!isLoading && !errorMessage && summary ? (
+            <>
+              <SummarySection
+                caption="Личный состав"
+                overviewLabel="Реестр"
+                metrics={[
+                  { label: "Активные", value: summary.profiles.active },
+                  { label: "Архив", value: summary.profiles.archive },
+                  { label: "Всего", value: summary.profiles.total },
+                ]}
+                title="Профили сталкеров"
+              />
 
-            <div className="data-table mt-3">
-              <div className="data-row data-head activity-log-row">
-                <span>Дата и время</span>
-                <span>Запись</span>
-                <span>Статус</span>
-              </div>
-              {paginatedJournalEntries.items.length > 0 ? (
-                paginatedJournalEntries.items.map((entry) => (
-                  <div className="data-row activity-log-row" key={entry.id}>
-                    <span className="font-mono">{formatActivityTime(entry.createdAt, entry.time)}</span>
-                    <span>{entry.title}</span>
-                    <span className={getActivityStatusClass(entry.status)}>{getActivityStatusLabel(entry.status)}</span>
-                  </div>
-                ))
-              ) : (
-                <EmptyState title="Журнал действий пока пуст." />
-              )}
-            </div>
-            <Pagination
-              page={paginatedJournalEntries.page}
-              pageCount={paginatedJournalEntries.pageCount}
-              onPageChange={setJournalPage}
-            />
-          </Panel>
+              <SummarySection
+                caption="Подразделения"
+                overviewLabel="Состав"
+                metrics={[
+                  { label: "Активные", value: summary.groups.active },
+                  { label: "Архив", value: summary.groups.archive },
+                  { label: "Всего", value: summary.groups.total },
+                ]}
+                title="Группы"
+              />
+
+              <SummarySection
+                caption="Проживание"
+                overviewLabel="Жильё"
+                metrics={[
+                  { label: "Всего", value: summary.apartments.total },
+                  { label: "Занято", value: summary.apartments.occupied },
+                  { label: "Свободно", value: summary.apartments.free },
+                  { label: "Просрочено оплат", value: summary.apartments.overduePayments, tone: "danger" },
+                  { label: "Истекает оплат", value: summary.apartments.expiringPayments, tone: "warning" },
+                ]}
+                title="Квартиры"
+              />
+
+              <SummarySection
+                caption="Исполнение"
+                overviewLabel="Контроль"
+                metrics={[
+                  { label: "Активные", value: summary.tasks.active },
+                  { label: "Просроченные", value: summary.tasks.overdue, tone: "danger" },
+                  { label: "Выполненные", value: summary.tasks.completed },
+                  { label: "Отменённые", value: summary.tasks.cancelled },
+                ]}
+                title="Задания"
+              />
+
+              <SummarySection
+                caption="Дисциплина"
+                overviewLabel="Надзор"
+                metrics={[
+                  { label: "Активные", value: summary.violations.active, tone: "warning" },
+                  { label: "Закрытые", value: summary.violations.closed },
+                  { label: "Всего", value: summary.violations.total },
+                ]}
+                title="Нарушения"
+              />
+
+              <SummarySection
+                caption="Оборот"
+                overviewLabel="Учёт"
+                metrics={[
+                  { label: "Продаж", value: summary.trade.salesCount },
+                  { label: "Покупок", value: summary.trade.purchasesCount },
+                  { label: "Сумма продаж", value: formatMoney(summary.trade.salesTotal) },
+                  { label: "Сумма покупок", value: formatMoney(summary.trade.purchasesTotal) },
+                ]}
+                title="Торговые операции"
+              />
+
+              <Panel className="animate-panel-in lg:col-span-2 xl:col-span-3">
+                <div className="panel-heading">
+                  <h2>Последние записи</h2>
+                  <span>Оперативная лента</span>
+                </div>
+
+                <div className="dashboard-recent-grid">
+                  <RecentPanel caption="Последние 5" emptyTitle="Записей пока нет." hasItems={summary.recent.tasks.length > 0} title="Последние задания">
+                    {summary.recent.tasks.map((task) => (
+                      <RecentEntry
+                        badgeClassName={getTaskStatusClass(task.status)}
+                        badgeLabel={getTaskStatusLabel(task.status)}
+                        dateLabel={`Срок: ${formatDate(task.dueAt)}`}
+                        key={task.id}
+                        meta={task.assigneeLabel}
+                        secondaryValue={formatDate(task.issuedAt)}
+                        title={task.description}
+                      />
+                    ))}
+                  </RecentPanel>
+
+                  <RecentPanel
+                    caption="Последние 5"
+                    emptyTitle="Записей пока нет."
+                    hasItems={summary.recent.tradeOperations.length > 0}
+                    title="Последние операции"
+                  >
+                    {summary.recent.tradeOperations.map((operation) => (
+                      <RecentEntry
+                        badgeClassName={getTradeTypeClass(operation.type)}
+                        badgeLabel={getTradeTypeLabel(operation.type)}
+                        dateLabel={`Дата: ${formatDate(operation.operationDate)}`}
+                        key={operation.id}
+                        meta={operation.participantLabel}
+                        secondaryValue={formatMoney(operation.totalAmount)}
+                        title={operation.participantLabel}
+                      />
+                    ))}
+                  </RecentPanel>
+
+                  <RecentPanel
+                    caption="Последние 5"
+                    emptyTitle="Записей пока нет."
+                    hasItems={summary.recent.violations.length > 0}
+                    title="Последние нарушения"
+                  >
+                    {summary.recent.violations.map((violation) => (
+                      <RecentEntry
+                        badgeClassName={getViolationStatusClass(violation.status)}
+                        badgeLabel={getViolationStatusLabel(violation.status)}
+                        dateLabel={`Дата: ${formatDate(violation.date)}`}
+                        key={violation.id}
+                        meta={violation.violatorLabel}
+                        title={violation.description}
+                      />
+                    ))}
+                  </RecentPanel>
+                </div>
+              </Panel>
+            </>
+          ) : null}
         </div>
       </section>
     </main>

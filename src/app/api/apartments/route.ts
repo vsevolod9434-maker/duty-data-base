@@ -2,6 +2,7 @@ import { requireApiAuth } from "@/lib/auth/require-api-auth";
 import { getPrismaClient } from "@/lib/prisma";
 import { createSystemDate } from "@/lib/stalker-utils";
 import {
+  apartmentResponseInclude,
   createErrorResponse,
   getOccupancyStatus,
   isApartmentStatus,
@@ -16,15 +17,6 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const apartmentInclude = {
-  tenants: {
-    orderBy: { addedAt: "asc" },
-  },
-  payments: {
-    orderBy: { paidAt: "desc" },
-  },
-} as const;
-
 export async function GET() {
   const auth = await requireApiAuth();
 
@@ -34,7 +26,7 @@ export async function GET() {
 
   const prisma = getPrismaClient();
   const apartments = await prisma.apartment.findMany({
-    include: apartmentInclude,
+    include: apartmentResponseInclude,
     orderBy: { name: "asc" },
   });
 
@@ -86,7 +78,7 @@ export async function POST(request: Request) {
         create: payments,
       },
     },
-    include: apartmentInclude,
+    include: apartmentResponseInclude,
   });
 
   return Response.json(mapApartmentToResponse(apartment), { status: 201 });

@@ -7,7 +7,7 @@ import { PdaTopbar } from "@/components/layout/PdaTopbar";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { getTaskActionVisibility, TaskRecordCard } from "@/components/ui/TaskRecordCard";
 import { addActivityLogEntry } from "@/lib/activity-log";
-import { readClientApiError } from "@/lib/client-api-errors";
+import { apiFetch, apiFetchJson } from "@/lib/api-client";
 import { createTask, deleteTaskRecord, fetchTasks, updateTask } from "@/lib/journal-api";
 import {
   stalkerGroups as initialStalkerGroups,
@@ -190,30 +190,13 @@ function normalizeApiGroup(group: StalkerGroupApiResponse): StalkerGroup {
   };
 }
 
-async function readApiError(response: Response) {
-  const fallbackMessage = "Не удалось выполнить операцию. Повторите попытку позже.";
-  return readClientApiError(response, fallbackMessage);
-}
-
 async function fetchStalkerProfiles() {
-  const response = await fetch("/api/stalkers", { cache: "no-store" });
-
-  if (!response.ok) {
-    throw new Error(await readApiError(response));
-  }
-
-  const payload = (await response.json()) as StalkerProfileApiResponse[];
+  const payload = await apiFetchJson<StalkerProfileApiResponse[]>("/api/stalkers", { cache: "no-store" });
   return payload.map(normalizeApiProfile);
 }
 
 async function fetchStalkerGroups() {
-  const response = await fetch("/api/stalker-groups", { cache: "no-store" });
-
-  if (!response.ok) {
-    throw new Error(await readApiError(response));
-  }
-
-  const payload = (await response.json()) as StalkerGroupApiResponse[];
+  const payload = await apiFetchJson<StalkerGroupApiResponse[]>("/api/stalker-groups", { cache: "no-store" });
   return payload.map(normalizeApiGroup);
 }
 
@@ -222,7 +205,7 @@ async function saveStalkerGroupRequest(
   url: string,
   payload: Record<string, unknown>,
 ) {
-  const response = await fetch(url, {
+  const responsePayload = await apiFetchJson<StalkerGroupApiResponse>(url, {
     method,
     headers: {
       "Content-Type": "application/json",
@@ -230,11 +213,7 @@ async function saveStalkerGroupRequest(
     body: JSON.stringify(payload),
   });
 
-  if (!response.ok) {
-    throw new Error(await readApiError(response));
-  }
-
-  return normalizeApiGroup((await response.json()) as StalkerGroupApiResponse);
+  return normalizeApiGroup(responsePayload);
 }
 
 function getTaskStatusLabel(task: Task) {
@@ -329,11 +308,11 @@ export default function StalkerGroupsPage() {
         setGroupLoadMessage("");
 
         try {
-          const [serverProfiles, serverGroups] = await Promise.all([
+          const [serverProfiles, serverGroups, serverTasks] = await Promise.all([
             fetchStalkerProfiles().catch(() => localProfiles),
             fetchStalkerGroups(),
+            fetchTasks().catch(() => localTasks),
           ]);
-          const serverTasks = await fetchTasks().catch(() => localTasks);
 
           if (isCancelled) {
             return;
@@ -422,10 +401,13 @@ export default function StalkerGroupsPage() {
       });
   }, [groupListTab, groups, profileById, searchQuery]);
 
-  const paginatedGroups = getPaginatedItems(visibleGroups, groupPage);
+  const paginatedGroups = useMemo(() => getPaginatedItems(visibleGroups, groupPage), [groupPage, visibleGroups]);
   const visibleGroupCount = isStorageReady ? visibleGroups.length : 0;
   const shownGroupCount = isStorageReady ? paginatedGroups.items.length : 0;
-  const selectedGroup = groups.find((group) => group.id === selectedGroupId);
+  const selectedGroup = useMemo(
+    () => groups.find((group) => group.id === selectedGroupId),
+    [groups, selectedGroupId],
+  );
   const selectedGroupTasks = useMemo(() => {
     if (!selectedGroup) {
       return [];
@@ -442,7 +424,7 @@ export default function StalkerGroupsPage() {
 
     return activeTasks.length > 0 ? ("active" as const) : ("none" as const);
   }, [selectedGroupTasks]);
-  const availableProfiles = profiles.filter((profile) => profile.status === "active");
+  const availableProfiles = useMemo(() => profiles.filter((profile) => profile.status === "active"), [profiles]);
   const selectedGroupAvailableProfiles = useMemo(() => {
     if (!selectedGroup) {
       return [];
@@ -979,13 +961,7 @@ export default function StalkerGroupsPage() {
     setGroupActionMessage("");
 
     try {
-      const response = await fetch(`/api/stalker-groups/${encodeURIComponent(groupId)}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error(await readApiError(response));
-      }
+      await apiFetch(`/api/stalker-groups/${encodeURIComponent(groupId)}`, { method: "DELETE" }, "Не удалось удалить группу.");
 
       setGroups((currentGroups) => currentGroups.filter((group) => group.id !== groupId));
       setSelectedGroupId("");
@@ -1015,7 +991,7 @@ export default function StalkerGroupsPage() {
     setGroupActionMessage("");
 
     try {
-      const response = await fetch("/api/stalker-groups/import", {
+      const payload = await apiFetchJson<StalkerGroupImportResponse>("/api/stalker-groups/import", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1023,11 +999,6 @@ export default function StalkerGroupsPage() {
         body: JSON.stringify(localImportGroups),
       });
 
-      if (!response.ok) {
-        throw new Error(await readApiError(response));
-      }
-
-      const payload = (await response.json()) as StalkerGroupImportResponse;
       const importedGroups = payload.groups.map(normalizeApiGroup);
       setGroups(importedGroups);
       writeStoredCollection(STALKER_GROUPS_STORAGE_KEY, importedGroups);

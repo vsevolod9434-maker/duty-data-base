@@ -10,6 +10,7 @@ import {
   normalizeTradeItems,
   normalizeTradeSubject,
   parseNullableDate,
+  tradeOperationResponseInclude,
   type TradeOperationPayload,
 } from "../trade-operation-route-utils";
 
@@ -19,12 +20,6 @@ export const dynamic = "force-dynamic";
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
-
-const tradeOperationInclude = {
-  items: {
-    orderBy: { name: "asc" },
-  },
-} as const;
 
 function isNotFoundError(error: unknown) {
   return error !== null && typeof error === "object" && "code" in error && (error as { code?: unknown }).code === "P2025";
@@ -51,7 +46,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   try {
     const prisma = getPrismaClient();
     const currentOperation = await prisma.tradeOperation.findUniqueOrThrow({
-      include: tradeOperationInclude,
+      include: tradeOperationResponseInclude,
       where: { id },
     });
     const data: {
@@ -136,7 +131,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       });
 
       return tx.tradeOperation.findUniqueOrThrow({
-        include: tradeOperationInclude,
+        include: tradeOperationResponseInclude,
         where: { id },
       });
     });

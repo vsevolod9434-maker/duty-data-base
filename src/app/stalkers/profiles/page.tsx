@@ -9,7 +9,7 @@ import { getTaskActionVisibility, TaskRecordCard } from "@/components/ui/TaskRec
 import { TradeRecordCard } from "@/components/ui/TradeRecordCard";
 import { ViolationRecordCard } from "@/components/ui/ViolationRecordCard";
 import { addActivityLogEntry } from "@/lib/activity-log";
-import { readClientApiError } from "@/lib/client-api-errors";
+import { apiFetch, apiFetchJson } from "@/lib/api-client";
 import {
   createTask,
   createTradeOperation,
@@ -144,19 +144,8 @@ function normalizeDateInputValue(value: string) {
   return value ? value.slice(0, 10) : "";
 }
 
-async function readApiError(response: Response) {
-  const fallbackMessage = "Не удалось выполнить операцию. Повторите попытку позже.";
-  return readClientApiError(response, fallbackMessage);
-}
-
 async function fetchStalkerProfiles() {
-  const response = await fetch("/api/stalkers", { cache: "no-store" });
-
-  if (!response.ok) {
-    throw new Error(await readApiError(response));
-  }
-
-  const payload = (await response.json()) as StalkerProfileApiResponse[];
+  const payload = await apiFetchJson<StalkerProfileApiResponse[]>("/api/stalkers", { cache: "no-store" });
   return payload.map(normalizeApiProfile);
 }
 
@@ -165,7 +154,7 @@ async function saveStalkerProfileRequest(
   url: string,
   payload: Record<string, unknown>,
 ) {
-  const response = await fetch(url, {
+  const responsePayload = await apiFetchJson<StalkerProfileApiResponse>(url, {
     method,
     headers: {
       "Content-Type": "application/json",
@@ -173,11 +162,7 @@ async function saveStalkerProfileRequest(
     body: JSON.stringify(payload),
   });
 
-  if (!response.ok) {
-    throw new Error(await readApiError(response));
-  }
-
-  return normalizeApiProfile((await response.json()) as StalkerProfileApiResponse);
+  return normalizeApiProfile(responsePayload);
 }
 
 function formatMoney(value: number) {
@@ -606,7 +591,10 @@ export default function StalkerProfilesPage() {
     writeStoredCollection(VIOLATIONS_STORAGE_KEY, violations);
   }, [isStorageReady, violations]);
 
-  const selectedProfile = profiles.find((profile) => profile.id === selectedProfileId);
+  const selectedProfile = useMemo(
+    () => profiles.find((profile) => profile.id === selectedProfileId),
+    [profiles, selectedProfileId],
+  );
 
   const selectedProfileTasks = useMemo(() => {
     if (!selectedProfile) {
@@ -734,7 +722,10 @@ export default function StalkerProfilesPage() {
       .filter((profile) => matchesStalkerProfileSearch(profile, searchQuery));
   }, [profileListTab, profiles, searchQuery]);
 
-  const paginatedProfiles = getPaginatedItems(visibleProfiles, profilePage);
+  const paginatedProfiles = useMemo(
+    () => getPaginatedItems(visibleProfiles, profilePage),
+    [profilePage, visibleProfiles],
+  );
   const visibleProfileCount = isStorageReady ? visibleProfiles.length : 0;
   const shownProfileCount = isStorageReady ? paginatedProfiles.items.length : 0;
   const normalizedPhotoUrl = draft.photoUrl.trim();
@@ -1164,13 +1155,7 @@ export default function StalkerProfilesPage() {
     setIsProfileDeleting(true);
 
     try {
-      const response = await fetch(`/api/stalkers/${encodeURIComponent(profileId)}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error(await readApiError(response));
-      }
+      await apiFetch(`/api/stalkers/${encodeURIComponent(profileId)}`, { method: "DELETE" }, "Не удалось удалить профиль.");
 
       setProfiles((currentProfiles) => currentProfiles.filter((profile) => profile.id !== profileId));
       setTasks((currentTasks) => currentTasks.filter((task) => task.stalkerId !== profileId));
@@ -1207,19 +1192,14 @@ export default function StalkerProfilesPage() {
     setProfileActionMessage("");
 
     try {
-      const response = await fetch("/api/stalkers/import", {
+      const importedProfilePayload = await apiFetchJson<StalkerProfileApiResponse[]>("/api/stalkers/import", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(localImportProfiles),
       });
-
-      if (!response.ok) {
-        throw new Error(await readApiError(response));
-      }
-
-      const importedProfiles = ((await response.json()) as StalkerProfileApiResponse[]).map(normalizeApiProfile);
+      const importedProfiles = importedProfilePayload.map(normalizeApiProfile);
       setProfiles(importedProfiles);
       writeStoredCollection(STALKER_PROFILES_STORAGE_KEY, importedProfiles);
       setLocalImportProfiles([]);

@@ -39,6 +39,19 @@ type DatabaseGroup = {
   }>;
 };
 
+export const groupResponseInclude = {
+  members: {
+    orderBy: { joinedAt: "asc" },
+    select: {
+      id: true,
+      stalkerId: true,
+      roleType: true,
+      customRoleName: true,
+      joinedAt: true,
+    },
+  },
+} as const;
+
 export function createErrorResponse(message: string, status = 400) {
   return Response.json({ error: message }, { status });
 }

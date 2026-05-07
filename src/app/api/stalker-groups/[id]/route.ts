@@ -3,6 +3,7 @@ import { getPrismaClient } from "@/lib/prisma";
 import { createSystemDate } from "@/lib/stalker-utils";
 import {
   createErrorResponse,
+  groupResponseInclude,
   isStalkerGroupStatus,
   mapGroupToResponse,
   normalizeMemberPayloads,
@@ -17,12 +18,6 @@ export const dynamic = "force-dynamic";
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
-
-const groupInclude = {
-  members: {
-    orderBy: { joinedAt: "asc" },
-  },
-} as const;
 
 function isNotFoundError(error: unknown) {
   return (
@@ -111,7 +106,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       }
 
       return tx.stalkerGroup.findUniqueOrThrow({
-        include: groupInclude,
+        include: groupResponseInclude,
         where: { id },
       });
     });

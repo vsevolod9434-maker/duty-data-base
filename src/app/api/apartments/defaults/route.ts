@@ -1,19 +1,10 @@
 import { requireApiAuth } from "@/lib/auth/require-api-auth";
 import { getPrismaClient } from "@/lib/prisma";
 import { createDefaultApartments } from "@/lib/apartment-utils";
-import { mapApartmentToResponse } from "../apartment-route-utils";
+import { apartmentResponseInclude, mapApartmentToResponse } from "../apartment-route-utils";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const apartmentInclude = {
-  tenants: {
-    orderBy: { addedAt: "asc" },
-  },
-  payments: {
-    orderBy: { paidAt: "desc" },
-  },
-} as const;
 
 export async function POST() {
   const auth = await requireApiAuth();
@@ -39,7 +30,7 @@ export async function POST() {
   }
 
   const apartments = await prisma.apartment.findMany({
-    include: apartmentInclude,
+    include: apartmentResponseInclude,
     orderBy: { name: "asc" },
   });
 

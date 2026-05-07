@@ -1,7 +1,7 @@
 "use client";
 
 import type { Dispatch, FormEvent, MouseEvent, SetStateAction } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
 import { Pagination } from "@/components/ui/Pagination";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -9,6 +9,7 @@ import { TaskRecordCard } from "@/components/ui/TaskRecordCard";
 import { TradeRecordCard } from "@/components/ui/TradeRecordCard";
 import { ViolationRecordCard } from "@/components/ui/ViolationRecordCard";
 import { addActivityLogEntry } from "@/lib/activity-log";
+import { apiFetchJson } from "@/lib/api-client";
 import {
   createTask,
   createTradeOperation,
@@ -98,13 +99,12 @@ type EntitySearchResult = {
 };
 
 async function fetchReferenceCollection<T>(url: string, fallback: T[]) {
-  const response = await fetch(url);
-
-  if (!response.ok) {
+  try {
+    const payload = await apiFetchJson<T[]>(url);
+    return payload.map((item) => normalizeReferenceRecord(item));
+  } catch {
     return fallback;
   }
-
-  return ((await response.json()) as T[]).map((item) => normalizeReferenceRecord(item));
 }
 
 function normalizeReferenceRecord<T>(item: T): T {
@@ -562,7 +562,7 @@ export default function JournalsPage() {
     }
   }
 
-  const searchProfiles = (state: EntitySearchState) => {
+  const searchProfiles = useCallback((state: EntitySearchState) => {
     const query = state.appliedQuery.trim().toLowerCase();
 
     if (!state.hasSearched || !query) {
@@ -591,9 +591,9 @@ export default function JournalsPage() {
         description: getProfileSecondaryTitle(profile) || profile.fullName || "Данные профиля не указаны",
         meta: getAffiliationLabel(profile.affiliation),
       }));
-  };
+  }, [activeProfiles]);
 
-  const searchGroups = (state: EntitySearchState) => {
+  const searchGroups = useCallback((state: EntitySearchState) => {
     const query = state.appliedQuery.trim().toLowerCase();
 
     if (!state.hasSearched || !query) {
@@ -618,13 +618,28 @@ export default function JournalsPage() {
         description: `Участников: ${group.members.length}`,
         meta: group.status === "active" ? "Активна" : "Архив",
       }));
-  };
+  }, [activeGroups, profileById]);
 
-  const taskStalkerSearchResults = searchProfiles(taskStalkerSearch);
-  const taskGroupSearchResults = searchGroups(taskGroupSearch);
-  const tradeStalkerSearchResults = searchProfiles(tradeStalkerSearch);
-  const tradeGroupSearchResults = searchGroups(tradeGroupSearch);
-  const violationProfileSearchResults = searchProfiles(violationProfileSearch);
+  const taskStalkerSearchResults = useMemo(
+    () => searchProfiles(taskStalkerSearch),
+    [searchProfiles, taskStalkerSearch],
+  );
+  const taskGroupSearchResults = useMemo(
+    () => searchGroups(taskGroupSearch),
+    [searchGroups, taskGroupSearch],
+  );
+  const tradeStalkerSearchResults = useMemo(
+    () => searchProfiles(tradeStalkerSearch),
+    [searchProfiles, tradeStalkerSearch],
+  );
+  const tradeGroupSearchResults = useMemo(
+    () => searchGroups(tradeGroupSearch),
+    [searchGroups, tradeGroupSearch],
+  );
+  const violationProfileSearchResults = useMemo(
+    () => searchProfiles(violationProfileSearch),
+    [searchProfiles, violationProfileSearch],
+  );
 
   const visibleTasks = useMemo(() => {
     if (taskStatusFilter === "all") {
@@ -650,10 +665,19 @@ export default function JournalsPage() {
     return violations.filter((violation) => getViolationStatus(violation) === violationStatusFilter);
   }, [violationStatusFilter, violations]);
 
-  const paginatedTasks = getPaginatedItems(visibleTasks, taskPage);
-  const paginatedSaleOperations = getPaginatedItems(saleOperations, salePage);
-  const paginatedPurchaseOperations = getPaginatedItems(purchaseOperations, purchasePage);
-  const paginatedViolations = getPaginatedItems(visibleViolations, violationPage);
+  const paginatedTasks = useMemo(() => getPaginatedItems(visibleTasks, taskPage), [taskPage, visibleTasks]);
+  const paginatedSaleOperations = useMemo(
+    () => getPaginatedItems(saleOperations, salePage),
+    [saleOperations, salePage],
+  );
+  const paginatedPurchaseOperations = useMemo(
+    () => getPaginatedItems(purchaseOperations, purchasePage),
+    [purchaseOperations, purchasePage],
+  );
+  const paginatedViolations = useMemo(
+    () => getPaginatedItems(visibleViolations, violationPage),
+    [visibleViolations, violationPage],
+  );
   const tradeDraftQuantity = Number(tradeDraft.quantity.replace(",", "."));
   const tradeDraftPrice = Number(tradeDraft.price.replace(",", "."));
   const tradeDraftTotal =

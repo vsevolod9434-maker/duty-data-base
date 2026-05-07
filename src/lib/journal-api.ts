@@ -1,19 +1,5 @@
-import { readClientApiError } from "@/lib/client-api-errors";
+import { apiFetch, apiFetchJson } from "@/lib/api-client";
 import type { Task, TradeOperation, Violation } from "@/lib/types";
-
-async function readApiError(response: Response, fallbackMessage: string) {
-  return readClientApiError(response, fallbackMessage);
-}
-
-async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit) {
-  const response = await fetch(input, init);
-
-  if (!response.ok) {
-    throw new Error(await readApiError(response, "Не удалось выполнить операцию. Повторите попытку позже."));
-  }
-
-  return (await response.json()) as T;
-}
 
 function normalizeNullableString(value: unknown) {
   return typeof value === "string" ? value : "";
@@ -71,12 +57,12 @@ export function normalizeViolationRecord(violation: Violation): Violation {
 }
 
 export async function fetchTasks() {
-  const tasks = await fetchJson<Task[]>("/api/tasks");
+  const tasks = await apiFetchJson<Task[]>("/api/tasks");
   return tasks.map(normalizeTaskRecord);
 }
 
 export async function createTask(payload: Partial<Task>) {
-  const task = await fetchJson<Task>("/api/tasks", {
+  const task = await apiFetchJson<Task>("/api/tasks", {
     body: JSON.stringify(payload),
     headers: { "Content-Type": "application/json" },
     method: "POST",
@@ -85,7 +71,7 @@ export async function createTask(payload: Partial<Task>) {
 }
 
 export async function updateTask(taskId: string, payload: Partial<Task>) {
-  const task = await fetchJson<Task>(`/api/tasks/${taskId}`, {
+  const task = await apiFetchJson<Task>(`/api/tasks/${taskId}`, {
     body: JSON.stringify(payload),
     headers: { "Content-Type": "application/json" },
     method: "PATCH",
@@ -94,15 +80,11 @@ export async function updateTask(taskId: string, payload: Partial<Task>) {
 }
 
 export async function deleteTaskRecord(taskId: string) {
-  const response = await fetch(`/api/tasks/${taskId}`, { method: "DELETE" });
-
-  if (!response.ok) {
-    throw new Error(await readApiError(response, "Не удалось удалить задание."));
-  }
+  await apiFetch(`/api/tasks/${taskId}`, { method: "DELETE" }, "Не удалось удалить задание.");
 }
 
 export async function importTasks(tasks: Task[]) {
-  const payload = await fetchJson<{ tasks: Task[]; skippedLinks?: number }>("/api/tasks/import", {
+  const payload = await apiFetchJson<{ tasks: Task[]; skippedLinks?: number }>("/api/tasks/import", {
     body: JSON.stringify(tasks),
     headers: { "Content-Type": "application/json" },
     method: "POST",
@@ -114,12 +96,12 @@ export async function importTasks(tasks: Task[]) {
 }
 
 export async function fetchTradeOperations() {
-  const operations = await fetchJson<TradeOperation[]>("/api/trade-operations");
+  const operations = await apiFetchJson<TradeOperation[]>("/api/trade-operations");
   return operations.map(normalizeTradeOperation);
 }
 
 export async function createTradeOperation(payload: Partial<TradeOperation>) {
-  const operation = await fetchJson<TradeOperation>("/api/trade-operations", {
+  const operation = await apiFetchJson<TradeOperation>("/api/trade-operations", {
     body: JSON.stringify(payload),
     headers: { "Content-Type": "application/json" },
     method: "POST",
@@ -128,7 +110,7 @@ export async function createTradeOperation(payload: Partial<TradeOperation>) {
 }
 
 export async function updateTradeOperation(operationId: string, payload: Partial<TradeOperation>) {
-  const operation = await fetchJson<TradeOperation>(`/api/trade-operations/${operationId}`, {
+  const operation = await apiFetchJson<TradeOperation>(`/api/trade-operations/${operationId}`, {
     body: JSON.stringify(payload),
     headers: { "Content-Type": "application/json" },
     method: "PATCH",
@@ -137,15 +119,11 @@ export async function updateTradeOperation(operationId: string, payload: Partial
 }
 
 export async function deleteTradeOperationRecord(operationId: string) {
-  const response = await fetch(`/api/trade-operations/${operationId}`, { method: "DELETE" });
-
-  if (!response.ok) {
-    throw new Error(await readApiError(response, "Не удалось удалить торговую операцию."));
-  }
+  await apiFetch(`/api/trade-operations/${operationId}`, { method: "DELETE" }, "Не удалось удалить торговую операцию.");
 }
 
 export async function importTradeOperations(tradeOperations: TradeOperation[]) {
-  const payload = await fetchJson<{ tradeOperations: TradeOperation[]; skippedLinks?: number }>("/api/trade-operations/import", {
+  const payload = await apiFetchJson<{ tradeOperations: TradeOperation[]; skippedLinks?: number }>("/api/trade-operations/import", {
     body: JSON.stringify(tradeOperations),
     headers: { "Content-Type": "application/json" },
     method: "POST",
@@ -157,12 +135,12 @@ export async function importTradeOperations(tradeOperations: TradeOperation[]) {
 }
 
 export async function fetchViolations() {
-  const violations = await fetchJson<Violation[]>("/api/violations");
+  const violations = await apiFetchJson<Violation[]>("/api/violations");
   return violations.map(normalizeViolationRecord);
 }
 
 export async function createViolation(payload: Partial<Violation>) {
-  const violation = await fetchJson<Violation>("/api/violations", {
+  const violation = await apiFetchJson<Violation>("/api/violations", {
     body: JSON.stringify(payload),
     headers: { "Content-Type": "application/json" },
     method: "POST",
@@ -171,7 +149,7 @@ export async function createViolation(payload: Partial<Violation>) {
 }
 
 export async function updateViolation(violationId: string, payload: Partial<Violation>) {
-  const violation = await fetchJson<Violation>(`/api/violations/${violationId}`, {
+  const violation = await apiFetchJson<Violation>(`/api/violations/${violationId}`, {
     body: JSON.stringify(payload),
     headers: { "Content-Type": "application/json" },
     method: "PATCH",
@@ -180,15 +158,11 @@ export async function updateViolation(violationId: string, payload: Partial<Viol
 }
 
 export async function deleteViolationRecord(violationId: string) {
-  const response = await fetch(`/api/violations/${violationId}`, { method: "DELETE" });
-
-  if (!response.ok) {
-    throw new Error(await readApiError(response, "Не удалось удалить нарушение."));
-  }
+  await apiFetch(`/api/violations/${violationId}`, { method: "DELETE" }, "Не удалось удалить нарушение.");
 }
 
 export async function importViolations(violations: Violation[]) {
-  const payload = await fetchJson<{ violations: Violation[]; skippedLinks?: number }>("/api/violations/import", {
+  const payload = await apiFetchJson<{ violations: Violation[]; skippedLinks?: number }>("/api/violations/import", {
     body: JSON.stringify(violations),
     headers: { "Content-Type": "application/json" },
     method: "POST",

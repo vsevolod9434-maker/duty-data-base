@@ -49,6 +49,19 @@ type DatabaseTradeOperation = {
   }>;
 };
 
+export const tradeOperationResponseInclude = {
+  items: {
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      quantity: true,
+      price: true,
+      notes: true,
+    },
+  },
+} as const;
+
 export function createErrorResponse(message: string, status = 400) {
   return Response.json({ error: message }, { status });
 }
