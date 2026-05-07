@@ -57,61 +57,41 @@ function getTradeTypeClass(type: DashboardSummaryResponse["recent"]["tradeOperat
   return type === "sale" ? "badge-task-active" : "badge-neutral";
 }
 
-type SummaryMetric = {
+type MetricRow = {
   label: string;
   value: number | string;
   tone?: "default" | "danger" | "warning";
 };
 
-type SummarySectionProps = {
+type KeyCardProps = {
   title: string;
-  caption: string;
-  overviewLabel: string;
-  metrics: SummaryMetric[];
+  value: number | string;
+  rows: MetricRow[];
 };
 
-function SummarySection({ title, caption, overviewLabel, metrics }: SummarySectionProps) {
-  const [primaryMetric, ...secondaryMetrics] = metrics;
-
+function KeyCard({ title, value, rows }: KeyCardProps) {
   return (
-    <Panel className="dashboard-summary-panel animate-panel-in interactive-card">
-      <div className="dashboard-summary-header">
-        <div>
-          <p className="dashboard-summary-caption">{caption}</p>
-          <h2>{title}</h2>
-        </div>
-        <span className="dashboard-summary-chip">{overviewLabel}</span>
+    <Panel className="dashboard-key-card animate-panel-in interactive-card">
+      <div className="dashboard-card-head">
+        <h2>{title}</h2>
       </div>
 
-      <div className="dashboard-summary-overview">
-        <span>{primaryMetric.label}</span>
-        <strong
-          className={
-            primaryMetric.tone === "danger"
-              ? "dashboard-summary-value dashboard-summary-value-danger"
-              : primaryMetric.tone === "warning"
-                ? "dashboard-summary-value dashboard-summary-value-warning"
-                : "dashboard-summary-value"
-          }
-        >
-          {primaryMetric.value}
-        </strong>
-      </div>
+      <div className="dashboard-key-value">{value}</div>
 
-      <dl className="dashboard-summary-metrics">
-        {secondaryMetrics.map((metric) => (
-          <div className="dashboard-summary-metric" key={metric.label}>
-            <dt>{metric.label}</dt>
+      <dl className="dashboard-metric-list">
+        {rows.map((row) => (
+          <div className="dashboard-metric-row" key={row.label}>
+            <dt>{row.label}</dt>
             <dd
               className={
-                metric.tone === "danger"
-                  ? "dashboard-summary-value-danger"
-                  : metric.tone === "warning"
-                    ? "dashboard-summary-value-warning"
+                row.tone === "danger"
+                  ? "dashboard-metric-danger"
+                  : row.tone === "warning"
+                    ? "dashboard-metric-warning"
                     : ""
               }
             >
-              {metric.value}
+              {row.value}
             </dd>
           </div>
         ))}
@@ -120,26 +100,36 @@ function SummarySection({ title, caption, overviewLabel, metrics }: SummarySecti
   );
 }
 
-type RecentPanelProps = {
+type DetailCardProps = {
   title: string;
-  caption: string;
-  emptyTitle: string;
-  children: ReactNode;
-  hasItems: boolean;
+  rows: MetricRow[];
 };
 
-function RecentPanel({ title, caption, emptyTitle, children, hasItems }: RecentPanelProps) {
+function DetailCard({ title, rows }: DetailCardProps) {
   return (
-    <Panel className="dashboard-recent-panel animate-panel-in">
-      <div className="dashboard-summary-header">
-        <div>
-          <p className="dashboard-summary-caption">{caption}</p>
-          <h2>{title}</h2>
-        </div>
-        <span className="dashboard-summary-chip">Лента</span>
+    <Panel className="dashboard-detail-card animate-panel-in interactive-card">
+      <div className="dashboard-card-head">
+        <h2>{title}</h2>
       </div>
 
-      {hasItems ? <div className="dashboard-recent-list">{children}</div> : <EmptyState className="mt-3" title={emptyTitle} />}
+      <dl className="dashboard-metric-list">
+        {rows.map((row) => (
+          <div className="dashboard-metric-row" key={row.label}>
+            <dt>{row.label}</dt>
+            <dd
+              className={
+                row.tone === "danger"
+                  ? "dashboard-metric-danger"
+                  : row.tone === "warning"
+                    ? "dashboard-metric-warning"
+                    : ""
+              }
+            >
+              {row.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
     </Panel>
   );
 }
@@ -171,16 +161,22 @@ function RecentEntry({ title, meta, dateLabel, badgeLabel, badgeClassName, secon
   );
 }
 
-function DashboardState({ children, tone = "default" }: { children: ReactNode; tone?: "default" | "error" }) {
+type RecentColumnProps = {
+  title: string;
+  emptyTitle: string;
+  children: ReactNode;
+  hasItems: boolean;
+};
+
+function RecentColumn({ title, emptyTitle, children, hasItems }: RecentColumnProps) {
   return (
-    <Panel className="dashboard-state-panel animate-panel-in" tone={tone === "error" ? "muted" : "default"}>
-      <div className="panel-heading">
-        <h2>Состояние панели</h2>
-        <span>{tone === "error" ? "Сбой загрузки" : "Подготовка сводки"}</span>
+    <div className="dashboard-recent-column">
+      <div className="dashboard-card-head">
+        <h2>{title}</h2>
       </div>
 
-      <div className="dashboard-state-copy">{children}</div>
-    </Panel>
+      {hasItems ? <div className="dashboard-recent-list">{children}</div> : <EmptyState className="mt-3" title={emptyTitle} />}
+    </div>
   );
 }
 
@@ -233,7 +229,7 @@ export default function Home() {
       { code: "ПРФ", label: "Активные профили", value: summary.profiles.active },
       { code: "ГРП", label: "Активные группы", value: summary.groups.active },
       { code: "КВР", label: "Занятые квартиры", value: summary.apartments.occupied },
-      { code: "СРОК", label: "Просроченные задания", value: summary.tasks.overdue },
+      { code: "ЗАД", label: "Просроченные задания", value: summary.tasks.overdue },
     ];
   }, [summary]);
 
@@ -242,10 +238,9 @@ export default function Home() {
       <section className="pda-screen">
         <PdaTopbar activeLabel="Главная" />
 
-        <div className="pda-content pda-dashboard-grid dashboard-command-grid">
-          <Panel className="dashboard-hero-panel lg:row-span-2 animate-panel-in" id="overview" tone="accent">
+        <div className="pda-content dashboard-page-layout">
+          <Panel className="dashboard-top-panel animate-panel-in" tone="accent">
             <PageHeader
-              eyebrow="Оперативная сводка"
               title="Главная панель"
               description="Оперативная сводка внутренней базы группировки «Долг»."
               meta={summary ? `Обновлено: ${new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}` : undefined}
@@ -255,167 +250,197 @@ export default function Home() {
             {!isLoading && errorMessage ? <p className="draft-message mt-4">{errorMessage}</p> : null}
             {!isLoading && !errorMessage && summary ? (
               <>
-                <div className="dashboard-stat-grid mt-4" id="summary">
+                <div className="dashboard-stat-grid mt-4">
                   {primaryStats.map((row) => (
                     <StatCard code={row.code} label={row.label} value={row.value} key={row.code} />
                   ))}
                 </div>
 
-                <div className="dashboard-briefing-grid mt-4">
-                  <p>
-                    Под контролем находятся профили, группы, квартиры, задания, нарушения и торговые операции. Панель показывает только служебную сводку без полной загрузки реестров.
-                  </p>
-                  <p>
-                    Отдельные разделы открывайте по рабочей необходимости. Последние записи ниже помогают быстро оценить текущую обстановку.
-                  </p>
+                <div className="dashboard-top-copy">
+                  <p>Сначала выведены ключевые показатели, ниже расположены детальные карточки состояния и последние записи.</p>
                 </div>
               </>
             ) : null}
           </Panel>
 
           {isLoading ? (
-            <DashboardState>
-              <p>Загрузка оперативной сводки...</p>
-            </DashboardState>
+            <Panel className="dashboard-state-panel animate-panel-in">
+              <div className="dashboard-card-head">
+                <h2>Главная панель</h2>
+              </div>
+              <div className="dashboard-state-copy">Загрузка оперативной сводки...</div>
+            </Panel>
           ) : null}
 
           {!isLoading && errorMessage ? (
-            <DashboardState tone="error">
-              <p>Не удалось загрузить оперативную сводку.</p>
-            </DashboardState>
+            <Panel className="dashboard-state-panel animate-panel-in">
+              <div className="dashboard-card-head">
+                <h2>Главная панель</h2>
+              </div>
+              <div className="dashboard-state-copy">Не удалось загрузить оперативную сводку.</div>
+            </Panel>
           ) : null}
 
           {!isLoading && !errorMessage && summary ? (
             <>
-              <SummarySection
-                caption="Личный состав"
-                overviewLabel="Реестр"
-                metrics={[
-                  { label: "Активные", value: summary.profiles.active },
-                  { label: "Архив", value: summary.profiles.archive },
-                  { label: "Всего", value: summary.profiles.total },
-                ]}
-                title="Профили сталкеров"
-              />
+              <section className="dashboard-section">
+                <div className="dashboard-section-grid dashboard-section-grid-primary">
+                  <KeyCard
+                    rows={[
+                      { label: "Архив", value: summary.profiles.archive },
+                      { label: "Всего", value: summary.profiles.total },
+                    ]}
+                    title="Профили"
+                    value={summary.profiles.active}
+                  />
+                  <KeyCard
+                    rows={[
+                      { label: "Архив", value: summary.groups.archive },
+                      { label: "Всего", value: summary.groups.total },
+                    ]}
+                    title="Группы"
+                    value={summary.groups.active}
+                  />
+                  <KeyCard
+                    rows={[
+                      { label: "Свободно", value: summary.apartments.free },
+                      { label: "Просрочено", value: summary.apartments.overduePayments, tone: "danger" },
+                      { label: "Истекает", value: summary.apartments.expiringPayments, tone: "warning" },
+                    ]}
+                    title="Квартиры"
+                    value={summary.apartments.occupied}
+                  />
+                  <KeyCard
+                    rows={[
+                      { label: "Просроченные", value: summary.tasks.overdue, tone: "danger" },
+                      { label: "Выполненные", value: summary.tasks.completed },
+                      { label: "Отменённые", value: summary.tasks.cancelled },
+                    ]}
+                    title="Активные задания"
+                    value={summary.tasks.active}
+                  />
+                </div>
+              </section>
 
-              <SummarySection
-                caption="Подразделения"
-                overviewLabel="Состав"
-                metrics={[
-                  { label: "Активные", value: summary.groups.active },
-                  { label: "Архив", value: summary.groups.archive },
-                  { label: "Всего", value: summary.groups.total },
-                ]}
-                title="Группы"
-              />
-
-              <SummarySection
-                caption="Проживание"
-                overviewLabel="Жильё"
-                metrics={[
-                  { label: "Всего", value: summary.apartments.total },
-                  { label: "Занято", value: summary.apartments.occupied },
-                  { label: "Свободно", value: summary.apartments.free },
-                  { label: "Просрочено оплат", value: summary.apartments.overduePayments, tone: "danger" },
-                  { label: "Истекает оплат", value: summary.apartments.expiringPayments, tone: "warning" },
-                ]}
-                title="Квартиры"
-              />
-
-              <SummarySection
-                caption="Исполнение"
-                overviewLabel="Контроль"
-                metrics={[
-                  { label: "Активные", value: summary.tasks.active },
-                  { label: "Просроченные", value: summary.tasks.overdue, tone: "danger" },
-                  { label: "Выполненные", value: summary.tasks.completed },
-                  { label: "Отменённые", value: summary.tasks.cancelled },
-                ]}
-                title="Задания"
-              />
-
-              <SummarySection
-                caption="Дисциплина"
-                overviewLabel="Надзор"
-                metrics={[
-                  { label: "Активные", value: summary.violations.active, tone: "warning" },
-                  { label: "Закрытые", value: summary.violations.closed },
-                  { label: "Всего", value: summary.violations.total },
-                ]}
-                title="Нарушения"
-              />
-
-              <SummarySection
-                caption="Оборот"
-                overviewLabel="Учёт"
-                metrics={[
-                  { label: "Продаж", value: summary.trade.salesCount },
-                  { label: "Покупок", value: summary.trade.purchasesCount },
-                  { label: "Сумма продаж", value: formatMoney(summary.trade.salesTotal) },
-                  { label: "Сумма покупок", value: formatMoney(summary.trade.purchasesTotal) },
-                ]}
-                title="Торговые операции"
-              />
-
-              <Panel className="animate-panel-in lg:col-span-2 xl:col-span-3">
-                <div className="panel-heading">
-                  <h2>Последние записи</h2>
-                  <span>Оперативная лента</span>
+              <section className="dashboard-section">
+                <div className="dashboard-section-head">
+                  <h2>Состояние базы</h2>
                 </div>
 
-                <div className="dashboard-recent-grid">
-                  <RecentPanel caption="Последние 5" emptyTitle="Записей пока нет." hasItems={summary.recent.tasks.length > 0} title="Последние задания">
-                    {summary.recent.tasks.map((task) => (
-                      <RecentEntry
-                        badgeClassName={getTaskStatusClass(task.status)}
-                        badgeLabel={getTaskStatusLabel(task.status)}
-                        dateLabel={`Срок: ${formatDate(task.dueAt)}`}
-                        key={task.id}
-                        meta={task.assigneeLabel}
-                        secondaryValue={formatDate(task.issuedAt)}
-                        title={task.description}
-                      />
-                    ))}
-                  </RecentPanel>
-
-                  <RecentPanel
-                    caption="Последние 5"
-                    emptyTitle="Записей пока нет."
-                    hasItems={summary.recent.tradeOperations.length > 0}
-                    title="Последние операции"
-                  >
-                    {summary.recent.tradeOperations.map((operation) => (
-                      <RecentEntry
-                        badgeClassName={getTradeTypeClass(operation.type)}
-                        badgeLabel={getTradeTypeLabel(operation.type)}
-                        dateLabel={`Дата: ${formatDate(operation.operationDate)}`}
-                        key={operation.id}
-                        meta={operation.participantLabel}
-                        secondaryValue={formatMoney(operation.totalAmount)}
-                        title={operation.participantLabel}
-                      />
-                    ))}
-                  </RecentPanel>
-
-                  <RecentPanel
-                    caption="Последние 5"
-                    emptyTitle="Записей пока нет."
-                    hasItems={summary.recent.violations.length > 0}
-                    title="Последние нарушения"
-                  >
-                    {summary.recent.violations.map((violation) => (
-                      <RecentEntry
-                        badgeClassName={getViolationStatusClass(violation.status)}
-                        badgeLabel={getViolationStatusLabel(violation.status)}
-                        dateLabel={`Дата: ${formatDate(violation.date)}`}
-                        key={violation.id}
-                        meta={violation.violatorLabel}
-                        title={violation.description}
-                      />
-                    ))}
-                  </RecentPanel>
+                <div className="dashboard-section-grid dashboard-section-grid-secondary">
+                  <DetailCard
+                    rows={[
+                      { label: "Активные", value: summary.profiles.active },
+                      { label: "Архив", value: summary.profiles.archive },
+                      { label: "Всего", value: summary.profiles.total },
+                    ]}
+                    title="Профили сталкеров"
+                  />
+                  <DetailCard
+                    rows={[
+                      { label: "Активные", value: summary.groups.active },
+                      { label: "Архив", value: summary.groups.archive },
+                      { label: "Всего", value: summary.groups.total },
+                    ]}
+                    title="Группы сталкеров"
+                  />
+                  <DetailCard
+                    rows={[
+                      { label: "Всего", value: summary.apartments.total },
+                      { label: "Занято", value: summary.apartments.occupied },
+                      { label: "Свободно", value: summary.apartments.free },
+                      { label: "Просрочено", value: summary.apartments.overduePayments, tone: "danger" },
+                      { label: "Истекает", value: summary.apartments.expiringPayments, tone: "warning" },
+                    ]}
+                    title="Квартиры и оплата"
+                  />
+                  <DetailCard
+                    rows={[
+                      { label: "Активные", value: summary.tasks.active },
+                      { label: "Просроченные", value: summary.tasks.overdue, tone: "danger" },
+                      { label: "Выполненные", value: summary.tasks.completed },
+                      { label: "Отменённые", value: summary.tasks.cancelled },
+                    ]}
+                    title="Задания"
+                  />
+                  <DetailCard
+                    rows={[
+                      { label: "Активные", value: summary.violations.active, tone: "warning" },
+                      { label: "Закрытые", value: summary.violations.closed },
+                      { label: "Всего", value: summary.violations.total },
+                    ]}
+                    title="Нарушения"
+                  />
+                  <DetailCard
+                    rows={[
+                      { label: "Продаж", value: summary.trade.salesCount },
+                      { label: "Покупок", value: summary.trade.purchasesCount },
+                      { label: "Сумма продаж", value: formatMoney(summary.trade.salesTotal) },
+                      { label: "Сумма покупок", value: formatMoney(summary.trade.purchasesTotal) },
+                    ]}
+                    title="Торговые операции"
+                  />
                 </div>
-              </Panel>
+              </section>
+
+              <section className="dashboard-section">
+                <Panel className="dashboard-recent-panel animate-panel-in">
+                  <div className="dashboard-section-head">
+                    <h2>Последние записи</h2>
+                  </div>
+
+                  <div className="dashboard-recent-grid">
+                    <RecentColumn emptyTitle="Записей пока нет." hasItems={summary.recent.tasks.length > 0} title="Последние задания">
+                      {summary.recent.tasks.map((task) => (
+                        <RecentEntry
+                          badgeClassName={getTaskStatusClass(task.status)}
+                          badgeLabel={getTaskStatusLabel(task.status)}
+                          dateLabel={`Срок: ${formatDate(task.dueAt)}`}
+                          key={task.id}
+                          meta={task.assigneeLabel}
+                          secondaryValue={formatDate(task.issuedAt)}
+                          title={task.description}
+                        />
+                      ))}
+                    </RecentColumn>
+
+                    <RecentColumn
+                      emptyTitle="Записей пока нет."
+                      hasItems={summary.recent.tradeOperations.length > 0}
+                      title="Последние операции"
+                    >
+                      {summary.recent.tradeOperations.map((operation) => (
+                        <RecentEntry
+                          badgeClassName={getTradeTypeClass(operation.type)}
+                          badgeLabel={getTradeTypeLabel(operation.type)}
+                          dateLabel={`Дата: ${formatDate(operation.operationDate)}`}
+                          key={operation.id}
+                          meta={operation.participantLabel}
+                          secondaryValue={formatMoney(operation.totalAmount)}
+                          title={operation.participantLabel}
+                        />
+                      ))}
+                    </RecentColumn>
+
+                    <RecentColumn
+                      emptyTitle="Записей пока нет."
+                      hasItems={summary.recent.violations.length > 0}
+                      title="Последние нарушения"
+                    >
+                      {summary.recent.violations.map((violation) => (
+                        <RecentEntry
+                          badgeClassName={getViolationStatusClass(violation.status)}
+                          badgeLabel={getViolationStatusLabel(violation.status)}
+                          dateLabel={`Дата: ${formatDate(violation.date)}`}
+                          key={violation.id}
+                          meta={violation.violatorLabel}
+                          title={violation.description}
+                        />
+                      ))}
+                    </RecentColumn>
+                  </div>
+                </Panel>
+              </section>
             </>
           ) : null}
         </div>
