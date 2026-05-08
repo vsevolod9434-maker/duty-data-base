@@ -236,6 +236,7 @@ model MapMarker {
   patternKey  String          @default("solid")
   brightness  Int             @default(100)
   contrast    Int             @default(100)
+  size        Int             @default(100)
   description String?
   layer       String          @default("Основной слой")
   createdAt   DateTime        @default(now())
@@ -445,6 +446,9 @@ enum MapMarkerType {
   trader
   unstable_bubble
   pripyat3_bubble
+  question
+  exclamation
+  radiation
 }
 
 enum MapMarkerStatus {

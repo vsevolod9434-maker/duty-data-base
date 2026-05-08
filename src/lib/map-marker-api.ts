@@ -3,7 +3,7 @@ import type { MapMarkerDto, MapMarkerInput } from "@/lib/map-markers";
 
 export type MapMarkerMutationInput = Pick<
   MapMarkerInput,
-  "brightness" | "colorKey" | "contrast" | "description" | "layer" | "patternKey" | "status" | "title" | "type" | "x" | "y"
+  "brightness" | "colorKey" | "contrast" | "description" | "layer" | "patternKey" | "size" | "status" | "title" | "type" | "x" | "y"
 >;
 
 export function fetchMapMarkers() {

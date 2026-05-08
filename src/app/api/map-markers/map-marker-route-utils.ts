@@ -13,6 +13,7 @@ type DatabaseMapMarker = {
   patternKey: string;
   brightness: number;
   contrast: number;
+  size: number;
   description: string | null;
   layer: string;
   createdAt: Date;
@@ -33,6 +34,7 @@ export function mapMarkerToResponse(marker: DatabaseMapMarker): MapMarkerDto {
     id: marker.id,
     layer: marker.layer,
     patternKey: normalizeFillPattern(marker.patternKey),
+    size: marker.size,
     status: marker.status,
     title: marker.title,
     type: marker.type,
@@ -58,6 +60,7 @@ export function buildMapMarkerPatchPayload(current: ValidatedMapMarkerInput, pat
     description: patch.description !== undefined ? patch.description : current.description,
     layer: patch.layer !== undefined ? patch.layer : current.layer,
     patternKey: patch.patternKey !== undefined ? patch.patternKey : current.patternKey,
+    size: patch.size !== undefined ? patch.size : current.size,
     status: patch.status !== undefined ? patch.status : current.status,
     title: patch.title !== undefined ? patch.title : current.title,
     type: patch.type !== undefined ? patch.type : current.type,

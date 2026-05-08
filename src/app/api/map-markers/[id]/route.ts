@@ -49,6 +49,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         description: currentMarker.description,
         layer: currentMarker.layer,
         patternKey: normalizeFillPattern(currentMarker.patternKey),
+        size: currentMarker.size,
         status: currentMarker.status,
         title: currentMarker.title,
         type: normalizeMapMarkerType(currentMarker.type),

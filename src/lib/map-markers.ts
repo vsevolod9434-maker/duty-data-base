@@ -13,7 +13,10 @@ export type MapMarkerUiType =
   | "route_point"
   | "trader"
   | "unstable_bubble"
-  | "pripyat3_bubble";
+  | "pripyat3_bubble"
+  | "question"
+  | "exclamation"
+  | "radiation";
 
 export type MapMarkerLegacyType =
   | "base"
@@ -43,6 +46,7 @@ export type MapMarkerDto = {
   patternKey: MapFillPatternKey;
   brightness: number;
   contrast: number;
+  size: number;
   description: string | null;
   layer: string;
   createdAt: string;
@@ -59,6 +63,7 @@ export type MapMarkerInput = {
   patternKey?: unknown;
   brightness?: unknown;
   contrast?: unknown;
+  size?: unknown;
   description?: unknown;
   layer?: unknown;
 };
@@ -73,6 +78,7 @@ export type ValidatedMapMarkerInput = {
   patternKey: MapFillPatternKey;
   brightness: number;
   contrast: number;
+  size: number;
   description: string | null;
   layer: string;
 };
@@ -83,10 +89,19 @@ export const DEFAULT_MAP_LAYER = "Основной слой";
 export const DEFAULT_MAP_MARKER_TYPE: MapMarkerUiType = "route_point";
 export const DEFAULT_MAP_MARKER_COLOR_KEY = DEFAULT_MAP_OBJECT_COLOR_KEY;
 export const DEFAULT_MAP_MARKER_PATTERN_KEY = DEFAULT_MAP_FILL_PATTERN;
+export const DEFAULT_MAP_MARKER_SIZE = 100;
+export const MAP_MARKER_SIZE_PRESETS = {
+  large: { label: "Крупный", size: 150 },
+  small: { label: "Маленький", size: 50 },
+  standard: { label: "Стандартный", size: 100 },
+} as const;
 
 export const mapMarkerTypeLabels: Record<MapMarkerUiType, string> = {
+  exclamation: "Восклицательный знак",
   possible_shelter: "Возможный ночлег",
   pripyat3_bubble: "Пузырь Припять-3",
+  question: "Вопросительный знак",
+  radiation: "Радиация",
   route_point: "Маршрутная точка",
   trader: "Торговец",
   unstable_bubble: "Пузырь непостоянный",
@@ -168,6 +183,11 @@ function normalizeStyleValue(value: unknown) {
   return parsedValue === null ? DEFAULT_MAP_STYLE_VALUE : Math.max(0, parsedValue);
 }
 
+function normalizeMarkerSize(value: unknown) {
+  const parsedValue = parseCoordinate(value);
+  return parsedValue === null ? DEFAULT_MAP_MARKER_SIZE : Math.max(25, parsedValue);
+}
+
 function validateStyleValue(_value: number, _error: string) {
   void _value;
   void _error;
@@ -180,7 +200,7 @@ function validateMarkerType(value: unknown): { ok: true; value: MapMarkerUiType 
   }
 
   if (typeof value !== "string") {
-    return { error: "Некорректный тип метки.", ok: false };
+    return { error: "Некорректный значок метки.", ok: false };
   }
 
   if (mapMarkerUiTypes.includes(value as MapMarkerUiType)) {
@@ -191,7 +211,7 @@ function validateMarkerType(value: unknown): { ok: true; value: MapMarkerUiType 
     return { ok: true, value: DEFAULT_MAP_MARKER_TYPE };
   }
 
-  return { error: "Некорректный тип метки.", ok: false };
+  return { error: "Некорректный значок метки.", ok: false };
 }
 
 export function validateMapMarkerInput(input: MapMarkerInput): { ok: true; value: ValidatedMapMarkerInput } | { ok: false; error: string } {
@@ -226,6 +246,7 @@ export function validateMapMarkerInput(input: MapMarkerInput): { ok: true; value
 
   const brightness = normalizeStyleValue(input.brightness);
   const contrast = normalizeStyleValue(input.contrast);
+  const size = normalizeMarkerSize(input.size);
   const brightnessError = validateStyleValue(brightness, "Некорректное значение яркости.");
   const contrastError = validateStyleValue(contrast, "Некорректное значение контрастности.");
 
@@ -246,6 +267,7 @@ export function validateMapMarkerInput(input: MapMarkerInput): { ok: true; value
       description: description || null,
       layer: normalizeMapLayerName(input.layer),
       patternKey: normalizeFillPattern(input.patternKey),
+      size,
       status: isMapMarkerStatus(input.status) ? input.status : "active",
       title,
       type: typeValidation.value,

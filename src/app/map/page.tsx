@@ -19,6 +19,9 @@ import {
 } from "@/lib/map-overlay-api";
 import {
   DEFAULT_MAP_MARKER_TYPE,
+  MAP_MARKER_SIZE_PRESETS,
+  getMapMarkerTypeLabel,
+  mapMarkerUiTypes,
   normalizeMapMarkerType,
   type MapMarkerDto,
   type MapMarkerStatus,
@@ -80,6 +83,7 @@ type MarkerFormDraft = {
   patternKey: MapFillPatternKey;
   brightness: string;
   contrast: string;
+  size: string;
   layer: string;
   x: string;
   y: string;
@@ -136,6 +140,7 @@ const emptyMarkerDraft: MarkerFormDraft = {
   description: "",
   layer: DEFAULT_MAP_LAYER,
   patternKey: "solid",
+  size: "100",
   status: "active",
   title: "",
   type: DEFAULT_MAP_MARKER_TYPE,
@@ -212,6 +217,7 @@ function createMarkerDraftFromMarker(marker: MapMarkerDto): MarkerFormDraft {
     id: marker.id,
     layer: marker.layer,
     patternKey: marker.patternKey,
+    size: String(marker.size ?? 100),
     status: marker.status === "archived" ? "inactive" : marker.status,
     title: marker.title,
     type: normalizeMapMarkerType(marker.type),
@@ -312,6 +318,7 @@ function normalizeMarkerDraft(draft: MarkerFormDraft) {
     description: draft.description.trim(),
     layer: normalizeMapLayerName(draft.layer),
     patternKey: draft.patternKey,
+    size: Number(draft.size),
     status: draft.status,
     title: draft.title.trim(),
     type: draft.type,
@@ -574,6 +581,10 @@ export default function MapPage() {
 
   function updateMarkerDraft<K extends keyof MarkerFormDraft>(field: K, value: MarkerFormDraft[K]) {
     setMarkerDraft((currentDraft) => (currentDraft ? { ...currentDraft, [field]: value } : currentDraft));
+  }
+
+  function setMarkerSizePreset(size: number) {
+    updateMarkerDraft("size", String(size));
   }
 
   function updateZoneDraft<K extends keyof ZoneFormDraft>(field: K, value: ZoneFormDraft[K]) {
@@ -986,6 +997,9 @@ export default function MapPage() {
       setMarkers((currentMarkers) => currentMarkers.map((marker) => (marker.layer === previousName ? { ...marker, layer: updatedLayer.name } : marker)));
       setZones((currentZones) => currentZones.map((zone) => (zone.layer === previousName ? { ...zone, layer: updatedLayer.name } : zone)));
       setRoutes((currentRoutes) => currentRoutes.map((route) => (route.layer === previousName ? { ...route, layer: updatedLayer.name } : route)));
+      setMarkerDraft((currentDraft) => (currentDraft?.layer === previousName ? { ...currentDraft, layer: updatedLayer.name } : currentDraft));
+      setZoneDraft((currentDraft) => (currentDraft?.layer === previousName ? { ...currentDraft, layer: updatedLayer.name } : currentDraft));
+      setRouteDraft((currentDraft) => (currentDraft?.layer === previousName ? { ...currentDraft, layer: updatedLayer.name } : currentDraft));
       setVisibleLayerState((currentState) => {
         const nextState = { ...currentState, [updatedLayer.name]: currentState[previousName] };
         delete nextState[previousName];
@@ -1018,6 +1032,9 @@ export default function MapPage() {
             delete nextState[layer.name];
             return nextState;
           });
+          setMarkerDraft((currentDraft) => (currentDraft?.layer === layer.name ? { ...currentDraft, layer: DEFAULT_MAP_LAYER } : currentDraft));
+          setZoneDraft((currentDraft) => (currentDraft?.layer === layer.name ? { ...currentDraft, layer: DEFAULT_MAP_LAYER } : currentDraft));
+          setRouteDraft((currentDraft) => (currentDraft?.layer === layer.name ? { ...currentDraft, layer: DEFAULT_MAP_LAYER } : currentDraft));
         } catch (error) {
           setLayerMessage(error instanceof Error ? error.message : "Не удалось удалить слой.");
         } finally {
@@ -1354,6 +1371,16 @@ export default function MapPage() {
                   <span>Название</span>
                   <input disabled={isSaving} maxLength={80} onChange={(event) => updateMarkerDraft("title", event.target.value)} type="text" value={markerDraft.title} />
                 </label>
+                <label className="filter-field">
+                  <span>Значок</span>
+                  <select disabled={isSaving} onChange={(event) => updateMarkerDraft("type", event.target.value as MapMarkerUiType)} value={markerDraft.type}>
+                    {mapMarkerUiTypes.map((type) => (
+                      <option key={type} value={type}>
+                        {getMapMarkerTypeLabel(type)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <label className="filter-field map-marker-form-wide">
                   <span>Слой</span>
                   <select disabled={isSaving} onChange={(event) => updateMarkerDraft("layer", event.target.value)} value={markerDraft.layer}>
@@ -1394,6 +1421,19 @@ export default function MapPage() {
                     <label className="filter-field">
                       <span>Контрастность</span>
                       <input disabled={isSaving} onChange={(event) => updateMarkerDraft("contrast", event.target.value)} step={5} type="number" value={markerDraft.contrast} />
+                    </label>
+                    <label className="filter-field map-marker-form-wide">
+                      <span>Размер</span>
+                      <div className="map-marker-size-control">
+                        <input disabled={isSaving} onChange={(event) => updateMarkerDraft("size", event.target.value)} step={5} type="number" value={markerDraft.size} />
+                        <div className="map-marker-size-presets">
+                          {Object.entries(MAP_MARKER_SIZE_PRESETS).map(([key, preset]) => (
+                            <button className="command-row interactive-button" disabled={isSaving} key={key} onClick={() => setMarkerSizePreset(preset.size)} type="button">
+                              {preset.label} — {preset.size}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </label>
                   </div>
                 </fieldset>

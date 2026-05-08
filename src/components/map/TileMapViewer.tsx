@@ -1,8 +1,8 @@
 "use client";
 
-import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from "react";
+import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getMapMarkerTypeClassName, normalizeMapMarkerType, type MapMarkerDto, type MapMarkerType } from "@/lib/map-markers";
+import { getMapMarkerTypeClassName, getMapMarkerTypeLabel, normalizeMapMarkerType, type MapMarkerDto, type MapMarkerType } from "@/lib/map-markers";
 import {
   DEFAULT_MAP_ROUTE_COLOR_KEY,
   DEFAULT_MAP_ROUTE_LINE_PATTERN,
@@ -163,6 +163,33 @@ export function MapMarkerIcon({ type }: { type: MapMarkerType | string }) {
       <span aria-hidden="true" className="map-marker-icon map-marker-icon-bubble-index">
         П3
       </span>
+    );
+  }
+
+  if (normalizedType === "question") {
+    return (
+      <span aria-hidden="true" className="map-marker-icon map-marker-icon-text map-marker-icon-symbol">
+        ?
+      </span>
+    );
+  }
+
+  if (normalizedType === "exclamation") {
+    return (
+      <span aria-hidden="true" className="map-marker-icon map-marker-icon-text map-marker-icon-symbol">
+        !
+      </span>
+    );
+  }
+
+  if (normalizedType === "radiation") {
+    return (
+      <svg aria-hidden="true" className="map-marker-icon map-marker-icon-radiation" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="2.15" />
+        <path d="M12 3.4a8.6 8.6 0 0 1 4.3 1.16l-3.04 5.27a2.6 2.6 0 0 0-2.52 0L7.7 4.56A8.6 8.6 0 0 1 12 3.4Z" />
+        <path d="M20.1 14.85a8.6 8.6 0 0 1-6.24 5.55v-6.1a2.6 2.6 0 0 0 1.25-2.18h6.08a8.6 8.6 0 0 1-1.09 2.73Z" />
+        <path d="M3.9 14.85a8.6 8.6 0 0 0 6.24 5.55v-6.1a2.6 2.6 0 0 1-1.25-2.18H2.81a8.6 8.6 0 0 0 1.09 2.73Z" />
+      </svg>
     );
   }
 
@@ -1159,11 +1186,12 @@ export function TileMapViewer({
               onDoubleClick={(event) => event.stopPropagation()}
               onPointerDown={(event) => event.stopPropagation()}
               style={{
+                "--marker-scale": String(Math.max(0.25, (marker.size ?? 100) / 100)),
                 color: getZoneColorPreset(marker.colorKey).marker,
                 filter: getMapStyleFilter(marker.brightness, marker.contrast),
                 left,
                 top,
-              }}
+              } as CSSProperties}
               title={marker.title}
               type="button"
             >
@@ -1190,6 +1218,10 @@ export function TileMapViewer({
             </div>
             <dl className="map-marker-popover-details">
               <div>
+                <dt>Значок</dt>
+                <dd>{getMapMarkerTypeLabel(selectedMarkerPopover.marker.type)}</dd>
+              </div>
+              <div>
                 <dt>Слой</dt>
                 <dd>{selectedMarkerPopover.marker.layer}</dd>
               </div>
@@ -1212,6 +1244,10 @@ export function TileMapViewer({
                 <dd>
                   Яркость: {selectedMarkerPopover.marker.brightness} / Контрастность: {selectedMarkerPopover.marker.contrast}
                 </dd>
+              </div>
+              <div>
+                <dt>Размер</dt>
+                <dd>{selectedMarkerPopover.marker.size ?? 100}</dd>
               </div>
             </dl>
             {selectedMarkerPopover.marker.description ? (
