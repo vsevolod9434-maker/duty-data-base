@@ -80,8 +80,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
   const prisma = getPrismaClient();
 
   try {
-    const marker = await prisma.mapMarker.update({
-      data: { status: "archived" },
+    const marker = await prisma.mapMarker.delete({
       where: { id },
     });
 

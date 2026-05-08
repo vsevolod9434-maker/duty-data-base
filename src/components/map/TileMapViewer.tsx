@@ -2,7 +2,26 @@
 
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getMapMarkerTypeClassName, normalizeMapMarkerType, type MapMarkerDto, type MapMarkerType } from "@/lib/map-markers";
+import {
+  getMapMarkerStatusLabel,
+  getMapMarkerTypeClassName,
+  getMapMarkerTypeLabel,
+  normalizeMapMarkerType,
+  type MapMarkerDto,
+  type MapMarkerType,
+} from "@/lib/map-markers";
+import {
+  getMapRouteStatusLabel,
+  getMapRouteTypeClassName,
+  getMapRouteTypeLabel,
+  getMapZoneStatusLabel,
+  getMapZoneShapeLabel,
+  getMapZoneTypeClassName,
+  getMapZoneTypeLabel,
+  type MapRouteDto,
+  type MapRoutePointDto,
+  type MapZoneDto,
+} from "@/lib/map-overlays";
 
 type MapMetadata = {
   tileSize: number;
@@ -43,18 +62,66 @@ type VisibleMarker = {
   top: number;
 };
 
+type VisibleZone = {
+  zone: MapZoneDto;
+  cx: number;
+  cy: number;
+  radius: number;
+  points: Array<{ x: number; y: number }>;
+};
+
+type VisibleRoute = {
+  route: MapRouteDto;
+  points: Array<{ x: number; y: number }>;
+};
+
+type DrawingMode = "marker" | "zone" | "zone-polygon" | "route" | null;
+
+type FocusTarget =
+  | { type: "point"; x: number; y: number; nonce: number }
+  | { type: "bounds"; bounds: { minX: number; minY: number; maxX: number; maxY: number }; nonce: number };
+
+type DraftZonePreview =
+  | { shape: "circle"; centerX: number; centerY: number; radius: number; type: string }
+  | { shape: "polygon"; points: Array<Pick<MapRoutePointDto, "x" | "y">>; type: string };
+
 type TileMapViewerProps = {
+  draftZonePreview?: DraftZonePreview | null;
+  draftRoutePoints?: Array<Pick<MapRoutePointDto, "x" | "y">>;
+  drawingMode?: DrawingMode;
+  focusTarget?: FocusTarget | null;
   markers?: MapMarkerDto[];
+  routes?: MapRouteDto[];
   visibleLayers?: string[];
+  zones?: MapZoneDto[];
+  selectedRouteId?: string;
   selectedMarkerId?: string;
+  selectedZoneId?: string;
+  onMarkerClear?: () => void;
+  onMarkerDelete?: (marker: MapMarkerDto) => void;
+  onMarkerEdit?: (marker: MapMarkerDto) => void;
   onMarkerSelect?: (marker: MapMarkerDto) => void;
   onMapClick?: (x: number, y: number) => void;
+  onRouteDelete?: (route: MapRouteDto) => void;
+  onRouteEdit?: (route: MapRouteDto) => void;
+  onRouteRedraw?: (route: MapRouteDto) => void;
+  onRoutePointAdd?: (x: number, y: number) => void;
+  onRouteSelect?: (route: MapRouteDto) => void;
+  onSelectionClear?: () => void;
+  onZoneDelete?: (zone: MapZoneDto) => void;
+  onZoneEdit?: (zone: MapZoneDto) => void;
+  onZoneRedraw?: (zone: MapZoneDto) => void;
+  onZoneSelect?: (zone: MapZoneDto) => void;
   isPickingPoint?: boolean;
 };
 
 const METADATA_URL = "/map/zone/metadata.json";
 const MISSING_MAP_MESSAGE = "Карта не подготовлена. Сформируйте тайлы перед использованием.";
 const ZOOM_STEP = 1.35;
+const MARKER_POPOVER_WIDTH = 264;
+const MARKER_POPOVER_HEIGHT = 230;
+const MARKER_POPOVER_GAP = 14;
+const MARKER_POPOVER_MARGIN = 8;
 
 export function MapMarkerIcon({ type }: { type: MapMarkerType | string }) {
   const normalizedType = normalizeMapMarkerType(type);
@@ -212,12 +279,33 @@ function mapIntersectsViewport(metadata: MapMetadata, viewportSize: ViewportSize
 }
 
 export function TileMapViewer({
+  draftZonePreview = null,
+  draftRoutePoints = [],
+  drawingMode = null,
+  focusTarget = null,
   isPickingPoint = false,
   markers = [],
   onMapClick,
+  onMarkerClear,
+  onMarkerDelete,
+  onMarkerEdit,
   onMarkerSelect,
+  onRouteDelete,
+  onRouteEdit,
+  onRouteRedraw,
+  onRoutePointAdd,
+  onRouteSelect,
+  onSelectionClear,
+  onZoneDelete,
+  onZoneEdit,
+  onZoneRedraw,
+  onZoneSelect,
+  routes = [],
+  selectedRouteId,
   selectedMarkerId,
+  selectedZoneId,
   visibleLayers = [],
+  zones = [],
 }: TileMapViewerProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const dragStartRef = useRef<{ offset: Point; pointer: Point } | null>(null);
@@ -319,6 +407,30 @@ export function TileMapViewer({
     return clampView(metadata, viewportSize, view);
   }, [metadata, view, viewportSize]);
 
+  useEffect(() => {
+    if (!metadata || !focusTarget || viewportSize.width === 0 || viewportSize.height === 0) {
+      return;
+    }
+
+    const targetPoint = focusTarget.type === "point"
+      ? { x: focusTarget.x, y: focusTarget.y }
+      : {
+          x: Math.round((focusTarget.bounds.minX + focusTarget.bounds.maxX) / 2),
+          y: Math.round((focusTarget.bounds.minY + focusTarget.bounds.maxY) / 2),
+        };
+    const nextOffset = clampOffset(metadata, viewportSize, currentView.scale, {
+      x: viewportSize.width / 2 - targetPoint.x * currentView.scale,
+      y: viewportSize.height / 2 - targetPoint.y * currentView.scale,
+    });
+
+    const frameId = window.requestAnimationFrame(() => {
+      setView({ offset: nextOffset, scale: currentView.scale });
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- nonce is the external command trigger for repeated focus on the same object.
+  }, [focusTarget?.nonce]);
+
   const tileZoom = useMemo(() => {
     return metadata ? getTileZoomForScale(metadata, currentView.scale) : 0;
   }, [currentView.scale, metadata]);
@@ -404,6 +516,228 @@ export function TileMapViewer({
           marker.top <= viewportSize.height + 24,
       );
   }, [currentView, markers, metadata, viewportSize, visibleLayers]);
+
+  const visibleZones = useMemo<VisibleZone[]>(() => {
+    if (!metadata || viewportSize.width === 0 || viewportSize.height === 0) {
+      return [];
+    }
+
+    const layerSet = new Set(visibleLayers);
+
+    return zones
+      .filter((zone) => layerSet.size === 0 || layerSet.has(zone.layer))
+      .map((zone) => ({
+        cx: currentView.offset.x + zone.centerX * currentView.scale,
+        cy: currentView.offset.y + zone.centerY * currentView.scale,
+        points: [...zone.points]
+          .sort((firstPoint, secondPoint) => firstPoint.order - secondPoint.order)
+          .map((point) => ({
+            x: currentView.offset.x + point.x * currentView.scale,
+            y: currentView.offset.y + point.y * currentView.scale,
+          })),
+        radius: zone.radius * currentView.scale,
+        zone,
+      }))
+      .filter(
+        (zone) =>
+          zone.zone.shape === "polygon"
+            ? zone.points.some(
+                (point) =>
+                  point.x >= -32 &&
+                  point.y >= -32 &&
+                  point.x <= viewportSize.width + 32 &&
+                  point.y <= viewportSize.height + 32,
+              )
+            : zone.cx + zone.radius >= 0 &&
+              zone.cy + zone.radius >= 0 &&
+              zone.cx - zone.radius <= viewportSize.width &&
+              zone.cy - zone.radius <= viewportSize.height,
+      );
+  }, [currentView, metadata, viewportSize, visibleLayers, zones]);
+
+  const visibleRoutes = useMemo<VisibleRoute[]>(() => {
+    if (!metadata || viewportSize.width === 0 || viewportSize.height === 0) {
+      return [];
+    }
+
+    const layerSet = new Set(visibleLayers);
+
+    return routes
+      .filter((route) => layerSet.size === 0 || layerSet.has(route.layer))
+      .map((route) => ({
+        points: [...route.points]
+          .sort((firstPoint, secondPoint) => firstPoint.order - secondPoint.order)
+          .map((point) => ({
+            x: currentView.offset.x + point.x * currentView.scale,
+            y: currentView.offset.y + point.y * currentView.scale,
+          })),
+        route,
+      }))
+      .filter((route) =>
+        route.points.some(
+          (point) =>
+            point.x >= -32 &&
+            point.y >= -32 &&
+            point.x <= viewportSize.width + 32 &&
+            point.y <= viewportSize.height + 32,
+        ),
+      );
+  }, [currentView, metadata, routes, viewportSize, visibleLayers]);
+
+  const draftRouteScreenPoints = useMemo(() => {
+    return draftRoutePoints.map((point) => ({
+      x: currentView.offset.x + point.x * currentView.scale,
+      y: currentView.offset.y + point.y * currentView.scale,
+    }));
+  }, [currentView, draftRoutePoints]);
+
+  const draftZoneScreenPreview = useMemo(() => {
+    if (!draftZonePreview) {
+      return null;
+    }
+
+    if (draftZonePreview.shape === "circle") {
+      return {
+        cx: currentView.offset.x + draftZonePreview.centerX * currentView.scale,
+        cy: currentView.offset.y + draftZonePreview.centerY * currentView.scale,
+        radius: draftZonePreview.radius * currentView.scale,
+        shape: "circle" as const,
+        type: draftZonePreview.type,
+      };
+    }
+
+    return {
+      points: draftZonePreview.points.map((point) => ({
+        x: currentView.offset.x + point.x * currentView.scale,
+        y: currentView.offset.y + point.y * currentView.scale,
+      })),
+      shape: "polygon" as const,
+      type: draftZonePreview.type,
+    };
+  }, [currentView, draftZonePreview]);
+
+  const selectedMarker = useMemo(() => {
+    return markers.find((marker) => marker.id === selectedMarkerId && marker.status !== "archived") ?? null;
+  }, [markers, selectedMarkerId]);
+
+  const selectedZone = useMemo(() => {
+    return zones.find((zone) => zone.id === selectedZoneId) ?? null;
+  }, [selectedZoneId, zones]);
+
+  const selectedRoute = useMemo(() => {
+    return routes.find((route) => route.id === selectedRouteId) ?? null;
+  }, [routes, selectedRouteId]);
+
+  const selectedMarkerPopover = useMemo(() => {
+    if (!metadata || !selectedMarker || viewportSize.width === 0 || viewportSize.height === 0) {
+      return null;
+    }
+
+    const layerSet = new Set(visibleLayers);
+
+    if (layerSet.size > 0 && !layerSet.has(selectedMarker.layer)) {
+      return null;
+    }
+
+    const markerLeft = currentView.offset.x + selectedMarker.x * currentView.scale;
+    const markerTop = currentView.offset.y + selectedMarker.y * currentView.scale;
+
+    if (
+      markerLeft < -MARKER_POPOVER_MARGIN ||
+      markerTop < -MARKER_POPOVER_MARGIN ||
+      markerLeft > viewportSize.width + MARKER_POPOVER_MARGIN ||
+      markerTop > viewportSize.height + MARKER_POPOVER_MARGIN
+    ) {
+      return null;
+    }
+
+    const popoverWidth = Math.min(MARKER_POPOVER_WIDTH, Math.max(1, viewportSize.width - MARKER_POPOVER_MARGIN * 2));
+    const popoverHeight = Math.min(MARKER_POPOVER_HEIGHT, Math.max(1, viewportSize.height - MARKER_POPOVER_MARGIN * 2));
+    let left = markerLeft + MARKER_POPOVER_GAP;
+    let top = markerTop - MARKER_POPOVER_MARGIN;
+
+    if (left + popoverWidth > viewportSize.width - MARKER_POPOVER_MARGIN) {
+      left = markerLeft - popoverWidth - MARKER_POPOVER_GAP;
+    }
+
+    if (top + popoverHeight > viewportSize.height - MARKER_POPOVER_MARGIN) {
+      top = viewportSize.height - popoverHeight - MARKER_POPOVER_MARGIN;
+    }
+
+    return {
+      left: Math.round(Math.min(Math.max(MARKER_POPOVER_MARGIN, left), Math.max(MARKER_POPOVER_MARGIN, viewportSize.width - popoverWidth - MARKER_POPOVER_MARGIN))),
+      marker: selectedMarker,
+      top: Math.round(Math.min(Math.max(MARKER_POPOVER_MARGIN, top), Math.max(MARKER_POPOVER_MARGIN, viewportSize.height - popoverHeight - MARKER_POPOVER_MARGIN))),
+    };
+  }, [currentView, metadata, selectedMarker, viewportSize, visibleLayers]);
+
+  const selectedZonePopover = useMemo(() => {
+    if (!metadata || !selectedZone || viewportSize.width === 0 || viewportSize.height === 0) {
+      return null;
+    }
+
+    const layerSet = new Set(visibleLayers);
+
+    if (layerSet.size > 0 && !layerSet.has(selectedZone.layer)) {
+      return null;
+    }
+
+    const anchorLeft = currentView.offset.x + selectedZone.centerX * currentView.scale;
+    const anchorTop = currentView.offset.y + selectedZone.centerY * currentView.scale;
+    const popoverWidth = Math.min(MARKER_POPOVER_WIDTH, Math.max(1, viewportSize.width - MARKER_POPOVER_MARGIN * 2));
+    const popoverHeight = Math.min(MARKER_POPOVER_HEIGHT, Math.max(1, viewportSize.height - MARKER_POPOVER_MARGIN * 2));
+    let left = anchorLeft + MARKER_POPOVER_GAP;
+    let top = anchorTop - MARKER_POPOVER_MARGIN;
+
+    if (left + popoverWidth > viewportSize.width - MARKER_POPOVER_MARGIN) {
+      left = anchorLeft - popoverWidth - MARKER_POPOVER_GAP;
+    }
+
+    if (top + popoverHeight > viewportSize.height - MARKER_POPOVER_MARGIN) {
+      top = viewportSize.height - popoverHeight - MARKER_POPOVER_MARGIN;
+    }
+
+    return {
+      left: Math.round(Math.min(Math.max(MARKER_POPOVER_MARGIN, left), Math.max(MARKER_POPOVER_MARGIN, viewportSize.width - popoverWidth - MARKER_POPOVER_MARGIN))),
+      top: Math.round(Math.min(Math.max(MARKER_POPOVER_MARGIN, top), Math.max(MARKER_POPOVER_MARGIN, viewportSize.height - popoverHeight - MARKER_POPOVER_MARGIN))),
+      zone: selectedZone,
+    };
+  }, [currentView, metadata, selectedZone, viewportSize, visibleLayers]);
+
+  const selectedRoutePopover = useMemo(() => {
+    if (!metadata || !selectedRoute || viewportSize.width === 0 || viewportSize.height === 0 || selectedRoute.points.length === 0) {
+      return null;
+    }
+
+    const layerSet = new Set(visibleLayers);
+
+    if (layerSet.size > 0 && !layerSet.has(selectedRoute.layer)) {
+      return null;
+    }
+
+    const sortedPoints = [...selectedRoute.points].sort((firstPoint, secondPoint) => firstPoint.order - secondPoint.order);
+    const anchorPoint = sortedPoints[Math.floor(sortedPoints.length / 2)];
+    const anchorLeft = currentView.offset.x + anchorPoint.x * currentView.scale;
+    const anchorTop = currentView.offset.y + anchorPoint.y * currentView.scale;
+    const popoverWidth = Math.min(MARKER_POPOVER_WIDTH, Math.max(1, viewportSize.width - MARKER_POPOVER_MARGIN * 2));
+    const popoverHeight = Math.min(MARKER_POPOVER_HEIGHT, Math.max(1, viewportSize.height - MARKER_POPOVER_MARGIN * 2));
+    let left = anchorLeft + MARKER_POPOVER_GAP;
+    let top = anchorTop - MARKER_POPOVER_MARGIN;
+
+    if (left + popoverWidth > viewportSize.width - MARKER_POPOVER_MARGIN) {
+      left = anchorLeft - popoverWidth - MARKER_POPOVER_GAP;
+    }
+
+    if (top + popoverHeight > viewportSize.height - MARKER_POPOVER_MARGIN) {
+      top = viewportSize.height - popoverHeight - MARKER_POPOVER_MARGIN;
+    }
+
+    return {
+      left: Math.round(Math.min(Math.max(MARKER_POPOVER_MARGIN, left), Math.max(MARKER_POPOVER_MARGIN, viewportSize.width - popoverWidth - MARKER_POPOVER_MARGIN))),
+      route: selectedRoute,
+      top: Math.round(Math.min(Math.max(MARKER_POPOVER_MARGIN, top), Math.max(MARKER_POPOVER_MARGIN, viewportSize.height - popoverHeight - MARKER_POPOVER_MARGIN))),
+    };
+  }, [currentView, metadata, selectedRoute, viewportSize, visibleLayers]);
 
   useEffect(() => {
     if (
@@ -496,7 +830,7 @@ export function TileMapViewer({
   }
 
   function handleViewportClick(event: ReactMouseEvent<HTMLDivElement>) {
-    if (!metadata || !viewportRef.current || !onMapClick) {
+    if (!metadata || !viewportRef.current) {
       return;
     }
 
@@ -508,7 +842,12 @@ export function TileMapViewer({
     const point = getSourcePoint(metadata, currentView, getViewportPoint(event.nativeEvent, viewportRef.current));
 
     if (point) {
-      onMapClick(point.x, point.y);
+      if ((drawingMode === "route" || drawingMode === "zone-polygon") && onRoutePointAdd) {
+        onRoutePointAdd(point.x, point.y);
+        return;
+      }
+
+      onMapClick?.(point.x, point.y);
     }
   }
 
@@ -631,6 +970,98 @@ export function TileMapViewer({
             />
           ))}
         </div>
+        <svg aria-hidden="true" className="map-overlay-layer">
+          {visibleZones.map(({ cx, cy, points, radius, zone }) => {
+            const zoneClassName = `map-zone map-zone--${getMapZoneTypeClassName(zone.type)} ${selectedZoneId === zone.id ? "map-zone--selected" : ""}`;
+            const sharedZoneProps = {
+              className: zoneClassName,
+              onClick: (event: ReactMouseEvent<SVGElement>) => {
+                event.stopPropagation();
+                onZoneSelect?.(zone);
+              },
+              onPointerDown: (event: ReactPointerEvent<SVGElement>) => event.stopPropagation(),
+            };
+
+            if (zone.shape === "polygon") {
+              return (
+                <polygon
+                  {...sharedZoneProps}
+                  key={zone.id}
+                  points={points.map((point) => `${point.x},${point.y}`).join(" ")}
+                />
+              );
+            }
+
+            return (
+              <circle
+                {...sharedZoneProps}
+                cx={cx}
+                cy={cy}
+                key={zone.id}
+                r={radius}
+              />
+            );
+          })}
+          {visibleRoutes.map(({ points, route }) => {
+            const pointValue = points.map((point) => `${point.x},${point.y}`).join(" ");
+
+            return (
+              <g className={`map-route-group ${selectedRouteId === route.id ? "map-route-group--selected" : ""}`} key={route.id}>
+                <polyline
+                  className="map-route-hit-area"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onRouteSelect?.(route);
+                  }}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  points={pointValue}
+                />
+                <polyline
+                  className={`map-route map-route--${getMapRouteTypeClassName(route.type)} ${selectedRouteId === route.id ? "map-route--selected" : ""}`}
+                  points={pointValue}
+                />
+                {points.map((point, index) => (
+                  <circle
+                    className={`map-route-node map-route-node--${getMapRouteTypeClassName(route.type)}`}
+                    cx={point.x}
+                    cy={point.y}
+                    key={`${route.id}-${index}`}
+                    r={selectedRouteId === route.id ? 3.4 : 2.5}
+                  />
+                ))}
+              </g>
+            );
+          })}
+          {draftRouteScreenPoints.length > 0 ? (
+            <g className="map-route-draft">
+              {draftRouteScreenPoints.length > 1 ? (
+                <polyline points={draftRouteScreenPoints.map((point) => `${point.x},${point.y}`).join(" ")} />
+              ) : null}
+              {draftRouteScreenPoints.map((point, index) => (
+                <circle cx={point.x} cy={point.y} key={index} r={3.2} />
+              ))}
+            </g>
+          ) : null}
+          {draftZoneScreenPreview ? (
+            <g className={`map-zone-draft map-zone--${getMapZoneTypeClassName(draftZoneScreenPreview.type)}`}>
+              {draftZoneScreenPreview.shape === "circle" ? (
+                <circle cx={draftZoneScreenPreview.cx} cy={draftZoneScreenPreview.cy} r={draftZoneScreenPreview.radius} />
+              ) : (
+                <>
+                  {draftZoneScreenPreview.points.length >= 3 ? (
+                    <polygon points={draftZoneScreenPreview.points.map((point) => `${point.x},${point.y}`).join(" ")} />
+                  ) : null}
+                  {draftZoneScreenPreview.points.length > 1 ? (
+                    <polyline points={draftZoneScreenPreview.points.map((point) => `${point.x},${point.y}`).join(" ")} />
+                  ) : null}
+                  {draftZoneScreenPreview.points.map((point, index) => (
+                    <circle cx={point.x} cy={point.y} key={index} r={3.2} />
+                  ))}
+                </>
+              )}
+            </g>
+          ) : null}
+        </svg>
         <div className="map-marker-layer">
           {visibleMarkers.map(({ left, marker, top }) => (
             <button
@@ -641,6 +1072,8 @@ export function TileMapViewer({
                 event.stopPropagation();
                 onMarkerSelect?.(marker);
               }}
+              onDoubleClick={(event) => event.stopPropagation()}
+              onPointerDown={(event) => event.stopPropagation()}
               style={{
                 left,
                 top,
@@ -652,6 +1085,180 @@ export function TileMapViewer({
             </button>
           ))}
         </div>
+        {selectedMarkerPopover ? (
+          <article
+            className="map-marker-popover"
+            onClick={(event) => event.stopPropagation()}
+            onDoubleClick={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
+            style={{
+              left: selectedMarkerPopover.left,
+              top: selectedMarkerPopover.top,
+            }}
+          >
+            <div className="map-marker-popover-head">
+              <strong>{selectedMarkerPopover.marker.title}</strong>
+              <button aria-label="Закрыть" onClick={onMarkerClear} type="button">
+                ×
+              </button>
+            </div>
+            <dl className="map-marker-popover-details">
+              <div>
+                <dt>Тип</dt>
+                <dd className="map-marker-type-value">
+                  <MapMarkerIcon type={selectedMarkerPopover.marker.type} />
+                  <span>{getMapMarkerTypeLabel(selectedMarkerPopover.marker.type)}</span>
+                </dd>
+              </div>
+              <div>
+                <dt>Слой</dt>
+                <dd>{selectedMarkerPopover.marker.layer}</dd>
+              </div>
+              <div>
+                <dt>Статус</dt>
+                <dd>{getMapMarkerStatusLabel(selectedMarkerPopover.marker.status)}</dd>
+              </div>
+              <div>
+                <dt>Координаты</dt>
+                <dd>
+                  X: {selectedMarkerPopover.marker.x} Y: {selectedMarkerPopover.marker.y}
+                </dd>
+              </div>
+            </dl>
+            {selectedMarkerPopover.marker.description ? (
+              <p className="map-marker-popover-description">{selectedMarkerPopover.marker.description}</p>
+            ) : null}
+            <div className="map-marker-popover-actions">
+              <button className="command-row interactive-button" onClick={() => onMarkerEdit?.(selectedMarkerPopover.marker)} type="button">
+                Изменить
+              </button>
+              <button className="primary-command interactive-button" onClick={() => onMarkerDelete?.(selectedMarkerPopover.marker)} type="button">
+                Удалить
+              </button>
+            </div>
+          </article>
+        ) : null}
+        {selectedZonePopover ? (
+          <article
+            className="map-marker-popover"
+            onClick={(event) => event.stopPropagation()}
+            onDoubleClick={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
+            style={{
+              left: selectedZonePopover.left,
+              top: selectedZonePopover.top,
+            }}
+          >
+            <div className="map-marker-popover-head">
+              <strong>{selectedZonePopover.zone.title}</strong>
+              <button aria-label="Закрыть" onClick={onSelectionClear} type="button">
+                ×
+              </button>
+            </div>
+            <dl className="map-marker-popover-details">
+              <div>
+                <dt>Тип</dt>
+                <dd>{getMapZoneTypeLabel(selectedZonePopover.zone.type)}</dd>
+              </div>
+              <div>
+                <dt>Слой</dt>
+                <dd>{selectedZonePopover.zone.layer}</dd>
+              </div>
+              <div>
+                <dt>Статус</dt>
+                <dd>{getMapZoneStatusLabel(selectedZonePopover.zone.status)}</dd>
+              </div>
+              <div>
+                <dt>Форма</dt>
+                <dd>{getMapZoneShapeLabel(selectedZonePopover.zone.shape)}</dd>
+              </div>
+              <div>
+                <dt>Центр</dt>
+                <dd>
+                  X: {selectedZonePopover.zone.centerX} Y: {selectedZonePopover.zone.centerY}
+                </dd>
+              </div>
+              {selectedZonePopover.zone.shape === "polygon" ? (
+                <div>
+                  <dt>Точки</dt>
+                  <dd>{selectedZonePopover.zone.points.length}</dd>
+                </div>
+              ) : (
+                <div>
+                  <dt>Радиус</dt>
+                  <dd>{selectedZonePopover.zone.radius}</dd>
+                </div>
+              )}
+            </dl>
+            {selectedZonePopover.zone.description ? (
+              <p className="map-marker-popover-description">{selectedZonePopover.zone.description}</p>
+            ) : null}
+            <div className="map-marker-popover-actions">
+              <button className="command-row interactive-button" onClick={() => onZoneEdit?.(selectedZonePopover.zone)} type="button">
+                Изменить
+              </button>
+              {selectedZonePopover.zone.shape === "polygon" ? (
+                <button className="command-row interactive-button" onClick={() => onZoneRedraw?.(selectedZonePopover.zone)} type="button">
+                  Перерисовать
+                </button>
+              ) : null}
+              <button className="primary-command interactive-button" onClick={() => onZoneDelete?.(selectedZonePopover.zone)} type="button">
+                Удалить
+              </button>
+            </div>
+          </article>
+        ) : null}
+        {selectedRoutePopover ? (
+          <article
+            className="map-marker-popover"
+            onClick={(event) => event.stopPropagation()}
+            onDoubleClick={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
+            style={{
+              left: selectedRoutePopover.left,
+              top: selectedRoutePopover.top,
+            }}
+          >
+            <div className="map-marker-popover-head">
+              <strong>{selectedRoutePopover.route.title}</strong>
+              <button aria-label="Закрыть" onClick={onSelectionClear} type="button">
+                ×
+              </button>
+            </div>
+            <dl className="map-marker-popover-details">
+              <div>
+                <dt>Тип</dt>
+                <dd>{getMapRouteTypeLabel(selectedRoutePopover.route.type)}</dd>
+              </div>
+              <div>
+                <dt>Слой</dt>
+                <dd>{selectedRoutePopover.route.layer}</dd>
+              </div>
+              <div>
+                <dt>Статус</dt>
+                <dd>{getMapRouteStatusLabel(selectedRoutePopover.route.status)}</dd>
+              </div>
+              <div>
+                <dt>Точки</dt>
+                <dd>{selectedRoutePopover.route.points.length}</dd>
+              </div>
+            </dl>
+            {selectedRoutePopover.route.description ? (
+              <p className="map-marker-popover-description">{selectedRoutePopover.route.description}</p>
+            ) : null}
+            <div className="map-marker-popover-actions">
+              <button className="command-row interactive-button" onClick={() => onRouteEdit?.(selectedRoutePopover.route)} type="button">
+                Изменить
+              </button>
+              <button className="command-row interactive-button" onClick={() => onRouteRedraw?.(selectedRoutePopover.route)} type="button">
+                Перерисовать
+              </button>
+              <button className="primary-command interactive-button" onClick={() => onRouteDelete?.(selectedRoutePopover.route)} type="button">
+                Удалить
+              </button>
+            </div>
+          </article>
+        ) : null}
       </div>
     </section>
   );

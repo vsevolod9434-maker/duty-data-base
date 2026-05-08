@@ -35,7 +35,7 @@ export async function deleteMapMarker(id: string) {
   const response = await apiFetch(
     `/api/map-markers/${encodeURIComponent(id)}`,
     { method: "DELETE" },
-    "Не удалось переместить метку в архив.",
+    "Не удалось удалить метку.",
   );
 
   return (await response.json()) as MapMarkerDto;

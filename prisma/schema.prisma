@@ -243,6 +243,68 @@ model MapMarker {
   @@index([x, y])
 }
 
+model MapZone {
+  id          String        @id @default(cuid())
+  title       String
+  type        MapZoneType   @default(danger_area)
+  status      MapZoneStatus @default(active)
+  shape       MapZoneShape  @default(circle)
+  centerX     Int
+  centerY     Int
+  radius      Int
+  description String?
+  layer       String        @default("Основной слой")
+  points      MapZonePoint[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([shape])
+  @@index([layer])
+  @@index([centerX, centerY])
+}
+
+model MapZonePoint {
+  id     String  @id @default(cuid())
+  zoneId String
+  zone   MapZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  order  Int
+  x      Int
+  y      Int
+
+  @@index([zoneId])
+  @@index([order])
+}
+
+model MapRoute {
+  id          String          @id @default(cuid())
+  title       String
+  type        MapRouteType    @default(patrol)
+  status      MapRouteStatus  @default(active)
+  description String?
+  layer       String          @default("Основной слой")
+  points      MapRoutePoint[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([layer])
+}
+
+model MapRoutePoint {
+  id      String   @id @default(cuid())
+  routeId String
+  route   MapRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  order   Int
+  x       Int
+  y       Int
+
+  @@index([routeId])
+  @@index([order])
+}
+
 enum AccessUserRole {
   system_admin
   officer
@@ -367,4 +429,42 @@ enum MapMarkerStatus {
   inactive
   warning
   archived
+}
+
+enum MapZoneType {
+  radiation_110
+  radiation_170
+  radiation_230
+  radiation_290
+  radiation_350
+  danger_area
+  arch_field_static
+  arch_field_unstable
+}
+
+enum MapZoneStatus {
+  active
+  inactive
+  warning
+}
+
+enum MapZoneShape {
+  circle
+  polygon
+}
+
+enum MapRouteType {
+  patrol
+  clear_sky_movement
+  military_movement
+  freedom_movement
+  bandit_movement
+  monolith_movement
+  district_transition
+}
+
+enum MapRouteStatus {
+  active
+  inactive
+  warning
 }

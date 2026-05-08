@@ -6355,6 +6355,153 @@ body::after,
   z-index: 1;
 }
 
+.map-overlay-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.map-zone {
+  cursor: pointer;
+  fill: rgba(126, 47, 47, 0.18);
+  stroke: rgba(190, 94, 94, 0.58);
+  stroke-width: 1.5;
+  pointer-events: auto;
+}
+
+.map-zone--radiation-110 {
+  fill: rgba(158, 151, 89, 0.14);
+  stroke: rgba(178, 169, 103, 0.58);
+}
+
+.map-zone--radiation-170 {
+  fill: rgba(180, 146, 76, 0.15);
+  stroke: rgba(196, 164, 92, 0.62);
+}
+
+.map-zone--radiation-230 {
+  fill: rgba(178, 107, 58, 0.16);
+  stroke: rgba(193, 122, 68, 0.62);
+}
+
+.map-zone--radiation-290 {
+  fill: rgba(169, 75, 56, 0.17);
+  stroke: rgba(198, 102, 76, 0.66);
+}
+
+.map-zone--radiation-350,
+.map-zone--danger-area {
+  fill: rgba(142, 45, 50, 0.18);
+  stroke: rgba(197, 83, 91, 0.68);
+}
+
+.map-zone--arch-field-static {
+  fill: rgba(83, 115, 132, 0.14);
+  stroke: rgba(116, 144, 158, 0.62);
+}
+
+.map-zone--arch-field-unstable {
+  fill: rgba(112, 85, 126, 0.15);
+  stroke: rgba(151, 124, 164, 0.62);
+}
+
+.map-zone--selected {
+  stroke: rgba(226, 98, 105, 0.9);
+  stroke-width: 2.4;
+}
+
+.map-route-hit-area {
+  fill: none;
+  stroke: transparent;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 14;
+  cursor: pointer;
+  pointer-events: stroke;
+}
+
+.map-route {
+  fill: none;
+  stroke: rgba(190, 176, 142, 0.78);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.2;
+  pointer-events: none;
+}
+
+.map-route--patrol {
+  stroke: rgba(183, 174, 145, 0.82);
+}
+
+.map-route--clear-sky-movement {
+  stroke: rgba(128, 162, 171, 0.82);
+}
+
+.map-route--military-movement {
+  stroke: rgba(126, 153, 132, 0.84);
+}
+
+.map-route--freedom-movement {
+  stroke: rgba(140, 153, 95, 0.84);
+}
+
+.map-route--bandit-movement {
+  stroke: rgba(132, 107, 88, 0.84);
+}
+
+.map-route--monolith-movement {
+  stroke: rgba(115, 101, 134, 0.84);
+}
+
+.map-route--district-transition {
+  stroke: rgba(185, 194, 192, 0.8);
+}
+
+.map-route--selected {
+  stroke: rgba(223, 91, 98, 0.92);
+  stroke-width: 3;
+}
+
+.map-route-node {
+  fill: rgba(11, 14, 15, 0.92);
+  stroke: rgba(190, 204, 209, 0.65);
+  stroke-width: 1.2;
+  pointer-events: none;
+}
+
+.map-route-draft {
+  fill: rgba(223, 91, 98, 0.9);
+  stroke: rgba(223, 91, 98, 0.86);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.map-route-draft circle {
+  fill: rgba(11, 14, 15, 0.96);
+  stroke: rgba(223, 91, 98, 0.9);
+  stroke-width: 1.4;
+}
+
+.map-zone-draft {
+  fill: rgba(223, 91, 98, 0.14);
+  stroke: rgba(223, 91, 98, 0.82);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.map-zone-draft circle:not(:only-child) {
+  fill: rgba(11, 14, 15, 0.96);
+  stroke: rgba(223, 91, 98, 0.9);
+  stroke-width: 1.4;
+}
+
 .map-marker-layer {
   position: absolute;
   inset: 0;
@@ -6376,15 +6523,15 @@ body::after,
 .map-marker {
   position: absolute;
   display: inline-flex;
-  width: 1.55rem;
-  height: 1.55rem;
+  width: 0.82rem;
+  height: 0.82rem;
   align-items: center;
   justify-content: center;
   place-items: center;
   border: 1px solid rgba(190, 204, 209, 0.5);
   border-radius: 2px;
   background: rgba(11, 14, 15, 0.88);
-  box-shadow: 0 0 0 2px rgba(8, 10, 10, 0.62);
+  box-shadow: 0 0 0 1px rgba(8, 10, 10, 0.62);
   color: rgba(222, 227, 219, 0.88);
   cursor: pointer;
   pointer-events: auto;
@@ -6392,14 +6539,14 @@ body::after,
 }
 
 .map-marker-icon {
-  width: 1rem;
-  height: 1rem;
+  width: 0.58rem;
+  height: 0.58rem;
   color: currentColor;
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 1.8;
+  stroke-width: 2;
 }
 
 .map-marker-icon-text,
@@ -6407,17 +6554,17 @@ body::after,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.82rem;
+  font-size: 0.52rem;
   font-weight: 900;
   line-height: 1;
 }
 
 .map-marker-icon-bubble-index {
-  width: 1.08rem;
-  height: 1.08rem;
+  width: 0.64rem;
+  height: 0.64rem;
   border: 1px solid currentColor;
   border-radius: 999px;
-  font-size: 0.56rem;
+  font-size: 0.34rem;
   letter-spacing: 0;
 }
 
@@ -6449,8 +6596,102 @@ body::after,
 
 .map-marker--selected {
   box-shadow:
-    0 0 0 2px rgba(8, 10, 10, 0.72),
-    0 0 0 4px rgba(209, 69, 76, 0.42);
+    0 0 0 1px rgba(8, 10, 10, 0.72),
+    0 0 0 2px rgba(209, 69, 76, 0.52);
+}
+
+.map-marker-popover {
+  position: absolute;
+  z-index: 8;
+  display: grid;
+  width: min(16.5rem, calc(100% - 1rem));
+  gap: 0.58rem;
+  border: 1px solid rgba(190, 204, 209, 0.2);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0)),
+    rgba(8, 10, 11, 0.98);
+  box-shadow:
+    inset 3px 0 0 rgba(167, 52, 58, 0.38),
+    0 14px 32px rgba(0, 0, 0, 0.42);
+  color: var(--foreground);
+  padding: 0.68rem;
+  pointer-events: auto;
+}
+
+.map-marker-popover-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  align-items: start;
+}
+
+.map-marker-popover-head strong {
+  color: var(--foreground-strong);
+  font-size: 0.9rem;
+  line-height: 1.22;
+  overflow-wrap: anywhere;
+}
+
+.map-marker-popover-head button {
+  display: inline-flex;
+  width: 1.55rem;
+  height: 1.55rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(190, 204, 209, 0.2);
+  background: rgba(18, 22, 23, 0.86);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.map-marker-popover-head button:hover {
+  border-color: rgba(209, 69, 76, 0.44);
+  color: var(--foreground-strong);
+}
+
+.map-marker-popover-details {
+  display: grid;
+  gap: 0.34rem;
+  margin: 0;
+}
+
+.map-marker-popover-details div {
+  display: grid;
+  grid-template-columns: minmax(5.15rem, 0.72fr) minmax(0, 1fr);
+  gap: 0.48rem;
+}
+
+.map-marker-popover-details dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.map-marker-popover-details dd {
+  min-width: 0;
+  color: var(--foreground);
+  font-size: 0.78rem;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.map-marker-popover-description {
+  max-height: 5.6rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.42;
+  margin: 0;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+
+.map-marker-popover-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
 }
 
 .map-viewer-state {
@@ -6496,6 +6737,35 @@ body::after,
   gap: 0.65rem;
   border-bottom: 1px solid var(--registry-border);
   padding-bottom: 0.72rem;
+}
+
+.map-panel-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.map-panel-tabs button {
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(190, 204, 209, 0.14);
+  background: rgba(18, 22, 23, 0.72);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  padding: 0.38rem 0.48rem;
+  text-transform: uppercase;
+}
+
+.map-panel-tabs button:hover,
+.map-panel-tabs .map-panel-tab-active {
+  border-color: rgba(209, 69, 76, 0.45);
+  background: rgba(83, 31, 30, 0.34);
+  color: var(--foreground-strong);
 }
 
 .map-side-panel h1,
@@ -6547,6 +6817,87 @@ body::after,
 
 .map-panel-secondary-action {
   justify-self: start;
+}
+
+.map-panel-inline-state {
+  display: grid;
+  gap: 0.5rem;
+  border: 1px solid rgba(209, 69, 76, 0.18);
+  background: rgba(83, 31, 30, 0.16);
+  padding: 0.58rem;
+}
+
+.map-panel-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.42rem;
+}
+
+.map-search-input {
+  width: 100%;
+  border: 1px solid rgba(190, 204, 209, 0.16);
+  background: rgba(8, 10, 11, 0.72);
+  color: var(--foreground);
+  font-size: 0.82rem;
+  padding: 0.58rem 0.65rem;
+}
+
+.map-search-input::placeholder {
+  color: rgba(189, 196, 194, 0.58);
+}
+
+.map-route-drawing-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.42rem;
+}
+
+.map-object-list {
+  display: grid;
+  gap: 0.42rem;
+}
+
+.map-object-row {
+  display: grid;
+  min-width: 0;
+  gap: 0.18rem;
+  border: 1px solid rgba(190, 204, 209, 0.12);
+  background: rgba(18, 22, 23, 0.72);
+  color: var(--foreground);
+  cursor: pointer;
+  padding: 0.55rem 0.62rem;
+  text-align: left;
+}
+
+.map-object-row:hover,
+.map-object-row-active {
+  border-color: rgba(209, 69, 76, 0.42);
+  background: rgba(83, 31, 30, 0.28);
+}
+
+.map-object-row span {
+  min-width: 0;
+  color: var(--foreground-strong);
+  font-size: 0.82rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.map-object-row small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.map-radius-control {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.map-radius-control input {
+  min-width: 0;
 }
 
 .map-layer-list {
@@ -6691,7 +7042,9 @@ body::after,
   }
 
   .map-marker-form-grid,
-  .map-marker-card-actions {
+  .map-marker-card-actions,
+  .map-marker-popover-actions,
+  .map-route-drawing-actions {
     grid-template-columns: minmax(0, 1fr);
   }
 }
