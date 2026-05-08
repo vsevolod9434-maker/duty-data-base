@@ -2,17 +2,15 @@
 
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getMapMarkerTypeClassName, getMapMarkerTypeLabel, normalizeMapMarkerType, type MapMarkerDto, type MapMarkerType } from "@/lib/map-markers";
+import { getMapMarkerTypeClassName, normalizeMapMarkerType, type MapMarkerDto, type MapMarkerType } from "@/lib/map-markers";
 import {
   DEFAULT_MAP_ROUTE_COLOR_KEY,
   DEFAULT_MAP_ROUTE_LINE_PATTERN,
   getFillPatternPreset,
   getLinePatternPreset,
   getMapRouteTypeClassName,
-  getMapRouteTypeLabel,
   getMapZoneShapeLabel,
   getMapZoneTypeClassName,
-  getMapZoneTypeLabel,
   getRouteColorPreset,
   getZoneColorPreset,
   fillPatternKeys,
@@ -105,13 +103,11 @@ type TileMapViewerProps = {
   onMapClick?: (x: number, y: number) => void;
   onRouteDelete?: (route: MapRouteDto) => void;
   onRouteEdit?: (route: MapRouteDto) => void;
-  onRouteRedraw?: (route: MapRouteDto) => void;
   onRoutePointAdd?: (x: number, y: number) => void;
   onRouteSelect?: (route: MapRouteDto) => void;
   onSelectionClear?: () => void;
   onZoneDelete?: (zone: MapZoneDto) => void;
   onZoneEdit?: (zone: MapZoneDto) => void;
-  onZoneRedraw?: (zone: MapZoneDto) => void;
   onZoneSelect?: (zone: MapZoneDto) => void;
   isPickingPoint?: boolean;
 };
@@ -130,10 +126,6 @@ function getMapStyleFilter(brightness: number, contrast: number) {
 
 function getFillPatternId(colorKey: string, patternKey: string) {
   return `map-fill-${colorKey}-${patternKey}`.replaceAll("_", "-");
-}
-
-function getPatternClassName(patternKey: string) {
-  return patternKey.replaceAll("_", "-");
 }
 
 export function MapMarkerIcon({ type }: { type: MapMarkerType | string }) {
@@ -307,13 +299,11 @@ export function TileMapViewer({
   onMarkerSelect,
   onRouteDelete,
   onRouteEdit,
-  onRouteRedraw,
   onRoutePointAdd,
   onRouteSelect,
   onSelectionClear,
   onZoneDelete,
   onZoneEdit,
-  onZoneRedraw,
   onZoneSelect,
   routes = [],
   selectedRouteId,
@@ -1104,19 +1094,6 @@ export function TileMapViewer({
                     strokeWidth: isSelectedRoute ? 3 : undefined,
                   }}
                 />
-                {points.map((point, index) => (
-                  <circle
-                    className={`map-route-node map-route-node--${getMapRouteTypeClassName(route.type)}`}
-                    cx={point.x}
-                    cy={point.y}
-                    key={`${route.id}-${index}`}
-                    r={selectedRouteId === route.id ? 3.4 : 2.5}
-                    style={{
-                      filter: routeFilter,
-                      stroke: isSelectedRoute ? "rgba(223, 91, 98, 0.9)" : routeColor.stroke,
-                    }}
-                  />
-                ))}
               </g>
             );
           })}
@@ -1182,7 +1159,7 @@ export function TileMapViewer({
               onDoubleClick={(event) => event.stopPropagation()}
               onPointerDown={(event) => event.stopPropagation()}
               style={{
-                backgroundColor: getZoneColorPreset(marker.colorKey).marker,
+                color: getZoneColorPreset(marker.colorKey).marker,
                 filter: getMapStyleFilter(marker.brightness, marker.contrast),
                 left,
                 top,
@@ -1190,7 +1167,6 @@ export function TileMapViewer({
               title={marker.title}
               type="button"
             >
-              <span aria-hidden="true" className={`map-marker-pattern map-marker-pattern--${getPatternClassName(marker.patternKey)}`} />
               <MapMarkerIcon type={marker.type} />
             </button>
           ))}
@@ -1213,13 +1189,6 @@ export function TileMapViewer({
               </button>
             </div>
             <dl className="map-marker-popover-details">
-              <div>
-                <dt>Тип</dt>
-                <dd className="map-marker-type-value">
-                  <MapMarkerIcon type={selectedMarkerPopover.marker.type} />
-                  <span>{getMapMarkerTypeLabel(selectedMarkerPopover.marker.type)}</span>
-                </dd>
-              </div>
               <div>
                 <dt>Слой</dt>
                 <dd>{selectedMarkerPopover.marker.layer}</dd>
@@ -1277,10 +1246,6 @@ export function TileMapViewer({
             </div>
             <dl className="map-marker-popover-details">
               <div>
-                <dt>Тип</dt>
-                <dd>{getMapZoneTypeLabel(selectedZonePopover.zone.type)}</dd>
-              </div>
-              <div>
                 <dt>Слой</dt>
                 <dd>{selectedZonePopover.zone.layer}</dd>
               </div>
@@ -1327,11 +1292,6 @@ export function TileMapViewer({
               <button className="command-row interactive-button" onClick={() => onZoneEdit?.(selectedZonePopover.zone)} type="button">
                 Изменить
               </button>
-              {selectedZonePopover.zone.shape === "polygon" ? (
-                <button className="command-row interactive-button" onClick={() => onZoneRedraw?.(selectedZonePopover.zone)} type="button">
-                  Перерисовать
-                </button>
-              ) : null}
               <button className="primary-command interactive-button" onClick={() => onZoneDelete?.(selectedZonePopover.zone)} type="button">
                 Удалить
               </button>
@@ -1356,10 +1316,6 @@ export function TileMapViewer({
               </button>
             </div>
             <dl className="map-marker-popover-details">
-              <div>
-                <dt>Тип</dt>
-                <dd>{getMapRouteTypeLabel(selectedRoutePopover.route.type)}</dd>
-              </div>
               <div>
                 <dt>Слой</dt>
                 <dd>{selectedRoutePopover.route.layer}</dd>
@@ -1389,9 +1345,6 @@ export function TileMapViewer({
             <div className="map-marker-popover-actions">
               <button className="command-row interactive-button" onClick={() => onRouteEdit?.(selectedRoutePopover.route)} type="button">
                 Изменить
-              </button>
-              <button className="command-row interactive-button" onClick={() => onRouteRedraw?.(selectedRoutePopover.route)} type="button">
-                Перерисовать
               </button>
               <button className="primary-command interactive-button" onClick={() => onRouteDelete?.(selectedRoutePopover.route)} type="button">
                 Удалить

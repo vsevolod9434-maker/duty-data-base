@@ -79,8 +79,6 @@ export type ValidatedMapMarkerInput = {
 
 const MAP_WIDTH = 10240;
 const MAP_HEIGHT = 10240;
-const MIN_STYLE_VALUE = 50;
-const MAX_STYLE_VALUE = 150;
 export const DEFAULT_MAP_LAYER = "Основной слой";
 export const DEFAULT_MAP_MARKER_TYPE: MapMarkerUiType = "route_point";
 export const DEFAULT_MAP_MARKER_COLOR_KEY = DEFAULT_MAP_OBJECT_COLOR_KEY;
@@ -167,11 +165,13 @@ function parseCoordinate(value: unknown) {
 
 function normalizeStyleValue(value: unknown) {
   const parsedValue = parseCoordinate(value);
-  return parsedValue === null ? DEFAULT_MAP_STYLE_VALUE : parsedValue;
+  return parsedValue === null ? DEFAULT_MAP_STYLE_VALUE : Math.max(0, parsedValue);
 }
 
-function validateStyleValue(value: number, error: string) {
-  return value >= MIN_STYLE_VALUE && value <= MAX_STYLE_VALUE ? null : error;
+function validateStyleValue(_value: number, _error: string) {
+  void _value;
+  void _error;
+  return null;
 }
 
 function validateMarkerType(value: unknown): { ok: true; value: MapMarkerUiType } | { ok: false; error: string } {

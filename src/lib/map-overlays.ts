@@ -10,7 +10,7 @@ export type MapZoneType =
 
 export type MapZoneStatus = "active" | "inactive" | "warning";
 export type MapZoneShape = "circle" | "polygon";
-export type MapObjectColorKey = "red" | "orange" | "yellow" | "green" | "cyan" | "blue" | "violet";
+export type MapObjectColorKey = "red" | "orange" | "yellow" | "green" | "cyan" | "blue" | "violet" | "black";
 export type MapFillPatternKey =
   | "solid"
   | "hatch_vertical"
@@ -156,8 +156,6 @@ const MAP_WIDTH = 10240;
 const MAP_HEIGHT = 10240;
 const MAX_ZONE_RADIUS = 5000;
 const MAX_POLYGON_POINTS = 80;
-const MIN_STYLE_VALUE = 50;
-const MAX_STYLE_VALUE = 150;
 
 export const DEFAULT_MAP_LAYER = "Основной слой";
 export const DEFAULT_MAP_ZONE_TYPE: MapZoneType = "danger_area";
@@ -174,6 +172,7 @@ export const DEFAULT_MAP_ROUTE_COLOR_KEY: MapRouteColorKey = DEFAULT_MAP_OBJECT_
 export const DEFAULT_MAP_ROUTE_LINE_PATTERN: MapLinePatternKey = "solid";
 
 export const MAP_COLOR_PRESETS: Record<MapObjectColorKey, { label: string; stroke: string; fill: string; marker: string; nodeFill: string }> = {
+  black: { fill: "rgba(8, 10, 10, 0.24)", label: "Чёрный", marker: "rgba(12, 14, 14, 0.96)", nodeFill: "rgba(12, 14, 14, 0.92)", stroke: "rgba(28, 31, 31, 0.82)" },
   blue: { fill: "rgba(70, 112, 196, 0.17)", label: "Синий", marker: "rgba(91, 130, 215, 0.95)", nodeFill: "rgba(70, 112, 196, 0.92)", stroke: "rgba(91, 130, 215, 0.76)" },
   cyan: { fill: "rgba(65, 157, 181, 0.16)", label: "Голубой", marker: "rgba(89, 181, 204, 0.95)", nodeFill: "rgba(65, 157, 181, 0.92)", stroke: "rgba(89, 181, 204, 0.74)" },
   green: { fill: "rgba(91, 153, 96, 0.16)", label: "Зелёный", marker: "rgba(106, 174, 112, 0.95)", nodeFill: "rgba(91, 153, 96, 0.92)", stroke: "rgba(106, 174, 112, 0.74)" },
@@ -452,11 +451,13 @@ function parseInteger(value: unknown) {
 
 function normalizeStyleValue(value: unknown) {
   const parsedValue = parseInteger(value);
-  return parsedValue === null ? DEFAULT_MAP_STYLE_VALUE : parsedValue;
+  return parsedValue === null ? DEFAULT_MAP_STYLE_VALUE : Math.max(0, parsedValue);
 }
 
-function validateStyleValue(value: number, error: string) {
-  return value >= MIN_STYLE_VALUE && value <= MAX_STYLE_VALUE ? null : error;
+function validateStyleValue(_value: number, _error: string) {
+  void _value;
+  void _error;
+  return null;
 }
 
 function isMapCoordinate(x: number | null, y: number | null) {

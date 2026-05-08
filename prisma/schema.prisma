@@ -317,6 +317,17 @@ model MapRoutePoint {
   @@index([order])
 }
 
+model MapLayer {
+  id             String   @id @default(cuid())
+  name           String
+  normalizedName String   @unique
+  isDefault      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([name])
+}
+
 enum AccessUserRole {
   system_admin
   officer

@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
 import { TileMapViewer } from "@/components/map/TileMapViewer";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { createMapLayer, deleteMapLayer, fetchMapLayers, updateMapLayer } from "@/lib/map-layer-api";
+import { DEFAULT_MAP_LAYER, normalizeMapLayerName, type MapLayerDto } from "@/lib/map-layers";
 import { createMapMarker, deleteMapMarker, fetchMapMarkers, updateMapMarker } from "@/lib/map-marker-api";
 import {
   createMapRoute,
@@ -16,11 +18,7 @@ import {
   updateMapZone,
 } from "@/lib/map-overlay-api";
 import {
-  DEFAULT_MAP_LAYER,
   DEFAULT_MAP_MARKER_TYPE,
-  getMapMarkerTypeLabel,
-  mapMarkerUiTypes,
-  normalizeMapLayerName as normalizeMarkerLayerName,
   normalizeMapMarkerType,
   type MapMarkerDto,
   type MapMarkerStatus,
@@ -39,9 +37,7 @@ import {
   DEFAULT_MAP_ZONE_TYPE,
   getBoundsCenter,
   getMapPointsBounds,
-  getMapRouteTypeLabel,
   getMapZoneShapeLabel,
-  getMapZoneTypeLabel,
   getLinePatternPreset,
   getFillPatternPreset,
   getRouteColorPreset,
@@ -49,10 +45,7 @@ import {
   fillPatternKeys,
   linePatternKeys,
   routeColorKeys,
-  mapRouteTypes,
   mapZoneShapes,
-  mapZoneTypes,
-  normalizeMapLayerName as normalizeOverlayLayerName,
   zoneColorKeys,
   type MapLinePatternKey,
   type MapFillPatternKey,
@@ -188,6 +181,28 @@ function sortedPoints<T extends { order: number; x: number; y: number }>(points:
   return [...points].sort((firstPoint, secondPoint) => firstPoint.order - secondPoint.order);
 }
 
+function getLayerOptions(mapLayers: MapLayerDto[], markers: MapMarkerDto[], zones: MapZoneDto[], routes: MapRouteDto[]) {
+  return Array.from(
+    new Set([
+      DEFAULT_MAP_LAYER,
+      ...mapLayers.map((layer) => normalizeMapLayerName(layer.name)),
+      ...markers.map((marker) => normalizeMapLayerName(marker.layer)),
+      ...zones.map((zone) => normalizeMapLayerName(zone.layer)),
+      ...routes.map((route) => normalizeMapLayerName(route.layer)),
+    ]),
+  ).sort((firstLayer, secondLayer) => {
+    if (firstLayer === DEFAULT_MAP_LAYER) {
+      return -1;
+    }
+
+    if (secondLayer === DEFAULT_MAP_LAYER) {
+      return 1;
+    }
+
+    return firstLayer.localeCompare(secondLayer, "ru");
+  });
+}
+
 function createMarkerDraftFromMarker(marker: MapMarkerDto): MarkerFormDraft {
   return {
     brightness: String(marker.brightness),
@@ -295,7 +310,7 @@ function normalizeMarkerDraft(draft: MarkerFormDraft) {
     colorKey: draft.colorKey,
     contrast: Number(draft.contrast),
     description: draft.description.trim(),
-    layer: normalizeMarkerLayerName(draft.layer),
+    layer: normalizeMapLayerName(draft.layer),
     patternKey: draft.patternKey,
     status: draft.status,
     title: draft.title.trim(),
@@ -313,7 +328,7 @@ function normalizeZoneDraft(draft: ZoneFormDraft) {
     colorKey: draft.colorKey,
     contrast: Number(draft.contrast),
     description: draft.description.trim(),
-    layer: normalizeOverlayLayerName(draft.layer),
+    layer: normalizeMapLayerName(draft.layer),
     patternKey: draft.patternKey,
     points: draft.points,
     radius: Number(draft.radius),
@@ -330,7 +345,7 @@ function normalizeRouteDraft(draft: RouteFormDraft) {
     colorKey: draft.colorKey,
     contrast: Number(draft.contrast),
     description: draft.description.trim(),
-    layer: normalizeOverlayLayerName(draft.layer),
+    layer: normalizeMapLayerName(draft.layer),
     linePattern: draft.linePattern,
     points: draft.points,
     status: draft.status,
@@ -364,6 +379,7 @@ export default function MapPage() {
   const [markers, setMarkers] = useState<MapMarkerDto[]>([]);
   const [zones, setZones] = useState<MapZoneDto[]>([]);
   const [routes, setRoutes] = useState<MapRouteDto[]>([]);
+  const [mapLayers, setMapLayers] = useState<MapLayerDto[]>([]);
   const [visibleLayerState, setVisibleLayerState] = useState<Record<string, boolean>>({});
   const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
@@ -371,10 +387,12 @@ export default function MapPage() {
   const [drawingMode, setDrawingMode] = useState<DrawingMode>(null);
   const [drawingPoints, setDrawingPoints] = useState<MapPoint[]>([]);
   const [drawingMessage, setDrawingMessage] = useState("");
-  const [redrawRouteBase, setRedrawRouteBase] = useState<MapRouteDto | null>(null);
-  const [redrawZoneBase, setRedrawZoneBase] = useState<MapZoneDto | null>(null);
   const [zoneSearch, setZoneSearch] = useState("");
   const [routeSearch, setRouteSearch] = useState("");
+  const [newLayerName, setNewLayerName] = useState("");
+  const [editingLayerId, setEditingLayerId] = useState<string | null>(null);
+  const [editingLayerName, setEditingLayerName] = useState("");
+  const [layerMessage, setLayerMessage] = useState("");
   const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
   const [isLoadingObjects, setIsLoadingObjects] = useState(true);
   const [objectError, setObjectError] = useState("");
@@ -393,12 +411,18 @@ export default function MapPage() {
       setObjectError("");
 
       try {
-        const [nextMarkers, nextZones, nextRoutes] = await Promise.all([fetchMapMarkers(), fetchMapZones(), fetchMapRoutes()]);
+        const [nextMarkers, nextZones, nextRoutes, nextLayers] = await Promise.all([
+          fetchMapMarkers(),
+          fetchMapZones(),
+          fetchMapRoutes(),
+          fetchMapLayers(),
+        ]);
 
         if (!isCancelled) {
           setMarkers(nextMarkers);
           setZones(nextZones);
           setRoutes(nextRoutes);
+          setMapLayers(nextLayers);
         }
       } catch {
         if (!isCancelled) {
@@ -419,10 +443,8 @@ export default function MapPage() {
   }, []);
 
   const layers = useMemo(() => {
-    return Array.from(new Set([...markers.map((marker) => marker.layer), ...zones.map((zone) => zone.layer), ...routes.map((route) => route.layer)])).sort(
-      (firstLayer, secondLayer) => firstLayer.localeCompare(secondLayer, "ru"),
-    );
-  }, [markers, routes, zones]);
+    return getLayerOptions(mapLayers, markers, zones, routes);
+  }, [mapLayers, markers, routes, zones]);
 
   const visibleLayers = useMemo(() => layers.filter((layer) => visibleLayerState[layer] !== false), [layers, visibleLayerState]);
 
@@ -452,7 +474,6 @@ export default function MapPage() {
       [
         zone.title,
         zone.description ?? "",
-        getMapZoneTypeLabel(zone.type),
         getMapZoneShapeLabel(zone.shape),
         getZoneColorPreset(zone.colorKey).label,
         getFillPatternPreset(zone.patternKey).label,
@@ -475,7 +496,6 @@ export default function MapPage() {
       [
         route.title,
         route.description ?? "",
-        getMapRouteTypeLabel(route.type),
         getRouteColorPreset(route.colorKey).label,
         getLinePatternPreset(route.linePattern).label,
         route.layer,
@@ -542,8 +562,6 @@ export default function MapPage() {
     setDrawingMode(null);
     setDrawingPoints([]);
     setDrawingMessage("");
-    setRedrawRouteBase(null);
-    setRedrawZoneBase(null);
   }
 
   function startDrawing(nextMode: DrawingMode, panel: ActivePanel) {
@@ -552,8 +570,6 @@ export default function MapPage() {
     setDrawingMode(nextMode);
     setDrawingMessage("");
     setDrawingPoints([]);
-    setRedrawRouteBase(null);
-    setRedrawZoneBase(null);
   }
 
   function updateMarkerDraft<K extends keyof MarkerFormDraft>(field: K, value: MarkerFormDraft[K]) {
@@ -703,10 +719,8 @@ export default function MapPage() {
       return;
     }
 
-    const baseRoute = redrawRouteBase ?? undefined;
     setDrawingMode(null);
-    setRedrawRouteBase(null);
-    openRouteCreateForm(drawingPoints, baseRoute);
+    openRouteCreateForm(drawingPoints);
   }
 
   function finishPolygonDrawing() {
@@ -715,10 +729,8 @@ export default function MapPage() {
       return;
     }
 
-    const baseZone = redrawZoneBase ?? undefined;
     setDrawingMode(null);
-    setRedrawZoneBase(null);
-    openPolygonZoneForm(drawingPoints, baseZone);
+    openPolygonZoneForm(drawingPoints);
   }
 
   async function handleMarkerSubmit(event: FormEvent<HTMLFormElement>) {
@@ -911,44 +923,6 @@ export default function MapPage() {
     });
   }
 
-  function requestRedrawRoute(route: MapRouteDto) {
-    setConfirmDialog({
-      cancelLabel: "Отмена",
-      confirmLabel: "Перерисовать",
-      message: "Перерисовать маршрут? Текущие точки будут заменены после сохранения.",
-      onConfirm: () => {
-        setConfirmDialog(null);
-        setActivePanel("routes");
-        setDrawingMode("route");
-        setDrawingPoints(sortedPoints(route.points).map((point) => ({ x: point.x, y: point.y })));
-        setRedrawRouteBase(route);
-        setDrawingMessage("");
-        clearSelection();
-      },
-      title: "Перерисовать маршрут?",
-      variant: "warning",
-    });
-  }
-
-  function requestRedrawZone(zone: MapZoneDto) {
-    setConfirmDialog({
-      cancelLabel: "Отмена",
-      confirmLabel: "Перерисовать",
-      message: "Перерисовать полигон? Точки будут заменены после сохранения.",
-      onConfirm: () => {
-        setConfirmDialog(null);
-        setActivePanel("zones");
-        setDrawingMode("zone-polygon");
-        setDrawingPoints(sortedPoints(zone.points).map((point) => ({ x: point.x, y: point.y })));
-        setRedrawZoneBase(zone);
-        setDrawingMessage("");
-        clearSelection();
-      },
-      title: "Перерисовать полигон?",
-      variant: "warning",
-    });
-  }
-
   function toggleLayer(layer: string) {
     const willHideLayer = visibleLayerState[layer] !== false;
 
@@ -966,6 +940,93 @@ export default function MapPage() {
         clearSelection();
       }
     }
+  }
+
+  async function handleCreateLayer(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!newLayerName.trim()) {
+      setLayerMessage("Укажите название слоя.");
+      return;
+    }
+
+    const nextName = normalizeMapLayerName(newLayerName);
+
+    setLayerMessage("");
+    setIsSaving(true);
+
+    try {
+      const createdLayer = await createMapLayer(nextName);
+      setMapLayers((currentLayers) => [...currentLayers.filter((layer) => layer.id !== createdLayer.id), createdLayer]);
+      setVisibleLayerState((currentState) => ({ ...currentState, [createdLayer.name]: true }));
+      setNewLayerName("");
+    } catch (error) {
+      setLayerMessage(error instanceof Error ? error.message : "Не удалось сохранить слой.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleSaveLayerRename(layer: MapLayerDto) {
+    if (!editingLayerName.trim()) {
+      setLayerMessage("Укажите название слоя.");
+      return;
+    }
+
+    const nextName = normalizeMapLayerName(editingLayerName);
+
+    setLayerMessage("");
+    setIsSaving(true);
+
+    try {
+      const previousName = layer.name;
+      const updatedLayer = await updateMapLayer(layer.id, nextName);
+
+      setMapLayers((currentLayers) => currentLayers.map((currentLayer) => (currentLayer.id === updatedLayer.id ? updatedLayer : currentLayer)));
+      setMarkers((currentMarkers) => currentMarkers.map((marker) => (marker.layer === previousName ? { ...marker, layer: updatedLayer.name } : marker)));
+      setZones((currentZones) => currentZones.map((zone) => (zone.layer === previousName ? { ...zone, layer: updatedLayer.name } : zone)));
+      setRoutes((currentRoutes) => currentRoutes.map((route) => (route.layer === previousName ? { ...route, layer: updatedLayer.name } : route)));
+      setVisibleLayerState((currentState) => {
+        const nextState = { ...currentState, [updatedLayer.name]: currentState[previousName] };
+        delete nextState[previousName];
+        return nextState;
+      });
+      setEditingLayerId(null);
+      setEditingLayerName("");
+    } catch (error) {
+      setLayerMessage(error instanceof Error ? error.message : "Не удалось сохранить слой.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  function requestDeleteLayer(layer: MapLayerDto) {
+    setConfirmDialog({
+      cancelLabel: "Отмена",
+      confirmLabel: "Удалить",
+      message: "Удалить слой?",
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        setLayerMessage("");
+        setIsSaving(true);
+
+        try {
+          await deleteMapLayer(layer.id);
+          setMapLayers((currentLayers) => currentLayers.filter((currentLayer) => currentLayer.id !== layer.id));
+          setVisibleLayerState((currentState) => {
+            const nextState = { ...currentState };
+            delete nextState[layer.name];
+            return nextState;
+          });
+        } catch (error) {
+          setLayerMessage(error instanceof Error ? error.message : "Не удалось удалить слой.");
+        } finally {
+          setIsSaving(false);
+        }
+      },
+      title: "Удалить слой?",
+      variant: "danger",
+    });
   }
 
   function selectMarker(marker: MapMarkerDto) {
@@ -1007,8 +1068,8 @@ export default function MapPage() {
           <div className="map-page-layout">
             <div className="map-work-area">
               <TileMapViewer
-                draftRouteColorKey={redrawRouteBase?.colorKey ?? DEFAULT_MAP_ROUTE_COLOR_KEY}
-                draftRouteLinePattern={redrawRouteBase?.linePattern ?? DEFAULT_MAP_ROUTE_LINE_PATTERN}
+                draftRouteColorKey={DEFAULT_MAP_ROUTE_COLOR_KEY}
+                draftRouteLinePattern={DEFAULT_MAP_ROUTE_LINE_PATTERN}
                 draftRoutePoints={drawingMode === "route" ? drawingPoints : []}
                 draftZonePreview={draftZonePreview}
                 drawingMode={drawingMode}
@@ -1023,12 +1084,10 @@ export default function MapPage() {
                 onRouteDelete={requestDeleteRoute}
                 onRouteEdit={openRouteEditForm}
                 onRoutePointAdd={handleDrawingPointAdd}
-                onRouteRedraw={requestRedrawRoute}
                 onRouteSelect={selectRoute}
                 onSelectionClear={clearSelection}
                 onZoneDelete={requestDeleteZone}
                 onZoneEdit={openZoneEditForm}
-                onZoneRedraw={requestRedrawZone}
                 onZoneSelect={selectZone}
                 routes={visibleRoutes}
                 selectedMarkerId={selectedMarkerId ?? undefined}
@@ -1040,7 +1099,7 @@ export default function MapPage() {
               <aside className="map-side-panel">
                 <div className="map-side-panel-head">
                   <h1>Объекты карты</h1>
-                  <div className="map-panel-tabs" role="tablist" aria-label="Разделы объектов карты">
+                  <div className="map-panel-tabs map-panel-tabs-primary" role="tablist" aria-label="Разделы объектов карты">
                     <button className={activePanel === "markers" ? "map-panel-tab-active" : ""} onClick={() => setActivePanel("markers")} type="button">
                       Метки
                     </button>
@@ -1050,6 +1109,8 @@ export default function MapPage() {
                     <button className={activePanel === "routes" ? "map-panel-tab-active" : ""} onClick={() => setActivePanel("routes")} type="button">
                       Маршруты
                     </button>
+                  </div>
+                  <div className="map-panel-tabs map-panel-tabs-layers" role="tablist" aria-label="Управление слоями">
                     <button className={activePanel === "layers" ? "map-panel-tab-active" : ""} onClick={() => setActivePanel("layers")} type="button">
                       Слои
                     </button>
@@ -1077,7 +1138,7 @@ export default function MapPage() {
                         {markers.map((marker) => (
                           <button className={selectedMarkerId === marker.id ? "map-object-row map-object-row-active" : "map-object-row"} key={marker.id} onClick={() => selectMarker(marker)} type="button">
                             <span>{marker.title}</span>
-                            <small>{getMapMarkerTypeLabel(marker.type)}</small>
+                            <small>{marker.layer}</small>
                           </button>
                         ))}
                       </div>
@@ -1093,7 +1154,7 @@ export default function MapPage() {
                       <button className={`primary-command interactive-button ${drawingMode === "zone" ? "map-command-active" : ""}`} onClick={() => startDrawing("zone", "zones")} type="button">
                         Добавить круг
                       </button>
-                      <button className={`command-row interactive-button ${drawingMode === "zone-polygon" ? "map-command-active" : ""}`} onClick={() => startDrawing("zone-polygon", "zones")} type="button">
+                      <button className={`primary-command interactive-button ${drawingMode === "zone-polygon" ? "map-command-active" : ""}`} onClick={() => startDrawing("zone-polygon", "zones")} type="button">
                         Добавить полигон
                       </button>
                     </div>
@@ -1132,7 +1193,6 @@ export default function MapPage() {
                         {filteredZones.map((zone) => (
                           <button className={selectedZoneId === zone.id ? "map-object-row map-object-row-active" : "map-object-row"} key={zone.id} onClick={() => selectZone(zone)} type="button">
                             <span>{zone.title}</span>
-                            <small>{getMapZoneTypeLabel(zone.type)}</small>
                             <small>
                               {getMapZoneShapeLabel(zone.shape)} · {zone.layer}
                             </small>
@@ -1182,7 +1242,6 @@ export default function MapPage() {
                         {filteredRoutes.map((route) => (
                           <button className={selectedRouteId === route.id ? "map-object-row map-object-row-active" : "map-object-row"} key={route.id} onClick={() => selectRoute(route)} type="button">
                             <span>{route.title}</span>
-                            <small>{getMapRouteTypeLabel(route.type)}</small>
                             <small>
                               {getRouteColorPreset(route.colorKey).label} · {getLinePatternPreset(route.linePattern).label}
                             </small>
@@ -1201,14 +1260,73 @@ export default function MapPage() {
                 {activePanel === "layers" ? (
                   <section className="map-panel-section map-panel-section-last">
                     <h2>Слои</h2>
+                    <form className="map-layer-create-form" onSubmit={handleCreateLayer}>
+                      <input disabled={isSaving} maxLength={80} onChange={(event) => setNewLayerName(event.target.value)} placeholder="Новый слой" type="text" value={newLayerName} />
+                      <button className="primary-command interactive-button" disabled={isSaving} type="submit">
+                        Создать
+                      </button>
+                    </form>
+                    {layerMessage ? <p className="map-panel-message map-panel-message-danger">{layerMessage}</p> : null}
                     {layers.length > 0 ? (
                       <div className="map-layer-list">
-                        {layers.map((layer) => (
-                          <label className="map-layer-row" key={layer}>
-                            <input checked={visibleLayers.includes(layer)} onChange={() => toggleLayer(layer)} type="checkbox" />
-                            <span>{layer}</span>
-                          </label>
-                        ))}
+                        {layers.map((layer) => {
+                          const persistedLayer = mapLayers.find((mapLayer) => mapLayer.name === layer);
+                          const isEditing = persistedLayer ? editingLayerId === persistedLayer.id : false;
+
+                          return (
+                            <div className="map-layer-row" key={layer}>
+                              <label className="map-layer-toggle">
+                                <input checked={visibleLayers.includes(layer)} onChange={() => toggleLayer(layer)} type="checkbox" />
+                                {isEditing ? (
+                                  <input disabled={isSaving} maxLength={80} onChange={(event) => setEditingLayerName(event.target.value)} type="text" value={editingLayerName} />
+                                ) : (
+                                  <span>{layer}</span>
+                                )}
+                              </label>
+                              {persistedLayer && !persistedLayer.isDefault ? (
+                                <div className="map-layer-actions">
+                                  {isEditing ? (
+                                    <>
+                                      <button className="command-row interactive-button" disabled={isSaving} onClick={() => handleSaveLayerRename(persistedLayer)} type="button">
+                                        Сохранить
+                                      </button>
+                                      <button
+                                        className="command-row interactive-button"
+                                        disabled={isSaving}
+                                        onClick={() => {
+                                          setEditingLayerId(null);
+                                          setEditingLayerName("");
+                                          setLayerMessage("");
+                                        }}
+                                        type="button"
+                                      >
+                                        Отмена
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button
+                                        className="command-row interactive-button"
+                                        disabled={isSaving}
+                                        onClick={() => {
+                                          setEditingLayerId(persistedLayer.id);
+                                          setEditingLayerName(persistedLayer.name);
+                                          setLayerMessage("");
+                                        }}
+                                        type="button"
+                                      >
+                                        Переименовать
+                                      </button>
+                                      <button className="command-row interactive-button" disabled={isSaving} onClick={() => requestDeleteLayer(persistedLayer)} type="button">
+                                        Удалить
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              ) : null}
+                            </div>
+                          );
+                        })}
                       </div>
                     ) : (
                       <p className="map-panel-message">Объекты пока не добавлены.</p>
@@ -1236,19 +1354,15 @@ export default function MapPage() {
                   <span>Название</span>
                   <input disabled={isSaving} maxLength={80} onChange={(event) => updateMarkerDraft("title", event.target.value)} type="text" value={markerDraft.title} />
                 </label>
-                <label className="filter-field">
-                  <span>Тип</span>
-                  <select disabled={isSaving} onChange={(event) => updateMarkerDraft("type", event.target.value as MapMarkerUiType)} value={markerDraft.type}>
-                    {mapMarkerUiTypes.map((type) => (
-                      <option key={type} value={type}>
-                        {getMapMarkerTypeLabel(type)}
+                <label className="filter-field map-marker-form-wide">
+                  <span>Слой</span>
+                  <select disabled={isSaving} onChange={(event) => updateMarkerDraft("layer", event.target.value)} value={markerDraft.layer}>
+                    {layers.map((layer) => (
+                      <option key={layer} value={layer}>
+                        {layer}
                       </option>
                     ))}
                   </select>
-                </label>
-                <label className="filter-field map-marker-form-wide">
-                  <span>Слой</span>
-                  <input disabled={isSaving} onChange={(event) => updateMarkerDraft("layer", event.target.value)} type="text" value={markerDraft.layer} />
                 </label>
                 <fieldset className="map-style-fieldset map-marker-form-wide">
                   <legend>Оформление</legend>
@@ -1275,11 +1389,11 @@ export default function MapPage() {
                     </label>
                     <label className="filter-field">
                       <span>Яркость</span>
-                      <input disabled={isSaving} max={150} min={50} onChange={(event) => updateMarkerDraft("brightness", event.target.value)} step={5} type="number" value={markerDraft.brightness} />
+                      <input disabled={isSaving} onChange={(event) => updateMarkerDraft("brightness", event.target.value)} step={5} type="number" value={markerDraft.brightness} />
                     </label>
                     <label className="filter-field">
                       <span>Контрастность</span>
-                      <input disabled={isSaving} max={150} min={50} onChange={(event) => updateMarkerDraft("contrast", event.target.value)} step={5} type="number" value={markerDraft.contrast} />
+                      <input disabled={isSaving} onChange={(event) => updateMarkerDraft("contrast", event.target.value)} step={5} type="number" value={markerDraft.contrast} />
                     </label>
                   </div>
                 </fieldset>
@@ -1324,16 +1438,6 @@ export default function MapPage() {
                   <input disabled={isSaving} maxLength={80} onChange={(event) => updateZoneDraft("title", event.target.value)} type="text" value={zoneDraft.title} />
                 </label>
                 <label className="filter-field">
-                  <span>Тип</span>
-                  <select disabled={isSaving} onChange={(event) => updateZoneDraft("type", event.target.value as MapZoneType)} value={zoneDraft.type}>
-                    {mapZoneTypes.map((type) => (
-                      <option key={type} value={type}>
-                        {getMapZoneTypeLabel(type)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="filter-field">
                   <span>Форма</span>
                   <select disabled value={zoneDraft.shape}>
                     {mapZoneShapes.map((shape) => (
@@ -1345,7 +1449,13 @@ export default function MapPage() {
                 </label>
                 <label className="filter-field map-marker-form-wide">
                   <span>Слой</span>
-                  <input disabled={isSaving} onChange={(event) => updateZoneDraft("layer", event.target.value)} type="text" value={zoneDraft.layer} />
+                  <select disabled={isSaving} onChange={(event) => updateZoneDraft("layer", event.target.value)} value={zoneDraft.layer}>
+                    {layers.map((layer) => (
+                      <option key={layer} value={layer}>
+                        {layer}
+                      </option>
+                    ))}
+                  </select>
                 </label>
                 <fieldset className="map-style-fieldset map-marker-form-wide">
                   <legend>Оформление</legend>
@@ -1372,11 +1482,11 @@ export default function MapPage() {
                     </label>
                     <label className="filter-field">
                       <span>Яркость</span>
-                      <input disabled={isSaving} max={150} min={50} onChange={(event) => updateZoneDraft("brightness", event.target.value)} step={5} type="number" value={zoneDraft.brightness} />
+                      <input disabled={isSaving} onChange={(event) => updateZoneDraft("brightness", event.target.value)} step={5} type="number" value={zoneDraft.brightness} />
                     </label>
                     <label className="filter-field">
                       <span>Контрастность</span>
-                      <input disabled={isSaving} max={150} min={50} onChange={(event) => updateZoneDraft("contrast", event.target.value)} step={5} type="number" value={zoneDraft.contrast} />
+                      <input disabled={isSaving} onChange={(event) => updateZoneDraft("contrast", event.target.value)} step={5} type="number" value={zoneDraft.contrast} />
                     </label>
                   </div>
                 </fieldset>
@@ -1448,19 +1558,15 @@ export default function MapPage() {
                   <span>Название</span>
                   <input disabled={isSaving} maxLength={80} onChange={(event) => updateRouteDraft("title", event.target.value)} type="text" value={routeDraft.title} />
                 </label>
-                <label className="filter-field">
-                  <span>Тип</span>
-                  <select disabled={isSaving} onChange={(event) => updateRouteDraft("type", event.target.value as MapRouteType)} value={routeDraft.type}>
-                    {mapRouteTypes.map((type) => (
-                      <option key={type} value={type}>
-                        {getMapRouteTypeLabel(type)}
+                <label className="filter-field map-marker-form-wide">
+                  <span>Слой</span>
+                  <select disabled={isSaving} onChange={(event) => updateRouteDraft("layer", event.target.value)} value={routeDraft.layer}>
+                    {layers.map((layer) => (
+                      <option key={layer} value={layer}>
+                        {layer}
                       </option>
                     ))}
                   </select>
-                </label>
-                <label className="filter-field map-marker-form-wide">
-                  <span>Слой</span>
-                  <input disabled={isSaving} onChange={(event) => updateRouteDraft("layer", event.target.value)} type="text" value={routeDraft.layer} />
                 </label>
                 <fieldset className="map-style-fieldset map-marker-form-wide">
                   <legend>Оформление</legend>
@@ -1487,11 +1593,11 @@ export default function MapPage() {
                     </label>
                     <label className="filter-field">
                       <span>Яркость</span>
-                      <input disabled={isSaving} max={150} min={50} onChange={(event) => updateRouteDraft("brightness", event.target.value)} step={5} type="number" value={routeDraft.brightness} />
+                      <input disabled={isSaving} onChange={(event) => updateRouteDraft("brightness", event.target.value)} step={5} type="number" value={routeDraft.brightness} />
                     </label>
                     <label className="filter-field">
                       <span>Контрастность</span>
-                      <input disabled={isSaving} max={150} min={50} onChange={(event) => updateRouteDraft("contrast", event.target.value)} step={5} type="number" value={routeDraft.contrast} />
+                      <input disabled={isSaving} onChange={(event) => updateRouteDraft("contrast", event.target.value)} step={5} type="number" value={routeDraft.contrast} />
                     </label>
                   </div>
                 </fieldset>
