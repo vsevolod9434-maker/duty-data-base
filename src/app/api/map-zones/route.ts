@@ -53,6 +53,7 @@ export async function POST(request: Request) {
       data: {
         centerX: validation.value.centerX,
         centerY: validation.value.centerY,
+        colorKey: validation.value.colorKey,
         description: validation.value.description,
         layer: validation.value.layer,
         points: {

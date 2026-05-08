@@ -252,6 +252,7 @@ model MapZone {
   centerX     Int
   centerY     Int
   radius      Int
+  colorKey    String        @default("danger")
   description String?
   layer       String        @default("Основной слой")
   points      MapZonePoint[]
@@ -282,6 +283,8 @@ model MapRoute {
   title       String
   type        MapRouteType    @default(patrol)
   status      MapRouteStatus  @default(active)
+  colorKey    String          @default("neutral")
+  linePattern String          @default("dashed")
   description String?
   layer       String          @default("Основной слой")
   points      MapRoutePoint[]

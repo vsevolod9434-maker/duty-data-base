@@ -1,5 +1,6 @@
 import { requireApiAuth } from "@/lib/auth/require-api-auth";
 import type { MapRouteInput } from "@/lib/map-overlays";
+import { normalizeLinePattern, normalizeRouteColorKey } from "@/lib/map-overlays";
 import { getPrismaClient } from "@/lib/prisma";
 import {
   buildMapRoutePatchPayload,
@@ -49,8 +50,10 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     const patchPayload = buildMapRoutePatchPayload(
       {
+        colorKey: normalizeRouteColorKey(currentRoute.colorKey),
         description: currentRoute.description,
         layer: currentRoute.layer,
+        linePattern: normalizeLinePattern(currentRoute.linePattern),
         points: currentRoute.points.map((point) => ({ order: point.order, x: point.x, y: point.y })),
         status: currentRoute.status,
         title: currentRoute.title,
@@ -71,8 +74,10 @@ export async function PATCH(request: Request, context: RouteContext) {
 
       return transaction.mapRoute.update({
         data: {
+          colorKey: validation.value.colorKey,
           description: validation.value.description,
           layer: validation.value.layer,
+          linePattern: validation.value.linePattern,
           points: {
             create: validation.value.points,
           },

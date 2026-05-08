@@ -29,8 +29,12 @@ import {
   type MapMarkerUiType,
 } from "@/lib/map-markers";
 import {
+  CIRCLE_RADIUS_PRESETS,
+  DEFAULT_MAP_ROUTE_COLOR_KEY,
+  DEFAULT_MAP_ROUTE_LINE_PATTERN,
   DEFAULT_MAP_ROUTE_STATUS,
   DEFAULT_MAP_ROUTE_TYPE,
+  DEFAULT_MAP_ZONE_COLOR_KEY,
   DEFAULT_MAP_ZONE_RADIUS,
   DEFAULT_MAP_ZONE_SHAPE,
   DEFAULT_MAP_ZONE_STATUS,
@@ -42,15 +46,24 @@ import {
   getMapZoneShapeLabel,
   getMapZoneStatusLabel,
   getMapZoneTypeLabel,
+  getLinePatternPreset,
+  getRouteColorPreset,
+  getZoneColorPreset,
+  linePatternKeys,
+  routeColorKeys,
   mapRouteStatuses,
   mapRouteTypes,
   mapZoneShapes,
   mapZoneStatuses,
   mapZoneTypes,
   normalizeMapLayerName as normalizeOverlayLayerName,
+  zoneColorKeys,
+  type MapLinePatternKey,
+  type MapRouteColorKey,
   type MapRouteDto,
   type MapRouteStatus,
   type MapRouteType,
+  type MapZoneColorKey,
   type MapZoneDto,
   type MapZoneShape,
   type MapZoneStatus,
@@ -84,6 +97,7 @@ type ZoneFormDraft = {
   type: MapZoneType;
   status: MapZoneStatus;
   shape: MapZoneShape;
+  colorKey: MapZoneColorKey;
   layer: string;
   centerX: string;
   centerY: string;
@@ -97,6 +111,8 @@ type RouteFormDraft = {
   title: string;
   type: MapRouteType;
   status: MapRouteStatus;
+  colorKey: MapRouteColorKey;
+  linePattern: MapLinePatternKey;
   layer: string;
   points: MapPoint[];
   description: string;
@@ -128,6 +144,7 @@ const emptyMarkerDraft: MarkerFormDraft = {
 const emptyZoneDraft: ZoneFormDraft = {
   centerX: "0",
   centerY: "0",
+  colorKey: DEFAULT_MAP_ZONE_COLOR_KEY,
   description: "",
   layer: DEFAULT_MAP_LAYER,
   points: [],
@@ -136,6 +153,17 @@ const emptyZoneDraft: ZoneFormDraft = {
   status: DEFAULT_MAP_ZONE_STATUS,
   title: "",
   type: DEFAULT_MAP_ZONE_TYPE,
+};
+
+const emptyRouteDraft: RouteFormDraft = {
+  colorKey: DEFAULT_MAP_ROUTE_COLOR_KEY,
+  description: "",
+  layer: DEFAULT_MAP_LAYER,
+  linePattern: DEFAULT_MAP_ROUTE_LINE_PATTERN,
+  points: [],
+  status: DEFAULT_MAP_ROUTE_STATUS,
+  title: "",
+  type: DEFAULT_MAP_ROUTE_TYPE,
 };
 
 function normalizeSearch(value: string) {
@@ -167,6 +195,7 @@ function createZoneDraftFromZone(zone: MapZoneDto): ZoneFormDraft {
   return {
     centerX: String(zone.centerX),
     centerY: String(zone.centerY),
+    colorKey: zone.colorKey,
     description: zone.description ?? "",
     id: zone.id,
     layer: zone.layer,
@@ -190,6 +219,7 @@ function createPolygonZoneDraftFromPoints(points: MapPoint[], baseZone?: MapZone
   return {
     centerX: String(center.x),
     centerY: String(center.y),
+    colorKey: baseZone?.colorKey ?? DEFAULT_MAP_ZONE_COLOR_KEY,
     description: baseZone?.description ?? "",
     id: baseZone?.id,
     layer: baseZone?.layer ?? DEFAULT_MAP_LAYER,
@@ -204,9 +234,11 @@ function createPolygonZoneDraftFromPoints(points: MapPoint[], baseZone?: MapZone
 
 function createRouteDraftFromRoute(route: MapRouteDto): RouteFormDraft {
   return {
+    colorKey: route.colorKey,
     description: route.description ?? "",
     id: route.id,
     layer: route.layer,
+    linePattern: route.linePattern,
     points: sortedPoints(route.points).map((point) => ({ x: point.x, y: point.y })),
     status: route.status,
     title: route.title,
@@ -216,9 +248,12 @@ function createRouteDraftFromRoute(route: MapRouteDto): RouteFormDraft {
 
 function createRouteDraftFromPoints(points: MapPoint[], baseRoute?: MapRouteDto): RouteFormDraft {
   return {
+    ...emptyRouteDraft,
+    colorKey: baseRoute?.colorKey ?? DEFAULT_MAP_ROUTE_COLOR_KEY,
     description: baseRoute?.description ?? "",
     id: baseRoute?.id,
     layer: baseRoute?.layer ?? DEFAULT_MAP_LAYER,
+    linePattern: baseRoute?.linePattern ?? DEFAULT_MAP_ROUTE_LINE_PATTERN,
     points,
     status: baseRoute?.status ?? DEFAULT_MAP_ROUTE_STATUS,
     title: baseRoute?.title ?? "",
@@ -242,6 +277,7 @@ function normalizeZoneDraft(draft: ZoneFormDraft) {
   return {
     centerX: Number(draft.centerX),
     centerY: Number(draft.centerY),
+    colorKey: draft.colorKey,
     description: draft.description.trim(),
     layer: normalizeOverlayLayerName(draft.layer),
     points: draft.points,
@@ -255,8 +291,10 @@ function normalizeZoneDraft(draft: ZoneFormDraft) {
 
 function normalizeRouteDraft(draft: RouteFormDraft) {
   return {
+    colorKey: draft.colorKey,
     description: draft.description.trim(),
     layer: normalizeOverlayLayerName(draft.layer),
+    linePattern: draft.linePattern,
     points: draft.points,
     status: draft.status,
     title: draft.title.trim(),
@@ -380,6 +418,7 @@ export default function MapPage() {
         getMapZoneTypeLabel(zone.type),
         getMapZoneStatusLabel(zone.status),
         getMapZoneShapeLabel(zone.shape),
+        getZoneColorPreset(zone.colorKey).label,
         zone.layer,
       ]
         .join(" ")
@@ -396,7 +435,15 @@ export default function MapPage() {
     }
 
     return routes.filter((route) =>
-      [route.title, route.description ?? "", getMapRouteTypeLabel(route.type), getMapRouteStatusLabel(route.status), route.layer]
+      [
+        route.title,
+        route.description ?? "",
+        getMapRouteTypeLabel(route.type),
+        getMapRouteStatusLabel(route.status),
+        getRouteColorPreset(route.colorKey).label,
+        getLinePatternPreset(route.linePattern).label,
+        route.layer,
+      ]
         .join(" ")
         .toLocaleLowerCase("ru")
         .includes(query),
@@ -406,12 +453,13 @@ export default function MapPage() {
   const draftZonePreview = useMemo(() => {
     if (zoneDraft) {
       if (zoneDraft.shape === "polygon") {
-        return { points: zoneDraft.points, shape: "polygon" as const, type: zoneDraft.type };
+        return { colorKey: zoneDraft.colorKey, points: zoneDraft.points, shape: "polygon" as const, type: zoneDraft.type };
       }
 
       return {
         centerX: Number(zoneDraft.centerX),
         centerY: Number(zoneDraft.centerY),
+        colorKey: zoneDraft.colorKey,
         radius: Math.max(1, Number(zoneDraft.radius) || 1),
         shape: "circle" as const,
         type: zoneDraft.type,
@@ -419,7 +467,7 @@ export default function MapPage() {
     }
 
     if (drawingMode === "zone-polygon" && drawingPoints.length > 0) {
-      return { points: drawingPoints, shape: "polygon" as const, type: DEFAULT_MAP_ZONE_TYPE };
+      return { colorKey: DEFAULT_MAP_ZONE_COLOR_KEY, points: drawingPoints, shape: "polygon" as const, type: DEFAULT_MAP_ZONE_TYPE };
     }
 
     return null;
@@ -474,6 +522,10 @@ export default function MapPage() {
       const currentRadius = Number(currentDraft.radius) || 1;
       return { ...currentDraft, radius: String(Math.min(5000, Math.max(1, currentRadius + delta))) };
     });
+  }
+
+  function setZoneRadiusPreset(radius: number) {
+    setZoneDraft((currentDraft) => (currentDraft ? { ...currentDraft, radius: String(Math.min(5000, Math.max(1, radius))) } : currentDraft));
   }
 
   function openMarkerCreateForm(x: number, y: number) {
@@ -900,6 +952,8 @@ export default function MapPage() {
           <div className="map-page-layout">
             <div className="map-work-area">
               <TileMapViewer
+                draftRouteColorKey={redrawRouteBase?.colorKey ?? DEFAULT_MAP_ROUTE_COLOR_KEY}
+                draftRouteLinePattern={redrawRouteBase?.linePattern ?? DEFAULT_MAP_ROUTE_LINE_PATTERN}
                 draftRoutePoints={drawingMode === "route" ? drawingPoints : []}
                 draftZonePreview={draftZonePreview}
                 drawingMode={drawingMode}
@@ -1027,6 +1081,7 @@ export default function MapPage() {
                             <small>
                               {getMapZoneShapeLabel(zone.shape)} · {zone.layer}
                             </small>
+                            <small>{getZoneColorPreset(zone.colorKey).label}</small>
                             <small>
                               {zone.shape === "polygon" ? `Точек: ${zone.points.length}` : `Радиус: ${zone.radius}`} · {getMapZoneStatusLabel(zone.status)}
                             </small>
@@ -1073,6 +1128,9 @@ export default function MapPage() {
                           <button className={selectedRouteId === route.id ? "map-object-row map-object-row-active" : "map-object-row"} key={route.id} onClick={() => selectRoute(route)} type="button">
                             <span>{route.title}</span>
                             <small>{getMapRouteTypeLabel(route.type)}</small>
+                            <small>
+                              {getRouteColorPreset(route.colorKey).label} · {getLinePatternPreset(route.linePattern).label}
+                            </small>
                             <small>{route.layer}</small>
                             <small>
                               Точек: {route.points.length} · {getMapRouteStatusLabel(route.status)}
@@ -1200,6 +1258,16 @@ export default function MapPage() {
                   </select>
                 </label>
                 <label className="filter-field">
+                  <span>Цвет</span>
+                  <select disabled={isSaving} onChange={(event) => updateZoneDraft("colorKey", event.target.value as MapZoneColorKey)} value={zoneDraft.colorKey}>
+                    {zoneColorKeys.map((colorKey) => (
+                      <option key={colorKey} value={colorKey}>
+                        {getZoneColorPreset(colorKey).label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="filter-field">
                   <span>Статус</span>
                   <select disabled={isSaving} onChange={(event) => updateZoneDraft("status", event.target.value as MapZoneStatus)} value={zoneDraft.status}>
                     {mapZoneStatuses.map((status) => (
@@ -1243,6 +1311,13 @@ export default function MapPage() {
                         <button className="command-row interactive-button" disabled={isSaving} onClick={() => updateZoneRadius(100)} type="button">
                           +100
                         </button>
+                      </div>
+                      <div className="map-radius-presets">
+                        {Object.entries(CIRCLE_RADIUS_PRESETS).map(([key, preset]) => (
+                          <button className="command-row interactive-button" disabled={isSaving} key={key} onClick={() => setZoneRadiusPreset(preset.radius)} type="button">
+                            {preset.label} — {preset.radius}
+                          </button>
+                        ))}
                       </div>
                     </label>
                   </>
@@ -1290,6 +1365,26 @@ export default function MapPage() {
                     {mapRouteTypes.map((type) => (
                       <option key={type} value={type}>
                         {getMapRouteTypeLabel(type)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="filter-field">
+                  <span>Цвет маршрута</span>
+                  <select disabled={isSaving} onChange={(event) => updateRouteDraft("colorKey", event.target.value as MapRouteColorKey)} value={routeDraft.colorKey}>
+                    {routeColorKeys.map((colorKey) => (
+                      <option key={colorKey} value={colorKey}>
+                        {getRouteColorPreset(colorKey).label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="filter-field">
+                  <span>Тип линии</span>
+                  <select disabled={isSaving} onChange={(event) => updateRouteDraft("linePattern", event.target.value as MapLinePatternKey)} value={routeDraft.linePattern}>
+                    {linePatternKeys.map((linePattern) => (
+                      <option key={linePattern} value={linePattern}>
+                        {getLinePatternPreset(linePattern).label}
                       </option>
                     ))}
                   </select>

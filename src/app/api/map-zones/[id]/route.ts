@@ -1,5 +1,6 @@
 import { requireApiAuth } from "@/lib/auth/require-api-auth";
 import type { MapZoneInput } from "@/lib/map-overlays";
+import { normalizeZoneColorKey } from "@/lib/map-overlays";
 import { getPrismaClient } from "@/lib/prisma";
 import {
   buildMapZonePatchPayload,
@@ -46,6 +47,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       {
         centerX: currentZone.centerX,
         centerY: currentZone.centerY,
+        colorKey: normalizeZoneColorKey(currentZone.colorKey),
         description: currentZone.description,
         layer: currentZone.layer,
         points: currentZone.points.map((point) => ({ order: point.order, x: point.x, y: point.y })),
@@ -72,6 +74,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         data: {
           centerX: validation.value.centerX,
           centerY: validation.value.centerY,
+          colorKey: validation.value.colorKey,
           description: validation.value.description,
           layer: validation.value.layer,
           points: {

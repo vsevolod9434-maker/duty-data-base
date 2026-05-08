@@ -6481,6 +6481,11 @@ body::after,
   pointer-events: none;
 }
 
+.map-route-draft polyline,
+.map-zone-draft polyline {
+  fill: none;
+}
+
 .map-route-draft circle {
   fill: rgba(11, 14, 15, 0.96);
   stroke: rgba(223, 91, 98, 0.9);
@@ -6898,6 +6903,13 @@ body::after,
 
 .map-radius-control input {
   min-width: 0;
+}
+
+.map-radius-presets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.42rem;
+  margin-top: 0.45rem;
 }
 
 .map-layer-list {

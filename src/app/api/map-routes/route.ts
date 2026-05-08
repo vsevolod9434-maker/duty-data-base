@@ -56,8 +56,10 @@ export async function POST(request: Request) {
   try {
     const route = await prisma.mapRoute.create({
       data: {
+        colorKey: validation.value.colorKey,
         description: validation.value.description,
         layer: validation.value.layer,
+        linePattern: validation.value.linePattern,
         points: {
           create: validation.value.points,
         },

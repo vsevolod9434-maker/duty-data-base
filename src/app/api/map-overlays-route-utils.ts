@@ -6,7 +6,7 @@ import type {
   ValidatedMapRouteInput,
   ValidatedMapZoneInput,
 } from "@/lib/map-overlays";
-import { validateMapRouteInput, validateMapZoneInput } from "@/lib/map-overlays";
+import { normalizeLinePattern, normalizeRouteColorKey, normalizeZoneColorKey, validateMapRouteInput, validateMapZoneInput } from "@/lib/map-overlays";
 
 type DatabaseMapZone = {
   id: string;
@@ -17,6 +17,7 @@ type DatabaseMapZone = {
   centerX: number;
   centerY: number;
   radius: number;
+  colorKey: string;
   description: string | null;
   layer: string;
   points: Array<{
@@ -34,6 +35,8 @@ type DatabaseMapRoute = {
   title: MapRouteDto["title"];
   type: MapRouteDto["type"];
   status: MapRouteDto["status"];
+  colorKey: string;
+  linePattern: string;
   description: string | null;
   layer: string;
   points: Array<{
@@ -66,6 +69,7 @@ export function mapZoneToResponse(zone: DatabaseMapZone): MapZoneDto {
   return {
     centerX: zone.centerX,
     centerY: zone.centerY,
+    colorKey: normalizeZoneColorKey(zone.colorKey),
     createdAt: zone.createdAt.toISOString(),
     description: zone.description,
     id: zone.id,
@@ -90,9 +94,11 @@ export function mapZoneToResponse(zone: DatabaseMapZone): MapZoneDto {
 export function mapRouteToResponse(route: DatabaseMapRoute): MapRouteDto {
   return {
     createdAt: route.createdAt.toISOString(),
+    colorKey: normalizeRouteColorKey(route.colorKey),
     description: route.description,
     id: route.id,
     layer: route.layer,
+    linePattern: normalizeLinePattern(route.linePattern),
     points: [...route.points]
       .sort((firstPoint, secondPoint) => firstPoint.order - secondPoint.order)
       .map((point) => ({
@@ -128,6 +134,7 @@ export function buildMapZonePatchPayload(current: ValidatedMapZoneInput, patch: 
   return {
     centerX: patch.centerX !== undefined ? patch.centerX : current.centerX,
     centerY: patch.centerY !== undefined ? patch.centerY : current.centerY,
+    colorKey: patch.colorKey !== undefined ? patch.colorKey : current.colorKey,
     description: patch.description !== undefined ? patch.description : current.description,
     layer: patch.layer !== undefined ? patch.layer : current.layer,
     points: patch.points !== undefined ? patch.points : current.points,
@@ -142,7 +149,9 @@ export function buildMapZonePatchPayload(current: ValidatedMapZoneInput, patch: 
 export function buildMapRoutePatchPayload(current: ValidatedMapRouteInput, patch: MapRouteInput): MapRouteInput {
   return {
     description: patch.description !== undefined ? patch.description : current.description,
+    colorKey: patch.colorKey !== undefined ? patch.colorKey : current.colorKey,
     layer: patch.layer !== undefined ? patch.layer : current.layer,
+    linePattern: patch.linePattern !== undefined ? patch.linePattern : current.linePattern,
     points: patch.points !== undefined ? patch.points : current.points,
     status: patch.status !== undefined ? patch.status : current.status,
     title: patch.title !== undefined ? patch.title : current.title,

@@ -11,6 +11,9 @@ import {
   type MapMarkerType,
 } from "@/lib/map-markers";
 import {
+  DEFAULT_MAP_ROUTE_COLOR_KEY,
+  DEFAULT_MAP_ROUTE_LINE_PATTERN,
+  getLinePatternPreset,
   getMapRouteStatusLabel,
   getMapRouteTypeClassName,
   getMapRouteTypeLabel,
@@ -18,6 +21,8 @@ import {
   getMapZoneShapeLabel,
   getMapZoneTypeClassName,
   getMapZoneTypeLabel,
+  getRouteColorPreset,
+  getZoneColorPreset,
   type MapRouteDto,
   type MapRoutePointDto,
   type MapZoneDto,
@@ -82,11 +87,13 @@ type FocusTarget =
   | { type: "bounds"; bounds: { minX: number; minY: number; maxX: number; maxY: number }; nonce: number };
 
 type DraftZonePreview =
-  | { shape: "circle"; centerX: number; centerY: number; radius: number; type: string }
-  | { shape: "polygon"; points: Array<Pick<MapRoutePointDto, "x" | "y">>; type: string };
+  | { shape: "circle"; centerX: number; centerY: number; radius: number; type: string; colorKey: string }
+  | { shape: "polygon"; points: Array<Pick<MapRoutePointDto, "x" | "y">>; type: string; colorKey: string };
 
 type TileMapViewerProps = {
   draftZonePreview?: DraftZonePreview | null;
+  draftRouteColorKey?: string;
+  draftRouteLinePattern?: string;
   draftRoutePoints?: Array<Pick<MapRoutePointDto, "x" | "y">>;
   drawingMode?: DrawingMode;
   focusTarget?: FocusTarget | null;
@@ -279,6 +286,8 @@ function mapIntersectsViewport(metadata: MapMetadata, viewportSize: ViewportSize
 }
 
 export function TileMapViewer({
+  draftRouteColorKey = DEFAULT_MAP_ROUTE_COLOR_KEY,
+  draftRouteLinePattern = DEFAULT_MAP_ROUTE_LINE_PATTERN,
   draftZonePreview = null,
   draftRoutePoints = [],
   drawingMode = null,
@@ -600,6 +609,7 @@ export function TileMapViewer({
       return {
         cx: currentView.offset.x + draftZonePreview.centerX * currentView.scale,
         cy: currentView.offset.y + draftZonePreview.centerY * currentView.scale,
+        colorKey: draftZonePreview.colorKey,
         radius: draftZonePreview.radius * currentView.scale,
         shape: "circle" as const,
         type: draftZonePreview.type,
@@ -611,6 +621,7 @@ export function TileMapViewer({
         x: currentView.offset.x + point.x * currentView.scale,
         y: currentView.offset.y + point.y * currentView.scale,
       })),
+      colorKey: draftZonePreview.colorKey,
       shape: "polygon" as const,
       type: draftZonePreview.type,
     };
@@ -972,6 +983,8 @@ export function TileMapViewer({
         </div>
         <svg aria-hidden="true" className="map-overlay-layer">
           {visibleZones.map(({ cx, cy, points, radius, zone }) => {
+            const zoneColor = getZoneColorPreset(zone.colorKey);
+            const isSelectedZone = selectedZoneId === zone.id;
             const zoneClassName = `map-zone map-zone--${getMapZoneTypeClassName(zone.type)} ${selectedZoneId === zone.id ? "map-zone--selected" : ""}`;
             const sharedZoneProps = {
               className: zoneClassName,
@@ -980,6 +993,11 @@ export function TileMapViewer({
                 onZoneSelect?.(zone);
               },
               onPointerDown: (event: ReactPointerEvent<SVGElement>) => event.stopPropagation(),
+              style: {
+                fill: zoneColor.fill,
+                stroke: isSelectedZone ? "rgba(226, 98, 105, 0.9)" : zoneColor.stroke,
+                strokeWidth: isSelectedZone ? 2.4 : undefined,
+              },
             };
 
             if (zone.shape === "polygon") {
@@ -1004,11 +1022,15 @@ export function TileMapViewer({
           })}
           {visibleRoutes.map(({ points, route }) => {
             const pointValue = points.map((point) => `${point.x},${point.y}`).join(" ");
+            const routeColor = getRouteColorPreset(route.colorKey);
+            const routePattern = getLinePatternPreset(route.linePattern);
+            const isSelectedRoute = selectedRouteId === route.id;
 
             return (
               <g className={`map-route-group ${selectedRouteId === route.id ? "map-route-group--selected" : ""}`} key={route.id}>
                 <polyline
                   className="map-route-hit-area"
+                  fill="none"
                   onClick={(event) => {
                     event.stopPropagation();
                     onRouteSelect?.(route);
@@ -1018,7 +1040,15 @@ export function TileMapViewer({
                 />
                 <polyline
                   className={`map-route map-route--${getMapRouteTypeClassName(route.type)} ${selectedRouteId === route.id ? "map-route--selected" : ""}`}
+                  fill="none"
                   points={pointValue}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{
+                    stroke: isSelectedRoute ? "rgba(223, 91, 98, 0.92)" : routeColor.stroke,
+                    strokeDasharray: routePattern.dasharray,
+                    strokeWidth: isSelectedRoute ? 3 : undefined,
+                  }}
                 />
                 {points.map((point, index) => (
                   <circle
@@ -1027,6 +1057,9 @@ export function TileMapViewer({
                     cy={point.y}
                     key={`${route.id}-${index}`}
                     r={selectedRouteId === route.id ? 3.4 : 2.5}
+                    style={{
+                      stroke: isSelectedRoute ? "rgba(223, 91, 98, 0.9)" : routeColor.stroke,
+                    }}
                   />
                 ))}
               </g>
@@ -1035,7 +1068,16 @@ export function TileMapViewer({
           {draftRouteScreenPoints.length > 0 ? (
             <g className="map-route-draft">
               {draftRouteScreenPoints.length > 1 ? (
-                <polyline points={draftRouteScreenPoints.map((point) => `${point.x},${point.y}`).join(" ")} />
+                <polyline
+                  fill="none"
+                  points={draftRouteScreenPoints.map((point) => `${point.x},${point.y}`).join(" ")}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{
+                    stroke: getRouteColorPreset(draftRouteColorKey).stroke,
+                    strokeDasharray: getLinePatternPreset(draftRouteLinePattern).dasharray,
+                  }}
+                />
               ) : null}
               {draftRouteScreenPoints.map((point, index) => (
                 <circle cx={point.x} cy={point.y} key={index} r={3.2} />
@@ -1043,7 +1085,13 @@ export function TileMapViewer({
             </g>
           ) : null}
           {draftZoneScreenPreview ? (
-            <g className={`map-zone-draft map-zone--${getMapZoneTypeClassName(draftZoneScreenPreview.type)}`}>
+            <g
+              className={`map-zone-draft map-zone--${getMapZoneTypeClassName(draftZoneScreenPreview.type)}`}
+              style={{
+                fill: getZoneColorPreset(draftZoneScreenPreview.colorKey).fill,
+                stroke: getZoneColorPreset(draftZoneScreenPreview.colorKey).stroke,
+              }}
+            >
               {draftZoneScreenPreview.shape === "circle" ? (
                 <circle cx={draftZoneScreenPreview.cx} cy={draftZoneScreenPreview.cy} r={draftZoneScreenPreview.radius} />
               ) : (
@@ -1173,6 +1221,10 @@ export function TileMapViewer({
                 <dd>{getMapZoneShapeLabel(selectedZonePopover.zone.shape)}</dd>
               </div>
               <div>
+                <dt>Цвет</dt>
+                <dd>{getZoneColorPreset(selectedZonePopover.zone.colorKey).label}</dd>
+              </div>
+              <div>
                 <dt>Центр</dt>
                 <dd>
                   X: {selectedZonePopover.zone.centerX} Y: {selectedZonePopover.zone.centerY}
@@ -1237,6 +1289,14 @@ export function TileMapViewer({
               <div>
                 <dt>Статус</dt>
                 <dd>{getMapRouteStatusLabel(selectedRoutePopover.route.status)}</dd>
+              </div>
+              <div>
+                <dt>Цвет</dt>
+                <dd>{getRouteColorPreset(selectedRoutePopover.route.colorKey).label}</dd>
+              </div>
+              <div>
+                <dt>Линия</dt>
+                <dd>{getLinePatternPreset(selectedRoutePopover.route.linePattern).label}</dd>
               </div>
               <div>
                 <dt>Точки</dt>
