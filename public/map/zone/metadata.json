@@ -1,0 +1,8 @@
+{
+  "height": 10240,
+  "maxZoom": 5,
+  "minZoom": 0,
+  "tileSize": 512,
+  "tilesPath": "/map/zone/tiles",
+  "width": 10240
+}

@@ -60,7 +60,7 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
         const user = (await response.json()) as AccessUserResponse;
 
         if (!isCancelled) {
-          setUserLabel(user.displayName || user.login || user.email || "");
+          setUserLabel(user.displayName || user.login || "");
         }
       } catch {
         if (!isCancelled) {

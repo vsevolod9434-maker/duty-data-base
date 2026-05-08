@@ -39,6 +39,11 @@ export const navigation: NavigationItem[] = [
     ],
   },
   {
+    label: "Карта",
+    href: "/map",
+    subtabs: [],
+  },
+  {
     label: "Состав",
     href: "/duty-members",
     subtabs: [],

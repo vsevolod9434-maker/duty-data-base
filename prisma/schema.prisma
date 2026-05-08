@@ -225,6 +225,24 @@ model AccessUser {
   @@index([isActive])
 }
 
+model MapMarker {
+  id          String          @id @default(cuid())
+  title       String
+  type        MapMarkerType   @default(route_point)
+  status      MapMarkerStatus @default(active)
+  x           Int
+  y           Int
+  description String?
+  layer       String          @default("Основной слой")
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([layer])
+  @@index([x, y])
+}
+
 enum AccessUserRole {
   system_admin
   officer
@@ -323,4 +341,30 @@ enum ActivityLogType {
   task
   trade
   duty_member
+}
+
+enum MapMarkerType {
+  base
+  checkpoint
+  storage
+  transition
+  danger
+  point
+  housing
+  trade
+  violation
+  task
+  route_point
+  other
+  possible_shelter
+  trader
+  unstable_bubble
+  pripyat3_bubble
+}
+
+enum MapMarkerStatus {
+  active
+  inactive
+  warning
+  archived
 }

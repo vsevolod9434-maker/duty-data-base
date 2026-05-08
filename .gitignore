@@ -57,6 +57,7 @@ out
 .next-dev*.log
 
 # temp browser/test folders
+.tmp-*
 .tmp-journals-cdp
 .tmp-journals-review-verify
 .tmp-preview-chrome
@@ -64,3 +65,9 @@ out
 # build/cache
 tsconfig.tsbuildinfo
 /src/generated/prisma
+
+# source map assets
+tools/map-source/*.bmp
+tools/map-source/*.psd
+tools/map-source/*.tif
+tools/map-source/*.tiff
