@@ -2,27 +2,21 @@
 
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  getMapMarkerStatusLabel,
-  getMapMarkerTypeClassName,
-  getMapMarkerTypeLabel,
-  normalizeMapMarkerType,
-  type MapMarkerDto,
-  type MapMarkerType,
-} from "@/lib/map-markers";
+import { getMapMarkerTypeClassName, getMapMarkerTypeLabel, normalizeMapMarkerType, type MapMarkerDto, type MapMarkerType } from "@/lib/map-markers";
 import {
   DEFAULT_MAP_ROUTE_COLOR_KEY,
   DEFAULT_MAP_ROUTE_LINE_PATTERN,
+  getFillPatternPreset,
   getLinePatternPreset,
-  getMapRouteStatusLabel,
   getMapRouteTypeClassName,
   getMapRouteTypeLabel,
-  getMapZoneStatusLabel,
   getMapZoneShapeLabel,
   getMapZoneTypeClassName,
   getMapZoneTypeLabel,
   getRouteColorPreset,
   getZoneColorPreset,
+  fillPatternKeys,
+  zoneColorKeys,
   type MapRouteDto,
   type MapRoutePointDto,
   type MapZoneDto,
@@ -87,8 +81,8 @@ type FocusTarget =
   | { type: "bounds"; bounds: { minX: number; minY: number; maxX: number; maxY: number }; nonce: number };
 
 type DraftZonePreview =
-  | { shape: "circle"; centerX: number; centerY: number; radius: number; type: string; colorKey: string }
-  | { shape: "polygon"; points: Array<Pick<MapRoutePointDto, "x" | "y">>; type: string; colorKey: string };
+  | { shape: "circle"; centerX: number; centerY: number; radius: number; type: string; colorKey: string; patternKey: string; brightness: number; contrast: number }
+  | { shape: "polygon"; points: Array<Pick<MapRoutePointDto, "x" | "y">>; type: string; colorKey: string; patternKey: string; brightness: number; contrast: number };
 
 type TileMapViewerProps = {
   draftZonePreview?: DraftZonePreview | null;
@@ -129,6 +123,18 @@ const MARKER_POPOVER_WIDTH = 264;
 const MARKER_POPOVER_HEIGHT = 230;
 const MARKER_POPOVER_GAP = 14;
 const MARKER_POPOVER_MARGIN = 8;
+
+function getMapStyleFilter(brightness: number, contrast: number) {
+  return `brightness(${brightness}%) contrast(${contrast}%)`;
+}
+
+function getFillPatternId(colorKey: string, patternKey: string) {
+  return `map-fill-${colorKey}-${patternKey}`.replaceAll("_", "-");
+}
+
+function getPatternClassName(patternKey: string) {
+  return patternKey.replaceAll("_", "-");
+}
 
 export function MapMarkerIcon({ type }: { type: MapMarkerType | string }) {
   const normalizedType = normalizeMapMarkerType(type);
@@ -609,7 +615,10 @@ export function TileMapViewer({
       return {
         cx: currentView.offset.x + draftZonePreview.centerX * currentView.scale,
         cy: currentView.offset.y + draftZonePreview.centerY * currentView.scale,
+        brightness: draftZonePreview.brightness,
         colorKey: draftZonePreview.colorKey,
+        contrast: draftZonePreview.contrast,
+        patternKey: draftZonePreview.patternKey,
         radius: draftZonePreview.radius * currentView.scale,
         shape: "circle" as const,
         type: draftZonePreview.type,
@@ -621,7 +630,10 @@ export function TileMapViewer({
         x: currentView.offset.x + point.x * currentView.scale,
         y: currentView.offset.y + point.y * currentView.scale,
       })),
+      brightness: draftZonePreview.brightness,
       colorKey: draftZonePreview.colorKey,
+      contrast: draftZonePreview.contrast,
+      patternKey: draftZonePreview.patternKey,
       shape: "polygon" as const,
       type: draftZonePreview.type,
     };
@@ -982,9 +994,34 @@ export function TileMapViewer({
           ))}
         </div>
         <svg aria-hidden="true" className="map-overlay-layer">
+          <defs>
+            {zoneColorKeys.flatMap((colorKey) =>
+              fillPatternKeys.map((patternKey) => {
+                const color = getZoneColorPreset(colorKey);
+                const patternId = getFillPatternId(colorKey, patternKey);
+                const lineStyle = { stroke: color.stroke };
+
+                return (
+                  <pattern height="12" id={patternId} key={patternId} patternUnits="userSpaceOnUse" width="12">
+                    <rect fill={color.fill} height="12" width="12" />
+                    {patternKey === "hatch_vertical" ? <path d="M3 0v12 M9 0v12" style={lineStyle} strokeWidth="1.2" /> : null}
+                    {patternKey === "hatch_horizontal" ? <path d="M0 3h12 M0 9h12" style={lineStyle} strokeWidth="1.2" /> : null}
+                    {patternKey === "hatch_diag_right" ? <path d="M-3 12 12 -3 M3 15 15 3" style={lineStyle} strokeWidth="1.2" /> : null}
+                    {patternKey === "hatch_diag_left" ? <path d="M0 -3 15 12 M-3 3 9 15" style={lineStyle} strokeWidth="1.2" /> : null}
+                    {patternKey === "cross_one" ? <path d="M0 12 12 0" style={lineStyle} strokeWidth="1.4" /> : null}
+                    {patternKey === "cross_two" ? <path d="M0 12 12 0 M0 0l12 12" style={lineStyle} strokeWidth="1.2" /> : null}
+                    {patternKey === "strike_horizontal" ? <path d="M0 6h12" style={lineStyle} strokeWidth="1.4" /> : null}
+                    {patternKey === "strike_vertical" ? <path d="M6 0v12" style={lineStyle} strokeWidth="1.4" /> : null}
+                    {patternKey === "grid" ? <path d="M0 4h12 M0 8h12 M4 0v12 M8 0v12" style={lineStyle} strokeWidth="0.9" /> : null}
+                  </pattern>
+                );
+              }),
+            )}
+          </defs>
           {visibleZones.map(({ cx, cy, points, radius, zone }) => {
             const zoneColor = getZoneColorPreset(zone.colorKey);
             const isSelectedZone = selectedZoneId === zone.id;
+            const fill = zone.patternKey === "solid" ? zoneColor.fill : `url(#${getFillPatternId(zone.colorKey, zone.patternKey)})`;
             const zoneClassName = `map-zone map-zone--${getMapZoneTypeClassName(zone.type)} ${selectedZoneId === zone.id ? "map-zone--selected" : ""}`;
             const sharedZoneProps = {
               className: zoneClassName,
@@ -994,7 +1031,8 @@ export function TileMapViewer({
               },
               onPointerDown: (event: ReactPointerEvent<SVGElement>) => event.stopPropagation(),
               style: {
-                fill: zoneColor.fill,
+                filter: getMapStyleFilter(zone.brightness, zone.contrast),
+                fill,
                 stroke: isSelectedZone ? "rgba(226, 98, 105, 0.9)" : zoneColor.stroke,
                 strokeWidth: isSelectedZone ? 2.4 : undefined,
               },
@@ -1025,6 +1063,8 @@ export function TileMapViewer({
             const routeColor = getRouteColorPreset(route.colorKey);
             const routePattern = getLinePatternPreset(route.linePattern);
             const isSelectedRoute = selectedRouteId === route.id;
+            const routeFilter = getMapStyleFilter(route.brightness, route.contrast);
+            const routeStroke = isSelectedRoute ? "rgba(223, 91, 98, 0.92)" : routeColor.stroke;
 
             return (
               <g className={`map-route-group ${selectedRouteId === route.id ? "map-route-group--selected" : ""}`} key={route.id}>
@@ -1038,6 +1078,19 @@ export function TileMapViewer({
                   onPointerDown={(event) => event.stopPropagation()}
                   points={pointValue}
                 />
+                {route.linePattern === "double_line" ? (
+                  <polyline
+                    className="map-route map-route-double-shadow"
+                    fill="none"
+                    points={pointValue}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{
+                      filter: routeFilter,
+                      stroke: routeStroke,
+                    }}
+                  />
+                ) : null}
                 <polyline
                   className={`map-route map-route--${getMapRouteTypeClassName(route.type)} ${selectedRouteId === route.id ? "map-route--selected" : ""}`}
                   fill="none"
@@ -1045,8 +1098,9 @@ export function TileMapViewer({
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   style={{
-                    stroke: isSelectedRoute ? "rgba(223, 91, 98, 0.92)" : routeColor.stroke,
-                    strokeDasharray: routePattern.dasharray,
+                    filter: routeFilter,
+                    stroke: routeStroke,
+                    strokeDasharray: routePattern.dasharray ?? undefined,
                     strokeWidth: isSelectedRoute ? 3 : undefined,
                   }}
                 />
@@ -1058,6 +1112,7 @@ export function TileMapViewer({
                     key={`${route.id}-${index}`}
                     r={selectedRouteId === route.id ? 3.4 : 2.5}
                     style={{
+                      filter: routeFilter,
                       stroke: isSelectedRoute ? "rgba(223, 91, 98, 0.9)" : routeColor.stroke,
                     }}
                   />
@@ -1075,7 +1130,7 @@ export function TileMapViewer({
                   strokeLinejoin="round"
                   style={{
                     stroke: getRouteColorPreset(draftRouteColorKey).stroke,
-                    strokeDasharray: getLinePatternPreset(draftRouteLinePattern).dasharray,
+                    strokeDasharray: getLinePatternPreset(draftRouteLinePattern).dasharray ?? undefined,
                   }}
                 />
               ) : null}
@@ -1088,7 +1143,11 @@ export function TileMapViewer({
             <g
               className={`map-zone-draft map-zone--${getMapZoneTypeClassName(draftZoneScreenPreview.type)}`}
               style={{
-                fill: getZoneColorPreset(draftZoneScreenPreview.colorKey).fill,
+                filter: getMapStyleFilter(draftZoneScreenPreview.brightness, draftZoneScreenPreview.contrast),
+                fill:
+                  draftZoneScreenPreview.patternKey === "solid"
+                    ? getZoneColorPreset(draftZoneScreenPreview.colorKey).fill
+                    : `url(#${getFillPatternId(draftZoneScreenPreview.colorKey, draftZoneScreenPreview.patternKey)})`,
                 stroke: getZoneColorPreset(draftZoneScreenPreview.colorKey).stroke,
               }}
             >
@@ -1123,12 +1182,15 @@ export function TileMapViewer({
               onDoubleClick={(event) => event.stopPropagation()}
               onPointerDown={(event) => event.stopPropagation()}
               style={{
+                backgroundColor: getZoneColorPreset(marker.colorKey).marker,
+                filter: getMapStyleFilter(marker.brightness, marker.contrast),
                 left,
                 top,
               }}
               title={marker.title}
               type="button"
             >
+              <span aria-hidden="true" className={`map-marker-pattern map-marker-pattern--${getPatternClassName(marker.patternKey)}`} />
               <MapMarkerIcon type={marker.type} />
             </button>
           ))}
@@ -1163,13 +1225,23 @@ export function TileMapViewer({
                 <dd>{selectedMarkerPopover.marker.layer}</dd>
               </div>
               <div>
-                <dt>Статус</dt>
-                <dd>{getMapMarkerStatusLabel(selectedMarkerPopover.marker.status)}</dd>
+                <dt>Цвет</dt>
+                <dd>{getZoneColorPreset(selectedMarkerPopover.marker.colorKey).label}</dd>
+              </div>
+              <div>
+                <dt>Формат</dt>
+                <dd>{getFillPatternPreset(selectedMarkerPopover.marker.patternKey).label}</dd>
               </div>
               <div>
                 <dt>Координаты</dt>
                 <dd>
                   X: {selectedMarkerPopover.marker.x} Y: {selectedMarkerPopover.marker.y}
+                </dd>
+              </div>
+              <div>
+                <dt>Оформление</dt>
+                <dd>
+                  Яркость: {selectedMarkerPopover.marker.brightness} / Контрастность: {selectedMarkerPopover.marker.contrast}
                 </dd>
               </div>
             </dl>
@@ -1213,16 +1285,16 @@ export function TileMapViewer({
                 <dd>{selectedZonePopover.zone.layer}</dd>
               </div>
               <div>
-                <dt>Статус</dt>
-                <dd>{getMapZoneStatusLabel(selectedZonePopover.zone.status)}</dd>
-              </div>
-              <div>
                 <dt>Форма</dt>
                 <dd>{getMapZoneShapeLabel(selectedZonePopover.zone.shape)}</dd>
               </div>
               <div>
                 <dt>Цвет</dt>
                 <dd>{getZoneColorPreset(selectedZonePopover.zone.colorKey).label}</dd>
+              </div>
+              <div>
+                <dt>Формат</dt>
+                <dd>{getFillPatternPreset(selectedZonePopover.zone.patternKey).label}</dd>
               </div>
               <div>
                 <dt>Центр</dt>
@@ -1241,6 +1313,12 @@ export function TileMapViewer({
                   <dd>{selectedZonePopover.zone.radius}</dd>
                 </div>
               )}
+              <div>
+                <dt>Оформление</dt>
+                <dd>
+                  Яркость: {selectedZonePopover.zone.brightness} / Контрастность: {selectedZonePopover.zone.contrast}
+                </dd>
+              </div>
             </dl>
             {selectedZonePopover.zone.description ? (
               <p className="map-marker-popover-description">{selectedZonePopover.zone.description}</p>
@@ -1287,16 +1365,18 @@ export function TileMapViewer({
                 <dd>{selectedRoutePopover.route.layer}</dd>
               </div>
               <div>
-                <dt>Статус</dt>
-                <dd>{getMapRouteStatusLabel(selectedRoutePopover.route.status)}</dd>
-              </div>
-              <div>
                 <dt>Цвет</dt>
                 <dd>{getRouteColorPreset(selectedRoutePopover.route.colorKey).label}</dd>
               </div>
               <div>
                 <dt>Линия</dt>
                 <dd>{getLinePatternPreset(selectedRoutePopover.route.linePattern).label}</dd>
+              </div>
+              <div>
+                <dt>Оформление</dt>
+                <dd>
+                  Яркость: {selectedRoutePopover.route.brightness} / Контрастность: {selectedRoutePopover.route.contrast}
+                </dd>
               </div>
               <div>
                 <dt>Точки</dt>

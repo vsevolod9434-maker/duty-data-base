@@ -6,7 +6,14 @@ import type {
   ValidatedMapRouteInput,
   ValidatedMapZoneInput,
 } from "@/lib/map-overlays";
-import { normalizeLinePattern, normalizeRouteColorKey, normalizeZoneColorKey, validateMapRouteInput, validateMapZoneInput } from "@/lib/map-overlays";
+import {
+  normalizeFillPattern,
+  normalizeLinePattern,
+  normalizeRouteColorKey,
+  normalizeZoneColorKey,
+  validateMapRouteInput,
+  validateMapZoneInput,
+} from "@/lib/map-overlays";
 
 type DatabaseMapZone = {
   id: string;
@@ -18,6 +25,9 @@ type DatabaseMapZone = {
   centerY: number;
   radius: number;
   colorKey: string;
+  patternKey: string;
+  brightness: number;
+  contrast: number;
   description: string | null;
   layer: string;
   points: Array<{
@@ -37,6 +47,8 @@ type DatabaseMapRoute = {
   status: MapRouteDto["status"];
   colorKey: string;
   linePattern: string;
+  brightness: number;
+  contrast: number;
   description: string | null;
   layer: string;
   points: Array<{
@@ -69,11 +81,14 @@ export function mapZoneToResponse(zone: DatabaseMapZone): MapZoneDto {
   return {
     centerX: zone.centerX,
     centerY: zone.centerY,
+    brightness: zone.brightness,
     colorKey: normalizeZoneColorKey(zone.colorKey),
+    contrast: zone.contrast,
     createdAt: zone.createdAt.toISOString(),
     description: zone.description,
     id: zone.id,
     layer: zone.layer,
+    patternKey: normalizeFillPattern(zone.patternKey),
     points: [...zone.points]
       .sort((firstPoint, secondPoint) => firstPoint.order - secondPoint.order)
       .map((point) => ({
@@ -94,7 +109,9 @@ export function mapZoneToResponse(zone: DatabaseMapZone): MapZoneDto {
 export function mapRouteToResponse(route: DatabaseMapRoute): MapRouteDto {
   return {
     createdAt: route.createdAt.toISOString(),
+    brightness: route.brightness,
     colorKey: normalizeRouteColorKey(route.colorKey),
+    contrast: route.contrast,
     description: route.description,
     id: route.id,
     layer: route.layer,
@@ -134,9 +151,12 @@ export function buildMapZonePatchPayload(current: ValidatedMapZoneInput, patch: 
   return {
     centerX: patch.centerX !== undefined ? patch.centerX : current.centerX,
     centerY: patch.centerY !== undefined ? patch.centerY : current.centerY,
+    brightness: patch.brightness !== undefined ? patch.brightness : current.brightness,
     colorKey: patch.colorKey !== undefined ? patch.colorKey : current.colorKey,
+    contrast: patch.contrast !== undefined ? patch.contrast : current.contrast,
     description: patch.description !== undefined ? patch.description : current.description,
     layer: patch.layer !== undefined ? patch.layer : current.layer,
+    patternKey: patch.patternKey !== undefined ? patch.patternKey : current.patternKey,
     points: patch.points !== undefined ? patch.points : current.points,
     radius: patch.radius !== undefined ? patch.radius : current.radius,
     shape: patch.shape !== undefined ? patch.shape : current.shape,
@@ -149,7 +169,9 @@ export function buildMapZonePatchPayload(current: ValidatedMapZoneInput, patch: 
 export function buildMapRoutePatchPayload(current: ValidatedMapRouteInput, patch: MapRouteInput): MapRouteInput {
   return {
     description: patch.description !== undefined ? patch.description : current.description,
+    brightness: patch.brightness !== undefined ? patch.brightness : current.brightness,
     colorKey: patch.colorKey !== undefined ? patch.colorKey : current.colorKey,
+    contrast: patch.contrast !== undefined ? patch.contrast : current.contrast,
     layer: patch.layer !== undefined ? patch.layer : current.layer,
     linePattern: patch.linePattern !== undefined ? patch.linePattern : current.linePattern,
     points: patch.points !== undefined ? patch.points : current.points,

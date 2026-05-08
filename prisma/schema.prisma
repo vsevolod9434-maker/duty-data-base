@@ -232,6 +232,10 @@ model MapMarker {
   status      MapMarkerStatus @default(active)
   x           Int
   y           Int
+  colorKey    String          @default("red")
+  patternKey  String          @default("solid")
+  brightness  Int             @default(100)
+  contrast    Int             @default(100)
   description String?
   layer       String          @default("Основной слой")
   createdAt   DateTime        @default(now())
@@ -252,7 +256,10 @@ model MapZone {
   centerX     Int
   centerY     Int
   radius      Int
-  colorKey    String        @default("danger")
+  colorKey    String        @default("red")
+  patternKey  String        @default("solid")
+  brightness  Int           @default(100)
+  contrast    Int           @default(100)
   description String?
   layer       String        @default("Основной слой")
   points      MapZonePoint[]
@@ -283,8 +290,10 @@ model MapRoute {
   title       String
   type        MapRouteType    @default(patrol)
   status      MapRouteStatus  @default(active)
-  colorKey    String          @default("neutral")
-  linePattern String          @default("dashed")
+  colorKey    String          @default("red")
+  linePattern String          @default("solid")
+  brightness  Int             @default(100)
+  contrast    Int             @default(100)
   description String?
   layer       String          @default("Основной слой")
   points      MapRoutePoint[]

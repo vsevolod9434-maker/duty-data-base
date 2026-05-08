@@ -51,11 +51,14 @@ export async function POST(request: Request) {
   try {
     const zone = await prisma.mapZone.create({
       data: {
+        brightness: validation.value.brightness,
         centerX: validation.value.centerX,
         centerY: validation.value.centerY,
         colorKey: validation.value.colorKey,
+        contrast: validation.value.contrast,
         description: validation.value.description,
         layer: validation.value.layer,
+        patternKey: validation.value.patternKey,
         points: {
           create: validation.value.points,
         },

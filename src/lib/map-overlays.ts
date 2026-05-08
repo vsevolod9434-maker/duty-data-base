@@ -10,15 +10,19 @@ export type MapZoneType =
 
 export type MapZoneStatus = "active" | "inactive" | "warning";
 export type MapZoneShape = "circle" | "polygon";
-export type MapZoneColorKey =
-  | "danger"
-  | "radiation_low"
-  | "radiation_medium"
-  | "radiation_high"
-  | "arch_static"
-  | "arch_unstable"
-  | "neutral"
-  | "warning";
+export type MapObjectColorKey = "red" | "orange" | "yellow" | "green" | "cyan" | "blue" | "violet";
+export type MapFillPatternKey =
+  | "solid"
+  | "hatch_vertical"
+  | "hatch_horizontal"
+  | "hatch_diag_right"
+  | "hatch_diag_left"
+  | "cross_one"
+  | "cross_two"
+  | "strike_horizontal"
+  | "strike_vertical"
+  | "grid";
+export type MapZoneColorKey = MapObjectColorKey;
 
 export type MapRouteType =
   | "patrol"
@@ -30,8 +34,8 @@ export type MapRouteType =
   | "district_transition";
 
 export type MapRouteStatus = "active" | "inactive" | "warning";
-export type MapRouteColorKey = "neutral" | "duty" | "clear_sky" | "military" | "freedom" | "bandit" | "monolith";
-export type MapLinePatternKey = "dashed" | "short_dash" | "long_dash" | "dot_dash" | "dash_dot";
+export type MapRouteColorKey = MapObjectColorKey;
+export type MapLinePatternKey = "solid" | "dashed" | "short_dash" | "long_dash" | "dot_dash" | "dash_dot" | "double_line" | "crossed";
 
 export type MapZonePointDto = {
   id: string;
@@ -50,6 +54,9 @@ export type MapZoneDto = {
   centerY: number;
   radius: number;
   colorKey: MapZoneColorKey;
+  patternKey: MapFillPatternKey;
+  brightness: number;
+  contrast: number;
   description: string | null;
   layer: string;
   points: MapZonePointDto[];
@@ -71,6 +78,8 @@ export type MapRouteDto = {
   status: MapRouteStatus;
   colorKey: MapRouteColorKey;
   linePattern: MapLinePatternKey;
+  brightness: number;
+  contrast: number;
   description: string | null;
   layer: string;
   points: MapRoutePointDto[];
@@ -92,6 +101,9 @@ export type MapZoneInput = {
   centerY?: unknown;
   radius?: unknown;
   colorKey?: unknown;
+  patternKey?: unknown;
+  brightness?: unknown;
+  contrast?: unknown;
   points?: unknown;
   description?: unknown;
   layer?: unknown;
@@ -103,6 +115,8 @@ export type MapRouteInput = {
   status?: unknown;
   colorKey?: unknown;
   linePattern?: unknown;
+  brightness?: unknown;
+  contrast?: unknown;
   description?: unknown;
   layer?: unknown;
   points?: unknown;
@@ -117,6 +131,9 @@ export type ValidatedMapZoneInput = {
   centerY: number;
   radius: number;
   colorKey: MapZoneColorKey;
+  patternKey: MapFillPatternKey;
+  brightness: number;
+  contrast: number;
   description: string | null;
   layer: string;
   points: Array<{ order: number; x: number; y: number }>;
@@ -128,6 +145,8 @@ export type ValidatedMapRouteInput = {
   status: MapRouteStatus;
   colorKey: MapRouteColorKey;
   linePattern: MapLinePatternKey;
+  brightness: number;
+  contrast: number;
   description: string | null;
   layer: string;
   points: Array<{ order: number; x: number; y: number }>;
@@ -136,47 +155,59 @@ export type ValidatedMapRouteInput = {
 const MAP_WIDTH = 10240;
 const MAP_HEIGHT = 10240;
 const MAX_ZONE_RADIUS = 5000;
-const MAX_ROUTE_POINTS = 50;
 const MAX_POLYGON_POINTS = 80;
+const MIN_STYLE_VALUE = 50;
+const MAX_STYLE_VALUE = 150;
 
 export const DEFAULT_MAP_LAYER = "Основной слой";
 export const DEFAULT_MAP_ZONE_TYPE: MapZoneType = "danger_area";
 export const DEFAULT_MAP_ZONE_STATUS: MapZoneStatus = "active";
 export const DEFAULT_MAP_ZONE_SHAPE: MapZoneShape = "circle";
 export const DEFAULT_MAP_ZONE_RADIUS = 300;
-export const DEFAULT_MAP_ZONE_COLOR_KEY: MapZoneColorKey = "danger";
+export const DEFAULT_MAP_OBJECT_COLOR_KEY: MapObjectColorKey = "red";
+export const DEFAULT_MAP_FILL_PATTERN: MapFillPatternKey = "solid";
+export const DEFAULT_MAP_STYLE_VALUE = 100;
+export const DEFAULT_MAP_ZONE_COLOR_KEY: MapZoneColorKey = DEFAULT_MAP_OBJECT_COLOR_KEY;
 export const DEFAULT_MAP_ROUTE_TYPE: MapRouteType = "patrol";
 export const DEFAULT_MAP_ROUTE_STATUS: MapRouteStatus = "active";
-export const DEFAULT_MAP_ROUTE_COLOR_KEY: MapRouteColorKey = "neutral";
-export const DEFAULT_MAP_ROUTE_LINE_PATTERN: MapLinePatternKey = "dashed";
+export const DEFAULT_MAP_ROUTE_COLOR_KEY: MapRouteColorKey = DEFAULT_MAP_OBJECT_COLOR_KEY;
+export const DEFAULT_MAP_ROUTE_LINE_PATTERN: MapLinePatternKey = "solid";
 
-export const ZONE_COLOR_PRESETS: Record<MapZoneColorKey, { label: string; stroke: string; fill: string }> = {
-  arch_static: { fill: "rgba(83, 115, 132, 0.14)", label: "Архиполе статичное", stroke: "rgba(116, 144, 158, 0.62)" },
-  arch_unstable: { fill: "rgba(112, 85, 126, 0.15)", label: "Архиполе непостоянное", stroke: "rgba(151, 124, 164, 0.62)" },
-  danger: { fill: "rgba(142, 45, 50, 0.18)", label: "Красный", stroke: "rgba(197, 83, 91, 0.68)" },
-  neutral: { fill: "rgba(145, 148, 142, 0.12)", label: "Нейтральный", stroke: "rgba(178, 184, 176, 0.55)" },
-  radiation_high: { fill: "rgba(169, 75, 56, 0.17)", label: "Радиационный высокий", stroke: "rgba(198, 102, 76, 0.66)" },
-  radiation_low: { fill: "rgba(158, 151, 89, 0.14)", label: "Радиационный слабый", stroke: "rgba(178, 169, 103, 0.58)" },
-  radiation_medium: { fill: "rgba(180, 146, 76, 0.15)", label: "Радиационный средний", stroke: "rgba(196, 164, 92, 0.62)" },
-  warning: { fill: "rgba(194, 118, 57, 0.15)", label: "Внимание", stroke: "rgba(211, 137, 72, 0.64)" },
+export const MAP_COLOR_PRESETS: Record<MapObjectColorKey, { label: string; stroke: string; fill: string; marker: string; nodeFill: string }> = {
+  blue: { fill: "rgba(70, 112, 196, 0.17)", label: "Синий", marker: "rgba(91, 130, 215, 0.95)", nodeFill: "rgba(70, 112, 196, 0.92)", stroke: "rgba(91, 130, 215, 0.76)" },
+  cyan: { fill: "rgba(65, 157, 181, 0.16)", label: "Голубой", marker: "rgba(89, 181, 204, 0.95)", nodeFill: "rgba(65, 157, 181, 0.92)", stroke: "rgba(89, 181, 204, 0.74)" },
+  green: { fill: "rgba(91, 153, 96, 0.16)", label: "Зелёный", marker: "rgba(106, 174, 112, 0.95)", nodeFill: "rgba(91, 153, 96, 0.92)", stroke: "rgba(106, 174, 112, 0.74)" },
+  orange: { fill: "rgba(196, 118, 55, 0.17)", label: "Оранжевый", marker: "rgba(213, 139, 72, 0.95)", nodeFill: "rgba(196, 118, 55, 0.92)", stroke: "rgba(213, 139, 72, 0.76)" },
+  red: { fill: "rgba(168, 54, 60, 0.18)", label: "Красный", marker: "rgba(207, 75, 82, 0.95)", nodeFill: "rgba(168, 54, 60, 0.92)", stroke: "rgba(207, 75, 82, 0.78)" },
+  violet: { fill: "rgba(137, 86, 173, 0.16)", label: "Фиолетовый", marker: "rgba(157, 109, 194, 0.95)", nodeFill: "rgba(137, 86, 173, 0.92)", stroke: "rgba(157, 109, 194, 0.74)" },
+  yellow: { fill: "rgba(200, 174, 67, 0.16)", label: "Жёлтый", marker: "rgba(216, 190, 85, 0.95)", nodeFill: "rgba(200, 174, 67, 0.92)", stroke: "rgba(216, 190, 85, 0.74)" },
 };
 
-export const ROUTE_COLOR_PRESETS: Record<MapRouteColorKey, { label: string; stroke: string; nodeFill: string }> = {
-  bandit: { label: "Бандиты", nodeFill: "rgba(132, 107, 88, 0.92)", stroke: "rgba(132, 107, 88, 0.84)" },
-  clear_sky: { label: "Чистое Небо", nodeFill: "rgba(128, 162, 171, 0.92)", stroke: "rgba(128, 162, 171, 0.82)" },
-  duty: { label: "Долг", nodeFill: "rgba(178, 58, 63, 0.92)", stroke: "rgba(204, 78, 84, 0.84)" },
-  freedom: { label: "Свобода", nodeFill: "rgba(140, 153, 95, 0.92)", stroke: "rgba(140, 153, 95, 0.84)" },
-  military: { label: "Военные", nodeFill: "rgba(126, 153, 132, 0.92)", stroke: "rgba(126, 153, 132, 0.84)" },
-  monolith: { label: "Монолит", nodeFill: "rgba(115, 101, 134, 0.92)", stroke: "rgba(115, 101, 134, 0.84)" },
-  neutral: { label: "Нейтральный", nodeFill: "rgba(183, 174, 145, 0.92)", stroke: "rgba(183, 174, 145, 0.82)" },
+export const ZONE_COLOR_PRESETS = MAP_COLOR_PRESETS;
+export const ROUTE_COLOR_PRESETS = MAP_COLOR_PRESETS;
+
+export const FILL_PATTERN_PRESETS: Record<MapFillPatternKey, { label: string }> = {
+  cross_one: { label: "Перечёркнуто одной линией" },
+  cross_two: { label: "Перечёркнуто двумя линиями" },
+  grid: { label: "Сетка" },
+  hatch_diag_left: { label: "Штриховка слева направо" },
+  hatch_diag_right: { label: "Штриховка справа налево" },
+  hatch_horizontal: { label: "Штриховка горизонтальная" },
+  hatch_vertical: { label: "Штриховка вертикальная" },
+  solid: { label: "Сплошной" },
+  strike_horizontal: { label: "Перечёркнуто по горизонтали" },
+  strike_vertical: { label: "Перечёркнуто по вертикали" },
 };
 
-export const LINE_PATTERN_PRESETS: Record<MapLinePatternKey, { label: string; dasharray: string }> = {
+export const LINE_PATTERN_PRESETS: Record<MapLinePatternKey, { label: string; dasharray: string | null }> = {
+  crossed: { dasharray: "10 6 2 6", label: "Перечёркнутая линия" },
   dash_dot: { dasharray: "12 6 2 6", label: "Штрих-пунктир" },
   dashed: { dasharray: "8 6", label: "Пунктир" },
   dot_dash: { dasharray: "2 6", label: "Точка-пунктир" },
+  double_line: { dasharray: null, label: "Двойная линия" },
   long_dash: { dasharray: "14 8", label: "Длинный пунктир" },
   short_dash: { dasharray: "4 5", label: "Короткий пунктир" },
+  solid: { dasharray: null, label: "Сплошная" },
 };
 
 export const CIRCLE_RADIUS_PRESETS: Record<"small" | "medium" | "large", { label: string; radius: number }> = {
@@ -230,6 +261,7 @@ export const mapRouteTypes = Object.keys(mapRouteTypeLabels) as MapRouteType[];
 export const mapRouteStatuses = Object.keys(mapRouteStatusLabels) as MapRouteStatus[];
 export const zoneColorKeys = Object.keys(ZONE_COLOR_PRESETS) as MapZoneColorKey[];
 export const routeColorKeys = Object.keys(ROUTE_COLOR_PRESETS) as MapRouteColorKey[];
+export const fillPatternKeys = Object.keys(FILL_PATTERN_PRESETS) as MapFillPatternKey[];
 export const linePatternKeys = Object.keys(LINE_PATTERN_PRESETS) as MapLinePatternKey[];
 
 export function getMapZoneTypeLabel(type: MapZoneType | string) {
@@ -264,12 +296,49 @@ export function getLinePatternPreset(key: MapLinePatternKey | string) {
   return LINE_PATTERN_PRESETS[isLinePatternKey(key) ? key : DEFAULT_MAP_ROUTE_LINE_PATTERN];
 }
 
+export function getFillPatternPreset(key: MapFillPatternKey | string) {
+  return FILL_PATTERN_PRESETS[isFillPatternKey(key) ? key : DEFAULT_MAP_FILL_PATTERN];
+}
+
 export function normalizeZoneColorKey(value: unknown): MapZoneColorKey {
-  return isZoneColorKey(value) ? value : DEFAULT_MAP_ZONE_COLOR_KEY;
+  return normalizeObjectColorKey(value);
 }
 
 export function normalizeRouteColorKey(value: unknown): MapRouteColorKey {
-  return isRouteColorKey(value) ? value : DEFAULT_MAP_ROUTE_COLOR_KEY;
+  return normalizeObjectColorKey(value);
+}
+
+export function normalizeObjectColorKey(value: unknown): MapObjectColorKey {
+  if (isObjectColorKey(value)) {
+    return value;
+  }
+
+  if (typeof value !== "string") {
+    return DEFAULT_MAP_OBJECT_COLOR_KEY;
+  }
+
+  const legacyColorMap: Record<string, MapObjectColorKey> = {
+    arch_static: "blue",
+    arch_unstable: "violet",
+    bandit: "orange",
+    clear_sky: "cyan",
+    danger: "red",
+    duty: "red",
+    freedom: "green",
+    military: "green",
+    monolith: "violet",
+    neutral: "red",
+    radiation_high: "orange",
+    radiation_low: "yellow",
+    radiation_medium: "orange",
+    warning: "yellow",
+  };
+
+  return legacyColorMap[value] ?? DEFAULT_MAP_OBJECT_COLOR_KEY;
+}
+
+export function normalizeFillPattern(value: unknown): MapFillPatternKey {
+  return isFillPatternKey(value) ? value : DEFAULT_MAP_FILL_PATTERN;
 }
 
 export function normalizeLinePattern(value: unknown): MapLinePatternKey {
@@ -345,15 +414,23 @@ function isMapRouteStatus(value: unknown): value is MapRouteStatus {
 }
 
 function isZoneColorKey(value: unknown): value is MapZoneColorKey {
-  return typeof value === "string" && zoneColorKeys.includes(value as MapZoneColorKey);
+  return isObjectColorKey(value);
 }
 
 function isRouteColorKey(value: unknown): value is MapRouteColorKey {
-  return typeof value === "string" && routeColorKeys.includes(value as MapRouteColorKey);
+  return isObjectColorKey(value);
 }
 
 function isLinePatternKey(value: unknown): value is MapLinePatternKey {
   return typeof value === "string" && linePatternKeys.includes(value as MapLinePatternKey);
+}
+
+function isObjectColorKey(value: unknown): value is MapObjectColorKey {
+  return typeof value === "string" && zoneColorKeys.includes(value as MapObjectColorKey);
+}
+
+function isFillPatternKey(value: unknown): value is MapFillPatternKey {
+  return typeof value === "string" && fillPatternKeys.includes(value as MapFillPatternKey);
 }
 
 function normalizeOptionalText(value: unknown) {
@@ -371,6 +448,15 @@ function parseInteger(value: unknown) {
   }
 
   return null;
+}
+
+function normalizeStyleValue(value: unknown) {
+  const parsedValue = parseInteger(value);
+  return parsedValue === null ? DEFAULT_MAP_STYLE_VALUE : parsedValue;
+}
+
+function validateStyleValue(value: number, error: string) {
+  return value >= MIN_STYLE_VALUE && value <= MAX_STYLE_VALUE ? null : error;
 }
 
 function isMapCoordinate(x: number | null, y: number | null) {
@@ -411,10 +497,6 @@ export function validateMapZoneInput(input: MapZoneInput): { ok: true; value: Va
     return { error: "Некорректная форма зоны.", ok: false };
   }
 
-  if (input.colorKey !== undefined && !isZoneColorKey(input.colorKey)) {
-    return { error: "Некорректный цвет зоны.", ok: false };
-  }
-
   const description = normalizeOptionalText(input.description);
 
   if (description.length > 1000) {
@@ -422,6 +504,18 @@ export function validateMapZoneInput(input: MapZoneInput): { ok: true; value: Va
   }
 
   const shape = isMapZoneShape(input.shape) ? input.shape : DEFAULT_MAP_ZONE_SHAPE;
+  const brightness = normalizeStyleValue(input.brightness);
+  const contrast = normalizeStyleValue(input.contrast);
+  const brightnessError = validateStyleValue(brightness, "Некорректное значение яркости.");
+  const contrastError = validateStyleValue(contrast, "Некорректное значение контрастности.");
+
+  if (brightnessError) {
+    return { error: brightnessError, ok: false };
+  }
+
+  if (contrastError) {
+    return { error: contrastError, ok: false };
+  }
 
   if (shape === "polygon") {
     const points = parsePoints(input.points);
@@ -447,9 +541,12 @@ export function validateMapZoneInput(input: MapZoneInput): { ok: true; value: Va
       value: {
         centerX: center.x,
         centerY: center.y,
+        brightness,
         colorKey: normalizeZoneColorKey(input.colorKey),
+        contrast,
         description: description || null,
         layer: normalizeMapLayerName(input.layer),
+        patternKey: normalizeFillPattern(input.patternKey),
         points: validPoints,
         radius: 0,
         shape,
@@ -478,9 +575,12 @@ export function validateMapZoneInput(input: MapZoneInput): { ok: true; value: Va
     value: {
       centerX: centerX as number,
       centerY: centerY as number,
+      brightness,
       colorKey: normalizeZoneColorKey(input.colorKey),
+      contrast,
       description: description || null,
       layer: normalizeMapLayerName(input.layer),
+      patternKey: normalizeFillPattern(input.patternKey),
       points: [],
       radius,
       shape,
@@ -506,22 +606,14 @@ export function validateMapRouteInput(input: MapRouteInput): { ok: true; value: 
     return { error: "Некорректный тип маршрута.", ok: false };
   }
 
-  if (input.colorKey !== undefined && !isRouteColorKey(input.colorKey)) {
-    return { error: "Некорректный цвет маршрута.", ok: false };
-  }
-
   if (input.linePattern !== undefined && !isLinePatternKey(input.linePattern)) {
-    return { error: "Некорректный тип линии маршрута.", ok: false };
+    return { error: "Некорректный формат линии маршрута.", ok: false };
   }
 
   const points = parsePoints(input.points);
 
   if (points.length < 2) {
     return { error: "Маршрут должен содержать минимум две точки.", ok: false };
-  }
-
-  if (points.length > MAX_ROUTE_POINTS) {
-    return { error: "Слишком много точек маршрута.", ok: false };
   }
 
   if (points.some((point) => !isMapCoordinate(point.x, point.y))) {
@@ -534,10 +626,25 @@ export function validateMapRouteInput(input: MapRouteInput): { ok: true; value: 
     return { error: "Описание маршрута слишком длинное.", ok: false };
   }
 
+  const brightness = normalizeStyleValue(input.brightness);
+  const contrast = normalizeStyleValue(input.contrast);
+  const brightnessError = validateStyleValue(brightness, "Некорректное значение яркости.");
+  const contrastError = validateStyleValue(contrast, "Некорректное значение контрастности.");
+
+  if (brightnessError) {
+    return { error: brightnessError, ok: false };
+  }
+
+  if (contrastError) {
+    return { error: contrastError, ok: false };
+  }
+
   return {
     ok: true,
     value: {
+      brightness,
       colorKey: normalizeRouteColorKey(input.colorKey),
+      contrast,
       description: description || null,
       layer: normalizeMapLayerName(input.layer),
       linePattern: normalizeLinePattern(input.linePattern),

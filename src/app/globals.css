@@ -6465,6 +6465,11 @@ body::after,
   stroke-width: 3;
 }
 
+.map-route-double-shadow {
+  opacity: 0.45;
+  stroke-width: 5;
+}
+
 .map-route-node {
   fill: rgba(11, 14, 15, 0.92);
   stroke: rgba(190, 204, 209, 0.65);
@@ -6543,7 +6548,57 @@ body::after,
   transform: translate(-50%, -50%);
 }
 
+.map-marker-pattern {
+  position: absolute;
+  inset: 2px;
+  border-radius: 1px;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.map-marker-pattern--hatch-vertical {
+  background: repeating-linear-gradient(90deg, transparent 0 2px, rgba(8, 10, 10, 0.58) 2px 3px);
+}
+
+.map-marker-pattern--hatch-horizontal {
+  background: repeating-linear-gradient(0deg, transparent 0 2px, rgba(8, 10, 10, 0.58) 2px 3px);
+}
+
+.map-marker-pattern--hatch-diag-right {
+  background: repeating-linear-gradient(135deg, transparent 0 3px, rgba(8, 10, 10, 0.58) 3px 4px);
+}
+
+.map-marker-pattern--hatch-diag-left {
+  background: repeating-linear-gradient(45deg, transparent 0 3px, rgba(8, 10, 10, 0.58) 3px 4px);
+}
+
+.map-marker-pattern--cross-one {
+  background: linear-gradient(135deg, transparent 44%, rgba(8, 10, 10, 0.68) 46% 54%, transparent 56%);
+}
+
+.map-marker-pattern--cross-two {
+  background:
+    linear-gradient(135deg, transparent 44%, rgba(8, 10, 10, 0.68) 46% 54%, transparent 56%),
+    linear-gradient(45deg, transparent 44%, rgba(8, 10, 10, 0.68) 46% 54%, transparent 56%);
+}
+
+.map-marker-pattern--strike-horizontal {
+  background: linear-gradient(0deg, transparent 42%, rgba(8, 10, 10, 0.68) 45% 55%, transparent 58%);
+}
+
+.map-marker-pattern--strike-vertical {
+  background: linear-gradient(90deg, transparent 42%, rgba(8, 10, 10, 0.68) 45% 55%, transparent 58%);
+}
+
+.map-marker-pattern--grid {
+  background:
+    repeating-linear-gradient(90deg, transparent 0 3px, rgba(8, 10, 10, 0.52) 3px 4px),
+    repeating-linear-gradient(0deg, transparent 0 3px, rgba(8, 10, 10, 0.52) 3px 4px);
+}
+
 .map-marker-icon {
+  position: relative;
+  z-index: 1;
   width: 0.58rem;
   height: 0.58rem;
   color: currentColor;
@@ -6910,6 +6965,30 @@ body::after,
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.42rem;
   margin-top: 0.45rem;
+}
+
+.map-style-fieldset {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  border: 1px solid rgba(190, 204, 209, 0.16);
+  border-radius: 12px;
+  padding: 0.68rem;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.map-style-fieldset legend {
+  padding: 0 0.35rem;
+  color: var(--muted);
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.map-style-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
 }
 
 .map-layer-list {

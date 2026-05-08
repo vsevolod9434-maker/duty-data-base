@@ -18,9 +18,7 @@ import {
 import {
   DEFAULT_MAP_LAYER,
   DEFAULT_MAP_MARKER_TYPE,
-  getMapMarkerStatusLabel,
   getMapMarkerTypeLabel,
-  mapMarkerStatusLabels,
   mapMarkerUiTypes,
   normalizeMapLayerName as normalizeMarkerLayerName,
   normalizeMapMarkerType,
@@ -41,24 +39,24 @@ import {
   DEFAULT_MAP_ZONE_TYPE,
   getBoundsCenter,
   getMapPointsBounds,
-  getMapRouteStatusLabel,
   getMapRouteTypeLabel,
   getMapZoneShapeLabel,
-  getMapZoneStatusLabel,
   getMapZoneTypeLabel,
   getLinePatternPreset,
+  getFillPatternPreset,
   getRouteColorPreset,
   getZoneColorPreset,
+  fillPatternKeys,
   linePatternKeys,
   routeColorKeys,
-  mapRouteStatuses,
   mapRouteTypes,
   mapZoneShapes,
-  mapZoneStatuses,
   mapZoneTypes,
   normalizeMapLayerName as normalizeOverlayLayerName,
   zoneColorKeys,
   type MapLinePatternKey,
+  type MapFillPatternKey,
+  type MapObjectColorKey,
   type MapRouteColorKey,
   type MapRouteDto,
   type MapRouteStatus,
@@ -85,6 +83,10 @@ type MarkerFormDraft = {
   title: string;
   type: MapMarkerUiType;
   status: MapMarkerStatus;
+  colorKey: MapObjectColorKey;
+  patternKey: MapFillPatternKey;
+  brightness: string;
+  contrast: string;
   layer: string;
   x: string;
   y: string;
@@ -98,6 +100,9 @@ type ZoneFormDraft = {
   status: MapZoneStatus;
   shape: MapZoneShape;
   colorKey: MapZoneColorKey;
+  patternKey: MapFillPatternKey;
+  brightness: string;
+  contrast: string;
   layer: string;
   centerX: string;
   centerY: string;
@@ -113,6 +118,8 @@ type RouteFormDraft = {
   status: MapRouteStatus;
   colorKey: MapRouteColorKey;
   linePattern: MapLinePatternKey;
+  brightness: string;
+  contrast: string;
   layer: string;
   points: MapPoint[];
   description: string;
@@ -129,11 +136,13 @@ type ConfirmDialogState = {
   onConfirm: () => void | Promise<void>;
 };
 
-const markerStatuses = Object.keys(mapMarkerStatusLabels).filter((status) => status !== "archived") as MapMarkerStatus[];
-
 const emptyMarkerDraft: MarkerFormDraft = {
+  brightness: "100",
+  colorKey: "red",
+  contrast: "100",
   description: "",
   layer: DEFAULT_MAP_LAYER,
+  patternKey: "solid",
   status: "active",
   title: "",
   type: DEFAULT_MAP_MARKER_TYPE,
@@ -142,11 +151,14 @@ const emptyMarkerDraft: MarkerFormDraft = {
 };
 
 const emptyZoneDraft: ZoneFormDraft = {
+  brightness: "100",
   centerX: "0",
   centerY: "0",
   colorKey: DEFAULT_MAP_ZONE_COLOR_KEY,
+  contrast: "100",
   description: "",
   layer: DEFAULT_MAP_LAYER,
+  patternKey: "solid",
   points: [],
   radius: String(DEFAULT_MAP_ZONE_RADIUS),
   shape: DEFAULT_MAP_ZONE_SHAPE,
@@ -156,7 +168,9 @@ const emptyZoneDraft: ZoneFormDraft = {
 };
 
 const emptyRouteDraft: RouteFormDraft = {
+  brightness: "100",
   colorKey: DEFAULT_MAP_ROUTE_COLOR_KEY,
+  contrast: "100",
   description: "",
   layer: DEFAULT_MAP_LAYER,
   linePattern: DEFAULT_MAP_ROUTE_LINE_PATTERN,
@@ -176,9 +190,13 @@ function sortedPoints<T extends { order: number; x: number; y: number }>(points:
 
 function createMarkerDraftFromMarker(marker: MapMarkerDto): MarkerFormDraft {
   return {
+    brightness: String(marker.brightness),
+    colorKey: marker.colorKey,
+    contrast: String(marker.contrast),
     description: marker.description ?? "",
     id: marker.id,
     layer: marker.layer,
+    patternKey: marker.patternKey,
     status: marker.status === "archived" ? "inactive" : marker.status,
     title: marker.title,
     type: normalizeMapMarkerType(marker.type),
@@ -193,13 +211,16 @@ function createMarkerDraftAtPoint(x: number, y: number): MarkerFormDraft {
 
 function createZoneDraftFromZone(zone: MapZoneDto): ZoneFormDraft {
   return {
+    brightness: String(zone.brightness),
     centerX: String(zone.centerX),
     centerY: String(zone.centerY),
     colorKey: zone.colorKey,
+    contrast: String(zone.contrast),
     description: zone.description ?? "",
     id: zone.id,
     layer: zone.layer,
     points: sortedPoints(zone.points).map((point) => ({ x: point.x, y: point.y })),
+    patternKey: zone.patternKey,
     radius: String(zone.radius),
     shape: zone.shape,
     status: zone.status,
@@ -219,11 +240,14 @@ function createPolygonZoneDraftFromPoints(points: MapPoint[], baseZone?: MapZone
   return {
     centerX: String(center.x),
     centerY: String(center.y),
+    brightness: String(baseZone?.brightness ?? 100),
     colorKey: baseZone?.colorKey ?? DEFAULT_MAP_ZONE_COLOR_KEY,
+    contrast: String(baseZone?.contrast ?? 100),
     description: baseZone?.description ?? "",
     id: baseZone?.id,
     layer: baseZone?.layer ?? DEFAULT_MAP_LAYER,
     points,
+    patternKey: baseZone?.patternKey ?? "solid",
     radius: "0",
     shape: "polygon",
     status: baseZone?.status ?? DEFAULT_MAP_ZONE_STATUS,
@@ -234,7 +258,9 @@ function createPolygonZoneDraftFromPoints(points: MapPoint[], baseZone?: MapZone
 
 function createRouteDraftFromRoute(route: MapRouteDto): RouteFormDraft {
   return {
+    brightness: String(route.brightness),
     colorKey: route.colorKey,
+    contrast: String(route.contrast),
     description: route.description ?? "",
     id: route.id,
     layer: route.layer,
@@ -249,7 +275,9 @@ function createRouteDraftFromRoute(route: MapRouteDto): RouteFormDraft {
 function createRouteDraftFromPoints(points: MapPoint[], baseRoute?: MapRouteDto): RouteFormDraft {
   return {
     ...emptyRouteDraft,
+    brightness: String(baseRoute?.brightness ?? 100),
     colorKey: baseRoute?.colorKey ?? DEFAULT_MAP_ROUTE_COLOR_KEY,
+    contrast: String(baseRoute?.contrast ?? 100),
     description: baseRoute?.description ?? "",
     id: baseRoute?.id,
     layer: baseRoute?.layer ?? DEFAULT_MAP_LAYER,
@@ -263,8 +291,12 @@ function createRouteDraftFromPoints(points: MapPoint[], baseRoute?: MapRouteDto)
 
 function normalizeMarkerDraft(draft: MarkerFormDraft) {
   return {
+    brightness: Number(draft.brightness),
+    colorKey: draft.colorKey,
+    contrast: Number(draft.contrast),
     description: draft.description.trim(),
     layer: normalizeMarkerLayerName(draft.layer),
+    patternKey: draft.patternKey,
     status: draft.status,
     title: draft.title.trim(),
     type: draft.type,
@@ -275,11 +307,14 @@ function normalizeMarkerDraft(draft: MarkerFormDraft) {
 
 function normalizeZoneDraft(draft: ZoneFormDraft) {
   return {
+    brightness: Number(draft.brightness),
     centerX: Number(draft.centerX),
     centerY: Number(draft.centerY),
     colorKey: draft.colorKey,
+    contrast: Number(draft.contrast),
     description: draft.description.trim(),
     layer: normalizeOverlayLayerName(draft.layer),
+    patternKey: draft.patternKey,
     points: draft.points,
     radius: Number(draft.radius),
     shape: draft.shape,
@@ -291,7 +326,9 @@ function normalizeZoneDraft(draft: ZoneFormDraft) {
 
 function normalizeRouteDraft(draft: RouteFormDraft) {
   return {
+    brightness: Number(draft.brightness),
     colorKey: draft.colorKey,
+    contrast: Number(draft.contrast),
     description: draft.description.trim(),
     layer: normalizeOverlayLayerName(draft.layer),
     linePattern: draft.linePattern,
@@ -416,9 +453,9 @@ export default function MapPage() {
         zone.title,
         zone.description ?? "",
         getMapZoneTypeLabel(zone.type),
-        getMapZoneStatusLabel(zone.status),
         getMapZoneShapeLabel(zone.shape),
         getZoneColorPreset(zone.colorKey).label,
+        getFillPatternPreset(zone.patternKey).label,
         zone.layer,
       ]
         .join(" ")
@@ -439,7 +476,6 @@ export default function MapPage() {
         route.title,
         route.description ?? "",
         getMapRouteTypeLabel(route.type),
-        getMapRouteStatusLabel(route.status),
         getRouteColorPreset(route.colorKey).label,
         getLinePatternPreset(route.linePattern).label,
         route.layer,
@@ -453,13 +489,24 @@ export default function MapPage() {
   const draftZonePreview = useMemo(() => {
     if (zoneDraft) {
       if (zoneDraft.shape === "polygon") {
-        return { colorKey: zoneDraft.colorKey, points: zoneDraft.points, shape: "polygon" as const, type: zoneDraft.type };
+        return {
+          brightness: Number(zoneDraft.brightness),
+          colorKey: zoneDraft.colorKey,
+          contrast: Number(zoneDraft.contrast),
+          patternKey: zoneDraft.patternKey,
+          points: zoneDraft.points,
+          shape: "polygon" as const,
+          type: zoneDraft.type,
+        };
       }
 
       return {
+        brightness: Number(zoneDraft.brightness),
         centerX: Number(zoneDraft.centerX),
         centerY: Number(zoneDraft.centerY),
         colorKey: zoneDraft.colorKey,
+        contrast: Number(zoneDraft.contrast),
+        patternKey: zoneDraft.patternKey,
         radius: Math.max(1, Number(zoneDraft.radius) || 1),
         shape: "circle" as const,
         type: zoneDraft.type,
@@ -467,7 +514,15 @@ export default function MapPage() {
     }
 
     if (drawingMode === "zone-polygon" && drawingPoints.length > 0) {
-      return { colorKey: DEFAULT_MAP_ZONE_COLOR_KEY, points: drawingPoints, shape: "polygon" as const, type: DEFAULT_MAP_ZONE_TYPE };
+      return {
+        brightness: 100,
+        colorKey: DEFAULT_MAP_ZONE_COLOR_KEY,
+        contrast: 100,
+        patternKey: "solid" as const,
+        points: drawingPoints,
+        shape: "polygon" as const,
+        type: DEFAULT_MAP_ZONE_TYPE,
+      };
     }
 
     return null;
@@ -1083,7 +1138,7 @@ export default function MapPage() {
                             </small>
                             <small>{getZoneColorPreset(zone.colorKey).label}</small>
                             <small>
-                              {zone.shape === "polygon" ? `Точек: ${zone.points.length}` : `Радиус: ${zone.radius}`} · {getMapZoneStatusLabel(zone.status)}
+                              {zone.shape === "polygon" ? `Точек: ${zone.points.length}` : `Радиус: ${zone.radius}`}
                             </small>
                           </button>
                         ))}
@@ -1132,9 +1187,7 @@ export default function MapPage() {
                               {getRouteColorPreset(route.colorKey).label} · {getLinePatternPreset(route.linePattern).label}
                             </small>
                             <small>{route.layer}</small>
-                            <small>
-                              Точек: {route.points.length} · {getMapRouteStatusLabel(route.status)}
-                            </small>
+                            <small>Точек: {route.points.length}</small>
                           </button>
                         ))}
                         {filteredRoutes.length === 0 ? <p className="map-panel-message">Маршруты не найдены.</p> : null}
@@ -1193,20 +1246,43 @@ export default function MapPage() {
                     ))}
                   </select>
                 </label>
-                <label className="filter-field">
-                  <span>Статус</span>
-                  <select disabled={isSaving} onChange={(event) => updateMarkerDraft("status", event.target.value as MapMarkerStatus)} value={markerDraft.status}>
-                    {markerStatuses.map((status) => (
-                      <option key={status} value={status}>
-                        {getMapMarkerStatusLabel(status)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
                 <label className="filter-field map-marker-form-wide">
                   <span>Слой</span>
                   <input disabled={isSaving} onChange={(event) => updateMarkerDraft("layer", event.target.value)} type="text" value={markerDraft.layer} />
                 </label>
+                <fieldset className="map-style-fieldset map-marker-form-wide">
+                  <legend>Оформление</legend>
+                  <div className="map-style-grid">
+                    <label className="filter-field">
+                      <span>Цвет</span>
+                      <select disabled={isSaving} onChange={(event) => updateMarkerDraft("colorKey", event.target.value as MapObjectColorKey)} value={markerDraft.colorKey}>
+                        {zoneColorKeys.map((colorKey) => (
+                          <option key={colorKey} value={colorKey}>
+                            {getZoneColorPreset(colorKey).label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="filter-field">
+                      <span>Формат</span>
+                      <select disabled={isSaving} onChange={(event) => updateMarkerDraft("patternKey", event.target.value as MapFillPatternKey)} value={markerDraft.patternKey}>
+                        {fillPatternKeys.map((patternKey) => (
+                          <option key={patternKey} value={patternKey}>
+                            {getFillPatternPreset(patternKey).label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="filter-field">
+                      <span>Яркость</span>
+                      <input disabled={isSaving} max={150} min={50} onChange={(event) => updateMarkerDraft("brightness", event.target.value)} step={5} type="number" value={markerDraft.brightness} />
+                    </label>
+                    <label className="filter-field">
+                      <span>Контрастность</span>
+                      <input disabled={isSaving} max={150} min={50} onChange={(event) => updateMarkerDraft("contrast", event.target.value)} step={5} type="number" value={markerDraft.contrast} />
+                    </label>
+                  </div>
+                </fieldset>
                 <label className="filter-field">
                   <span>Координаты X</span>
                   <input disabled={isSaving} min={0} onChange={(event) => updateMarkerDraft("x", event.target.value)} type="number" value={markerDraft.x} />
@@ -1258,26 +1334,6 @@ export default function MapPage() {
                   </select>
                 </label>
                 <label className="filter-field">
-                  <span>Цвет</span>
-                  <select disabled={isSaving} onChange={(event) => updateZoneDraft("colorKey", event.target.value as MapZoneColorKey)} value={zoneDraft.colorKey}>
-                    {zoneColorKeys.map((colorKey) => (
-                      <option key={colorKey} value={colorKey}>
-                        {getZoneColorPreset(colorKey).label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="filter-field">
-                  <span>Статус</span>
-                  <select disabled={isSaving} onChange={(event) => updateZoneDraft("status", event.target.value as MapZoneStatus)} value={zoneDraft.status}>
-                    {mapZoneStatuses.map((status) => (
-                      <option key={status} value={status}>
-                        {getMapZoneStatusLabel(status)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="filter-field">
                   <span>Форма</span>
                   <select disabled value={zoneDraft.shape}>
                     {mapZoneShapes.map((shape) => (
@@ -1291,6 +1347,39 @@ export default function MapPage() {
                   <span>Слой</span>
                   <input disabled={isSaving} onChange={(event) => updateZoneDraft("layer", event.target.value)} type="text" value={zoneDraft.layer} />
                 </label>
+                <fieldset className="map-style-fieldset map-marker-form-wide">
+                  <legend>Оформление</legend>
+                  <div className="map-style-grid">
+                    <label className="filter-field">
+                      <span>Цвет</span>
+                      <select disabled={isSaving} onChange={(event) => updateZoneDraft("colorKey", event.target.value as MapZoneColorKey)} value={zoneDraft.colorKey}>
+                        {zoneColorKeys.map((colorKey) => (
+                          <option key={colorKey} value={colorKey}>
+                            {getZoneColorPreset(colorKey).label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="filter-field">
+                      <span>Формат</span>
+                      <select disabled={isSaving} onChange={(event) => updateZoneDraft("patternKey", event.target.value as MapFillPatternKey)} value={zoneDraft.patternKey}>
+                        {fillPatternKeys.map((patternKey) => (
+                          <option key={patternKey} value={patternKey}>
+                            {getFillPatternPreset(patternKey).label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="filter-field">
+                      <span>Яркость</span>
+                      <input disabled={isSaving} max={150} min={50} onChange={(event) => updateZoneDraft("brightness", event.target.value)} step={5} type="number" value={zoneDraft.brightness} />
+                    </label>
+                    <label className="filter-field">
+                      <span>Контрастность</span>
+                      <input disabled={isSaving} max={150} min={50} onChange={(event) => updateZoneDraft("contrast", event.target.value)} step={5} type="number" value={zoneDraft.contrast} />
+                    </label>
+                  </div>
+                </fieldset>
                 {zoneDraft.shape === "circle" ? (
                   <>
                     <label className="filter-field">
@@ -1369,40 +1458,43 @@ export default function MapPage() {
                     ))}
                   </select>
                 </label>
-                <label className="filter-field">
-                  <span>Цвет маршрута</span>
-                  <select disabled={isSaving} onChange={(event) => updateRouteDraft("colorKey", event.target.value as MapRouteColorKey)} value={routeDraft.colorKey}>
-                    {routeColorKeys.map((colorKey) => (
-                      <option key={colorKey} value={colorKey}>
-                        {getRouteColorPreset(colorKey).label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="filter-field">
-                  <span>Тип линии</span>
-                  <select disabled={isSaving} onChange={(event) => updateRouteDraft("linePattern", event.target.value as MapLinePatternKey)} value={routeDraft.linePattern}>
-                    {linePatternKeys.map((linePattern) => (
-                      <option key={linePattern} value={linePattern}>
-                        {getLinePatternPreset(linePattern).label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="filter-field">
-                  <span>Статус</span>
-                  <select disabled={isSaving} onChange={(event) => updateRouteDraft("status", event.target.value as MapRouteStatus)} value={routeDraft.status}>
-                    {mapRouteStatuses.map((status) => (
-                      <option key={status} value={status}>
-                        {getMapRouteStatusLabel(status)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
                 <label className="filter-field map-marker-form-wide">
                   <span>Слой</span>
                   <input disabled={isSaving} onChange={(event) => updateRouteDraft("layer", event.target.value)} type="text" value={routeDraft.layer} />
                 </label>
+                <fieldset className="map-style-fieldset map-marker-form-wide">
+                  <legend>Оформление</legend>
+                  <div className="map-style-grid">
+                    <label className="filter-field">
+                      <span>Цвет</span>
+                      <select disabled={isSaving} onChange={(event) => updateRouteDraft("colorKey", event.target.value as MapRouteColorKey)} value={routeDraft.colorKey}>
+                        {routeColorKeys.map((colorKey) => (
+                          <option key={colorKey} value={colorKey}>
+                            {getRouteColorPreset(colorKey).label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="filter-field">
+                      <span>Формат линии</span>
+                      <select disabled={isSaving} onChange={(event) => updateRouteDraft("linePattern", event.target.value as MapLinePatternKey)} value={routeDraft.linePattern}>
+                        {linePatternKeys.map((linePattern) => (
+                          <option key={linePattern} value={linePattern}>
+                            {getLinePatternPreset(linePattern).label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="filter-field">
+                      <span>Яркость</span>
+                      <input disabled={isSaving} max={150} min={50} onChange={(event) => updateRouteDraft("brightness", event.target.value)} step={5} type="number" value={routeDraft.brightness} />
+                    </label>
+                    <label className="filter-field">
+                      <span>Контрастность</span>
+                      <input disabled={isSaving} max={150} min={50} onChange={(event) => updateRouteDraft("contrast", event.target.value)} step={5} type="number" value={routeDraft.contrast} />
+                    </label>
+                  </div>
+                </fieldset>
                 <label className="filter-field map-marker-form-wide">
                   <span>Описание</span>
                   <textarea disabled={isSaving} maxLength={1000} onChange={(event) => updateRouteDraft("description", event.target.value)} rows={4} value={routeDraft.description} />

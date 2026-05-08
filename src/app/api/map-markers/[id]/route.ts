@@ -1,5 +1,6 @@
 import { requireApiAuth } from "@/lib/auth/require-api-auth";
 import { normalizeMapMarkerType, type MapMarkerInput } from "@/lib/map-markers";
+import { normalizeFillPattern, normalizeObjectColorKey } from "@/lib/map-overlays";
 import { getPrismaClient } from "@/lib/prisma";
 import {
   buildMapMarkerPatchPayload,
@@ -42,8 +43,12 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     const patchPayload = buildMapMarkerPatchPayload(
       {
+        brightness: currentMarker.brightness,
+        colorKey: normalizeObjectColorKey(currentMarker.colorKey),
+        contrast: currentMarker.contrast,
         description: currentMarker.description,
         layer: currentMarker.layer,
+        patternKey: normalizeFillPattern(currentMarker.patternKey),
         status: currentMarker.status,
         title: currentMarker.title,
         type: normalizeMapMarkerType(currentMarker.type),

@@ -3,10 +3,26 @@ import type { MapRouteDto, MapRouteInput, MapZoneDto, MapZoneInput } from "@/lib
 
 export type MapZoneMutationInput = Pick<
   MapZoneInput,
-  "centerX" | "centerY" | "colorKey" | "description" | "layer" | "points" | "radius" | "shape" | "status" | "title" | "type"
+  | "brightness"
+  | "centerX"
+  | "centerY"
+  | "colorKey"
+  | "contrast"
+  | "description"
+  | "layer"
+  | "patternKey"
+  | "points"
+  | "radius"
+  | "shape"
+  | "status"
+  | "title"
+  | "type"
 >;
 
-export type MapRouteMutationInput = Pick<MapRouteInput, "colorKey" | "description" | "layer" | "linePattern" | "points" | "status" | "title" | "type">;
+export type MapRouteMutationInput = Pick<
+  MapRouteInput,
+  "brightness" | "colorKey" | "contrast" | "description" | "layer" | "linePattern" | "points" | "status" | "title" | "type"
+>;
 
 export function fetchMapZones() {
   return apiFetchJson<MapZoneDto[]>("/api/map-zones", { cache: "no-store" }, "Не удалось загрузить объекты карты.");

@@ -1,3 +1,13 @@
+import {
+  DEFAULT_MAP_FILL_PATTERN,
+  DEFAULT_MAP_OBJECT_COLOR_KEY,
+  DEFAULT_MAP_STYLE_VALUE,
+  type MapFillPatternKey,
+  type MapObjectColorKey,
+  normalizeFillPattern,
+  normalizeObjectColorKey,
+} from "@/lib/map-overlays";
+
 export type MapMarkerUiType =
   | "possible_shelter"
   | "route_point"
@@ -29,6 +39,10 @@ export type MapMarkerDto = {
   status: MapMarkerStatus;
   x: number;
   y: number;
+  colorKey: MapObjectColorKey;
+  patternKey: MapFillPatternKey;
+  brightness: number;
+  contrast: number;
   description: string | null;
   layer: string;
   createdAt: string;
@@ -41,6 +55,10 @@ export type MapMarkerInput = {
   status?: unknown;
   x?: unknown;
   y?: unknown;
+  colorKey?: unknown;
+  patternKey?: unknown;
+  brightness?: unknown;
+  contrast?: unknown;
   description?: unknown;
   layer?: unknown;
 };
@@ -51,14 +69,22 @@ export type ValidatedMapMarkerInput = {
   status: MapMarkerStatus;
   x: number;
   y: number;
+  colorKey: MapObjectColorKey;
+  patternKey: MapFillPatternKey;
+  brightness: number;
+  contrast: number;
   description: string | null;
   layer: string;
 };
 
 const MAP_WIDTH = 10240;
 const MAP_HEIGHT = 10240;
+const MIN_STYLE_VALUE = 50;
+const MAX_STYLE_VALUE = 150;
 export const DEFAULT_MAP_LAYER = "Основной слой";
 export const DEFAULT_MAP_MARKER_TYPE: MapMarkerUiType = "route_point";
+export const DEFAULT_MAP_MARKER_COLOR_KEY = DEFAULT_MAP_OBJECT_COLOR_KEY;
+export const DEFAULT_MAP_MARKER_PATTERN_KEY = DEFAULT_MAP_FILL_PATTERN;
 
 export const mapMarkerTypeLabels: Record<MapMarkerUiType, string> = {
   possible_shelter: "Возможный ночлег",
@@ -139,6 +165,15 @@ function parseCoordinate(value: unknown) {
   return null;
 }
 
+function normalizeStyleValue(value: unknown) {
+  const parsedValue = parseCoordinate(value);
+  return parsedValue === null ? DEFAULT_MAP_STYLE_VALUE : parsedValue;
+}
+
+function validateStyleValue(value: number, error: string) {
+  return value >= MIN_STYLE_VALUE && value <= MAX_STYLE_VALUE ? null : error;
+}
+
 function validateMarkerType(value: unknown): { ok: true; value: MapMarkerUiType } | { ok: false; error: string } {
   if (value === undefined || value === null || value === "") {
     return { ok: true, value: DEFAULT_MAP_MARKER_TYPE };
@@ -189,11 +224,28 @@ export function validateMapMarkerInput(input: MapMarkerInput): { ok: true; value
     return { error: "Описание метки слишком длинное.", ok: false };
   }
 
+  const brightness = normalizeStyleValue(input.brightness);
+  const contrast = normalizeStyleValue(input.contrast);
+  const brightnessError = validateStyleValue(brightness, "Некорректное значение яркости.");
+  const contrastError = validateStyleValue(contrast, "Некорректное значение контрастности.");
+
+  if (brightnessError) {
+    return { error: brightnessError, ok: false };
+  }
+
+  if (contrastError) {
+    return { error: contrastError, ok: false };
+  }
+
   return {
     ok: true,
     value: {
+      brightness,
+      colorKey: normalizeObjectColorKey(input.colorKey),
+      contrast,
       description: description || null,
       layer: normalizeMapLayerName(input.layer),
+      patternKey: normalizeFillPattern(input.patternKey),
       status: isMapMarkerStatus(input.status) ? input.status : "active",
       title,
       type: typeValidation.value,

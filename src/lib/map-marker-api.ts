@@ -1,7 +1,10 @@
 import { apiFetch, apiFetchJson } from "@/lib/api-client";
 import type { MapMarkerDto, MapMarkerInput } from "@/lib/map-markers";
 
-export type MapMarkerMutationInput = Pick<MapMarkerInput, "description" | "layer" | "status" | "title" | "type" | "x" | "y">;
+export type MapMarkerMutationInput = Pick<
+  MapMarkerInput,
+  "brightness" | "colorKey" | "contrast" | "description" | "layer" | "patternKey" | "status" | "title" | "type" | "x" | "y"
+>;
 
 export function fetchMapMarkers() {
   return apiFetchJson<MapMarkerDto[]>("/api/map-markers", { cache: "no-store" }, "Не удалось загрузить метки.");

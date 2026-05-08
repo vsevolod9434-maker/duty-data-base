@@ -1,0 +1,17 @@
+-- AlterTable
+ALTER TABLE "MapMarker" ADD COLUMN     "brightness" INTEGER NOT NULL DEFAULT 100,
+ADD COLUMN     "colorKey" TEXT NOT NULL DEFAULT 'red',
+ADD COLUMN     "contrast" INTEGER NOT NULL DEFAULT 100,
+ADD COLUMN     "patternKey" TEXT NOT NULL DEFAULT 'solid';
+
+-- AlterTable
+ALTER TABLE "MapRoute" ADD COLUMN     "brightness" INTEGER NOT NULL DEFAULT 100,
+ADD COLUMN     "contrast" INTEGER NOT NULL DEFAULT 100,
+ALTER COLUMN "colorKey" SET DEFAULT 'red',
+ALTER COLUMN "linePattern" SET DEFAULT 'solid';
+
+-- AlterTable
+ALTER TABLE "MapZone" ADD COLUMN     "brightness" INTEGER NOT NULL DEFAULT 100,
+ADD COLUMN     "contrast" INTEGER NOT NULL DEFAULT 100,
+ADD COLUMN     "patternKey" TEXT NOT NULL DEFAULT 'solid',
+ALTER COLUMN "colorKey" SET DEFAULT 'red';

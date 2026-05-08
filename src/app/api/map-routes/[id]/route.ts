@@ -50,7 +50,9 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     const patchPayload = buildMapRoutePatchPayload(
       {
+        brightness: currentRoute.brightness,
         colorKey: normalizeRouteColorKey(currentRoute.colorKey),
+        contrast: currentRoute.contrast,
         description: currentRoute.description,
         layer: currentRoute.layer,
         linePattern: normalizeLinePattern(currentRoute.linePattern),
@@ -74,7 +76,9 @@ export async function PATCH(request: Request, context: RouteContext) {
 
       return transaction.mapRoute.update({
         data: {
+          brightness: validation.value.brightness,
           colorKey: validation.value.colorKey,
+          contrast: validation.value.contrast,
           description: validation.value.description,
           layer: validation.value.layer,
           linePattern: validation.value.linePattern,
