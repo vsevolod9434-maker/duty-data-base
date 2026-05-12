@@ -133,6 +133,43 @@ type ConfirmDialogState = {
   onConfirm: () => void | Promise<void>;
 };
 
+function LayerEditIcon() {
+  return (
+    <svg aria-hidden="true" className="map-layer-action-icon" viewBox="0 0 16 16">
+      <path
+        d="M10.8 2.2a1.7 1.7 0 0 1 2.4 0l.6.6a1.7 1.7 0 0 1 0 2.4l-6.9 6.9-2.9.5.5-2.9 6.3-6.3Z"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.3"
+      />
+      <path
+        d="M9.8 3.2 12.8 6.2"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.3"
+      />
+    </svg>
+  );
+}
+
+function LayerDeleteIcon() {
+  return (
+    <svg aria-hidden="true" className="map-layer-action-icon" viewBox="0 0 16 16">
+      <path
+        d="M4.2 4.2 11.8 11.8M11.8 4.2 4.2 11.8"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.5"
+      />
+    </svg>
+  );
+}
+
 const emptyMarkerDraft: MarkerFormDraft = {
   brightness: "100",
   colorKey: "red",
@@ -1289,6 +1326,7 @@ export default function MapPage() {
                         {layers.map((layer) => {
                           const persistedLayer = mapLayers.find((mapLayer) => mapLayer.name === layer);
                           const isEditing = persistedLayer ? editingLayerId === persistedLayer.id : false;
+                          const isDefaultLayer = Boolean(persistedLayer?.isDefault);
 
                           return (
                             <div className="map-layer-row" key={layer}>
@@ -1297,10 +1335,12 @@ export default function MapPage() {
                                 {isEditing ? (
                                   <input disabled={isSaving} maxLength={80} onChange={(event) => setEditingLayerName(event.target.value)} type="text" value={editingLayerName} />
                                 ) : (
-                                  <span>{layer}</span>
+                                  <span className="map-layer-name" title={layer}>
+                                    {layer}
+                                  </span>
                                 )}
                               </label>
-                              {persistedLayer && !persistedLayer.isDefault ? (
+                              {persistedLayer ? (
                                 <div className="map-layer-actions">
                                   {isEditing ? (
                                     <>
@@ -1322,20 +1362,35 @@ export default function MapPage() {
                                     </>
                                   ) : (
                                     <>
+                                      {!isDefaultLayer ? (
+                                        <button
+                                          aria-label="Редактировать слой"
+                                          className="map-layer-action-button map-layer-action-button-edit interactive-button"
+                                          disabled={isSaving}
+                                          onClick={() => {
+                                            setEditingLayerId(persistedLayer.id);
+                                            setEditingLayerName(persistedLayer.name);
+                                            setLayerMessage("");
+                                          }}
+                                          title="Редактировать слой"
+                                          type="button"
+                                        >
+                                          <LayerEditIcon />
+                                        </button>
+                                      ) : null}
                                       <button
-                                        className="command-row interactive-button"
-                                        disabled={isSaving}
+                                        aria-label={isDefaultLayer ? "Основной слой нельзя удалить" : "Удалить слой"}
+                                        className="map-layer-action-button map-layer-action-button-delete interactive-button"
+                                        disabled={isSaving || isDefaultLayer}
                                         onClick={() => {
-                                          setEditingLayerId(persistedLayer.id);
-                                          setEditingLayerName(persistedLayer.name);
-                                          setLayerMessage("");
+                                          if (!isDefaultLayer) {
+                                            requestDeleteLayer(persistedLayer);
+                                          }
                                         }}
+                                        title={isDefaultLayer ? "Основной слой нельзя удалить" : "Удалить слой"}
                                         type="button"
                                       >
-                                        Переименовать
-                                      </button>
-                                      <button className="command-row interactive-button" disabled={isSaving} onClick={() => requestDeleteLayer(persistedLayer)} type="button">
-                                        Удалить
+                                        <LayerDeleteIcon />
                                       </button>
                                     </>
                                   )}

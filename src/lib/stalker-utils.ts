@@ -215,6 +215,20 @@ export function normalizeSearchValue(value: unknown) {
   return String(value ?? "").trim().toLocaleLowerCase("ru-RU");
 }
 
+export function getStalkerPrimaryLabel(profile: StalkerProfile) {
+  const callsign = profile.callsign.trim();
+  const fullName = profile.fullName.trim();
+
+  return callsign || fullName || "Без имени";
+}
+
+export function getStalkerSecondaryLabel(profile: StalkerProfile) {
+  const callsign = profile.callsign.trim();
+  const fullName = profile.fullName.trim();
+
+  return callsign && fullName ? fullName : "";
+}
+
 export function matchesStalkerProfileSearch(profile: StalkerProfile, query: string) {
   const normalizedQuery = normalizeSearchValue(query);
 
@@ -222,22 +236,22 @@ export function matchesStalkerProfileSearch(profile: StalkerProfile, query: stri
     return true;
   }
 
-  return [profile.registryNumber, profile.callsign, profile.fullName]
+  return [
+    getStalkerPrimaryLabel(profile),
+    getStalkerSecondaryLabel(profile),
+    profile.registryNumber,
+    profile.callsign,
+    profile.fullName,
+  ]
     .some((value) => normalizeSearchValue(value).includes(normalizedQuery));
 }
 
 export function getProfileTitle(profile: StalkerProfile) {
-  const callsign = profile.callsign.trim();
-  const fullName = profile.fullName.trim();
-
-  return callsign || fullName || "Без имени";
+  return getStalkerPrimaryLabel(profile);
 }
 
 export function getProfileSecondaryTitle(profile: StalkerProfile) {
-  const callsign = profile.callsign.trim();
-  const fullName = profile.fullName.trim();
-
-  return callsign && fullName ? fullName : "";
+  return getStalkerSecondaryLabel(profile);
 }
 
 export function getGroupRoleLabel(roleType: StalkerGroupRoleType, customRoleName: string | null) {

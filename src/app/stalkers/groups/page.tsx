@@ -27,6 +27,7 @@ import {
   getAffiliationLabel,
   getPaginatedItems,
   getGroupRoleLabel,
+  matchesStalkerProfileSearch,
   getProfileSecondaryTitle,
   getProfileTitle,
   getSystemTimestamp,
@@ -204,6 +205,7 @@ async function saveStalkerGroupRequest(
   method: "POST" | "PATCH",
   url: string,
   payload: Record<string, unknown>,
+  fallbackMessage = "Не удалось сохранить группу.",
 ) {
   const responsePayload = await apiFetchJson<StalkerGroupApiResponse>(url, {
     method,
@@ -211,7 +213,7 @@ async function saveStalkerGroupRequest(
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
-  });
+  }, fallbackMessage);
 
   return normalizeApiGroup(responsePayload);
 }
@@ -430,12 +432,27 @@ export default function StalkerGroupsPage() {
       return [];
     }
 
+    const query = selectedGroupMemberDraft.searchQuery.trim();
     const selectedMemberIds = new Set(selectedGroup.members.map((member) => member.stalkerId));
 
-    return availableProfiles.filter((profile) => !selectedMemberIds.has(profile.id));
-  }, [availableProfiles, selectedGroup]);
+    if (!query) {
+      return [];
+    }
+
+    return availableProfiles
+      .filter((profile) => !selectedMemberIds.has(profile.id))
+      .filter((profile) => matchesStalkerProfileSearch(profile, query))
+      .slice(0, 12);
+  }, [availableProfiles, selectedGroup, selectedGroupMemberDraft.searchQuery]);
+  const selectedGroupMemberProfile = useMemo(() => {
+    if (!selectedGroupMemberDraft.profileId) {
+      return null;
+    }
+
+    return profileById.get(selectedGroupMemberDraft.profileId) ?? null;
+  }, [profileById, selectedGroupMemberDraft.profileId]);
   const memberSearchResults = useMemo(() => {
-    const query = memberSearchQuery.trim().toLowerCase();
+    const query = memberSearchQuery.trim();
     const selectedMemberIds = new Set(draft.members.map((member) => member.stalkerId));
 
     if (!query) {
@@ -444,12 +461,7 @@ export default function StalkerGroupsPage() {
 
     return availableProfiles
       .filter((profile) => !selectedMemberIds.has(profile.id))
-      .filter((profile) =>
-        [profile.fullName, profile.callsign, profile.registryNumber]
-          .join(" ")
-          .toLowerCase()
-          .includes(query),
-      )
+      .filter((profile) => matchesStalkerProfileSearch(profile, query))
       .slice(0, 8);
   }, [availableProfiles, draft.members, memberSearchQuery]);
 
@@ -681,6 +693,7 @@ export default function StalkerGroupsPage() {
       "PATCH",
       `/api/stalker-groups/${encodeURIComponent(nextGroup.id)}`,
       buildGroupPayload(nextGroup),
+      "Не удалось обновить состав группы.",
     );
 
     setGroups((currentGroups) =>
@@ -700,7 +713,12 @@ export default function StalkerGroupsPage() {
     const profile = profileById.get(profileId);
 
     if (!profileId) {
-      setMemberFormMessage("Выберите сталкерский профиль.");
+      setMemberFormMessage("Выберите профиль.");
+      return;
+    }
+
+    if (selectedGroup.members.some((member) => member.stalkerId === profileId)) {
+      setMemberFormMessage("Профиль уже состоит в этой группе.");
       return;
     }
 
@@ -713,7 +731,7 @@ export default function StalkerGroupsPage() {
     const nextMembers = [
       ...selectedGroup.members,
       {
-        id: `member-${profileId}-${Date.now()}`,
+        id: `member-${profileId}-${now}`,
         stalkerId: profileId,
         roleType: selectedGroupMemberDraft.roleType,
         customRoleName: selectedGroupMemberDraft.roleType === "custom" ? customRoleName : null,
@@ -738,9 +756,9 @@ export default function StalkerGroupsPage() {
         status: "OK",
         description: profile ? getProfileTitle(profile) : profileId,
       });
-    } catch {
+    } catch (error) {
       setMemberFormMessage(
-        "Не удалось добавить участника.",
+        error instanceof Error ? error.message : "Не удалось обновить состав группы.",
       );
     } finally {
       setIsGroupSaving(false);
@@ -1918,28 +1936,83 @@ export default function StalkerGroupsPage() {
                   <span>Выберите сталкера и роль участника группы.</span>
                 </div>
 
-                {selectedGroupAvailableProfiles.length > 0 ? (
+                {availableProfiles.length > 0 ? (
                   <>
                     <label className="filter-field">
-                      <span>Сталкерский профиль</span>
-                      <select
-                        onChange={(event) => setSelectedGroupMemberDraft((currentDraft) => ({ ...currentDraft, profileId: event.target.value }))}
-                        value={selectedGroupMemberDraft.profileId}
-                      >
-                        <option value="">Выберите профиль</option>
-                        {selectedGroupAvailableProfiles.map((profile) => (
-                          <option key={profile.id} value={profile.id}>
-                            {getProfileTitle(profile)}
-                            {getProfileSecondaryTitle(profile) ? ` — ${getProfileSecondaryTitle(profile)}` : ""}
-                          </option>
-                        ))}
-                      </select>
+                      <span>Поиск профиля</span>
+                      <input
+                        onChange={(event) =>
+                          {
+                            setSelectedGroupMemberDraft((currentDraft) => ({
+                              ...currentDraft,
+                              searchQuery: event.target.value,
+                              profileId: "",
+                            }));
+                            setMemberFormMessage("");
+                          }
+                        }
+                        placeholder="Введите позывной, ФИО или номер"
+                        type="text"
+                        value={selectedGroupMemberDraft.searchQuery}
+                      />
+                    </label>
+
+                    <div className="group-search-results">
+                      {!selectedGroupMemberDraft.searchQuery.trim() ? (
+                        <div className="empty-state compact-empty-state">
+                          <p>Введите данные для поиска.</p>
+                        </div>
+                      ) : selectedGroupAvailableProfiles.length > 0 ? (
+                        selectedGroupAvailableProfiles.map((profile) => (
+                          <div className="group-search-result" key={profile.id}>
+                            <div>
+                              <strong>{getProfileTitle(profile)}</strong>
+                              {getProfileSecondaryTitle(profile) ? (
+                                <span>{getProfileSecondaryTitle(profile)}</span>
+                              ) : null}
+                              {profile.registryNumber ? (
+                                <span>Внутренний номер: {profile.registryNumber}</span>
+                              ) : null}
+                            </div>
+                            <button
+                              className="command-row task-action-button"
+                              onClick={() => {
+                                setSelectedGroupMemberDraft((currentDraft) => ({
+                                  ...currentDraft,
+                                  profileId: profile.id,
+                                }));
+                                setMemberFormMessage("");
+                              }}
+                              type="button"
+                            >
+                              Выбрать
+                            </button>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="empty-state compact-empty-state">
+                          <p>Профили не найдены.</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <label className="filter-field">
+                      <span>Выбранный профиль</span>
+                      <input
+                        disabled
+                        placeholder="Профиль не выбран"
+                        type="text"
+                        value={selectedGroupMemberProfile ? getProfileTitle(selectedGroupMemberProfile) : ""}
+                      />
                     </label>
 
                     <label className="filter-field">
                       <span>Роль участника</span>
                       <select
-                        onChange={(event) => setSelectedGroupMemberDraft((currentDraft) => ({ ...currentDraft, roleType: event.target.value as StalkerGroupRoleType }))}
+                        onChange={(event) => {
+                          setSelectedGroupMemberDraft((currentDraft) => ({ ...currentDraft, roleType: event.target.value as StalkerGroupRoleType }));
+                          setMemberFormMessage("");
+                        }}
                         value={selectedGroupMemberDraft.roleType}
                       >
                         {Object.entries(groupRoleLabels).map(([value, label]) => (
@@ -1954,7 +2027,10 @@ export default function StalkerGroupsPage() {
                       <label className="filter-field">
                         <span>Название роли</span>
                         <input
-                          onChange={(event) => setSelectedGroupMemberDraft((currentDraft) => ({ ...currentDraft, customRoleName: event.target.value }))}
+                          onChange={(event) => {
+                            setSelectedGroupMemberDraft((currentDraft) => ({ ...currentDraft, customRoleName: event.target.value }));
+                            setMemberFormMessage("");
+                          }}
                           placeholder="Название роли"
                           type="text"
                           value={selectedGroupMemberDraft.customRoleName}
@@ -1964,7 +2040,7 @@ export default function StalkerGroupsPage() {
                   </>
                 ) : (
                   <div className="empty-state">
-                    <p>Активные профили сталкеров для добавления не найдены.</p>
+                    <p>Профили сталкеров ещё не созданы.</p>
                   </div>
                 )}
               </section>
@@ -1982,7 +2058,12 @@ export default function StalkerGroupsPage() {
               >
                 Отмена
               </button>
-              <button className="primary-command" disabled={isGroupSaving} onClick={addMemberToSelectedGroup} type="button">
+              <button
+                className="primary-command"
+                disabled={isGroupSaving || !selectedGroupMemberProfile}
+                onClick={addMemberToSelectedGroup}
+                type="button"
+              >
                 {isGroupSaving ? "Добавление..." : "Добавить"}
               </button>
             </div>

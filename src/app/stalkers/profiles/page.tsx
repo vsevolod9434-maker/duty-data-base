@@ -98,6 +98,17 @@ type StalkerProfileApiResponse = {
   updatedBy: string | null;
 };
 
+type StalkerGroupApiResponse = {
+  id: string;
+  name: string;
+  photoUrl: string | null;
+  status: StalkerGroup["status"];
+  notes: string | null;
+  members: StalkerGroup["members"];
+  createdAt: string;
+  updatedAt: string;
+};
+
 const emptyDraft = {
   fullName: "",
   callsign: "",
@@ -144,9 +155,27 @@ function normalizeDateInputValue(value: string) {
   return value ? value.slice(0, 10) : "";
 }
 
+function normalizeApiGroup(group: StalkerGroupApiResponse): StalkerGroup {
+  return {
+    id: group.id,
+    name: group.name,
+    photoUrl: group.photoUrl ?? undefined,
+    status: group.status,
+    notes: group.notes ?? "",
+    members: group.members,
+    createdAt: group.createdAt,
+    updatedAt: group.updatedAt,
+  };
+}
+
 async function fetchStalkerProfiles() {
   const payload = await apiFetchJson<StalkerProfileApiResponse[]>("/api/stalkers", { cache: "no-store" });
   return payload.map(normalizeApiProfile);
+}
+
+async function fetchStalkerGroups() {
+  const payload = await apiFetchJson<StalkerGroupApiResponse[]>("/api/stalker-groups", { cache: "no-store" });
+  return payload.map(normalizeApiGroup);
 }
 
 async function saveStalkerProfileRequest(
@@ -163,6 +192,26 @@ async function saveStalkerProfileRequest(
   });
 
   return normalizeApiProfile(responsePayload);
+}
+
+async function saveStalkerGroupRequest(
+  url: string,
+  payload: Record<string, unknown>,
+  fallbackMessage: string,
+) {
+  const responsePayload = await apiFetchJson<StalkerGroupApiResponse>(
+    url,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    },
+    fallbackMessage,
+  );
+
+  return normalizeApiGroup(responsePayload);
 }
 
 function formatMoney(value: number) {
@@ -481,8 +530,9 @@ export default function StalkerProfilesPage() {
         setProfileLoadMessage("");
 
         try {
-          const [serverProfiles, serverTasks, serverTradeOperations, serverViolations] = await Promise.all([
+          const [serverProfiles, serverGroups, serverTasks, serverTradeOperations, serverViolations] = await Promise.all([
             fetchStalkerProfiles(),
+            fetchStalkerGroups().catch(() => localGroups),
             fetchTasks().catch(() => localTasks),
             fetchTradeOperations().catch(() => localTradeOperations),
             fetchViolations().catch(() => localViolations),
@@ -493,6 +543,7 @@ export default function StalkerProfilesPage() {
           }
 
           setProfiles(serverProfiles);
+          setGroups(serverGroups);
           setTasks(serverTasks);
           setTradeOperations(serverTradeOperations);
           setViolations(serverViolations);
@@ -504,6 +555,7 @@ export default function StalkerProfilesPage() {
             setLocalImportProfiles(localProfiles);
           }
 
+          writeStoredCollection(STALKER_GROUPS_STORAGE_KEY, serverGroups);
           writeStoredCollection(STALKER_TASKS_STORAGE_KEY, serverTasks);
           writeStoredCollection(TRADE_OPERATIONS_STORAGE_KEY, serverTradeOperations);
           writeStoredCollection(VIOLATIONS_STORAGE_KEY, serverViolations);
@@ -999,8 +1051,25 @@ export default function StalkerProfilesPage() {
     resetGroupMemberDraft();
   }
 
-  function addProfileToGroup(groupId: string) {
+  async function addProfileToGroup(groupId: string) {
     if (!selectedProfile) {
+      return;
+    }
+
+    if (!groupId) {
+      setProfileGroupMessage("Выберите группу.");
+      return;
+    }
+
+    const group = groups.find((currentGroup) => currentGroup.id === groupId);
+
+    if (!group) {
+      setProfileGroupMessage("Не удалось обновить состав группы.");
+      return;
+    }
+
+    if (group.members.some((member) => member.stalkerId === selectedProfile.id)) {
+      setProfileGroupMessage("Профиль уже состоит в этой группе.");
       return;
     }
 
@@ -1012,29 +1081,49 @@ export default function StalkerProfilesPage() {
     }
 
     const now = getSystemTimestamp();
+    const nextMembers = [
+      ...group.members,
+      {
+        id: `member-${selectedProfile.id}-${now}`,
+        stalkerId: selectedProfile.id,
+        roleType: groupMemberDraft.roleType,
+        customRoleName: groupMemberDraft.roleType === "custom" ? customRoleName : null,
+        joinedAt: now,
+      },
+    ];
 
-    setGroups((currentGroups) =>
-      currentGroups.map((group) =>
-        group.id === groupId
-          ? {
-              ...group,
-              members: [
-                ...group.members,
-                {
-                  id: `member-${selectedProfile.id}-${Date.now()}`,
-                  stalkerId: selectedProfile.id,
-                  roleType: groupMemberDraft.roleType,
-                  customRoleName: groupMemberDraft.roleType === "custom" ? customRoleName : null,
-                  joinedAt: now,
-                },
-              ],
-              updatedAt: now,
-            }
-          : group,
-      ),
-    );
-    closeProfileGroupModal();
-    setTableMessage("Профиль добавлен в группу.");
+    setIsProfileSaving(true);
+    setProfileGroupMessage("");
+
+    try {
+      const updatedGroup = await saveStalkerGroupRequest(
+        `/api/stalker-groups/${encodeURIComponent(groupId)}`,
+        {
+          name: group.name,
+          photoUrl: group.photoUrl ?? null,
+          notes: group.notes,
+          status: group.status,
+          members: nextMembers,
+        },
+        "Не удалось обновить состав группы.",
+      );
+
+      setGroups((currentGroups) =>
+        currentGroups.map((currentGroup) => (currentGroup.id === updatedGroup.id ? updatedGroup : currentGroup)),
+      );
+      closeProfileGroupModal();
+      setTableMessage("Профиль добавлен в группу.");
+      addActivityLogEntry({
+        type: "group",
+        title: `Сталкер добавлен в группу: ${group.name}`,
+        status: "OK",
+        description: getProfileTitle(selectedProfile),
+      });
+    } catch (error) {
+      setProfileGroupMessage(error instanceof Error ? error.message : "Не удалось обновить состав группы.");
+    } finally {
+      setIsProfileSaving(false);
+    }
   }
 
   async function handleProfileSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -2123,11 +2212,9 @@ export default function StalkerProfilesPage() {
                         <section className="dossier-context-cell dossier-context-cell-group">
                           <div className="dossier-cell-heading">
                             <span>Группа</span>
-                            {selectedProfileGroups.length === 0 ? (
-                              <button className="command-row task-action-button" onClick={openProfileGroupModal} type="button">
-                                Добавить в группу
-                              </button>
-                            ) : null}
+                            <button className="command-row task-action-button" onClick={openProfileGroupModal} type="button">
+                              Добавить в группу
+                            </button>
                           </div>
                           {selectedProfileGroups.length > 0 ? (
                             <div className="dossier-group-list">
@@ -2424,7 +2511,10 @@ export default function StalkerProfilesPage() {
                       <label className="filter-field">
                         <span>Название группы</span>
                         <input
-                          onChange={(event) => setGroupMemberDraft((currentDraft) => ({ ...currentDraft, groupSearchQuery: event.target.value }))}
+                          onChange={(event) => {
+                            setGroupMemberDraft((currentDraft) => ({ ...currentDraft, groupSearchQuery: event.target.value }));
+                            setProfileGroupMessage("");
+                          }}
                           onKeyDown={handleGroupSearchKeyDown}
                           placeholder="Название группы"
                           type="text"
@@ -2447,8 +2537,13 @@ export default function StalkerProfilesPage() {
                               <strong>{group.name}</strong>
                               <span>Участников: {group.members.length}</span>
                             </div>
-                            <button className="command-row task-action-button" onClick={() => addProfileToGroup(group.id)} type="button">
-                              Добавить
+                            <button
+                              className="command-row task-action-button"
+                              disabled={isProfileSaving}
+                              onClick={() => void addProfileToGroup(group.id)}
+                              type="button"
+                            >
+                              {isProfileSaving ? "Сохранение..." : "Добавить"}
                             </button>
                           </div>
                         ))
@@ -2474,7 +2569,10 @@ export default function StalkerProfilesPage() {
                   <div className="group-role-fields profile-group-role-fields">
                     <select
                       className="group-role-select"
-                      onChange={(event) => setGroupMemberDraft((currentDraft) => ({ ...currentDraft, roleType: event.target.value as StalkerGroupRoleType }))}
+                      onChange={(event) => {
+                        setGroupMemberDraft((currentDraft) => ({ ...currentDraft, roleType: event.target.value as StalkerGroupRoleType }));
+                        setProfileGroupMessage("");
+                      }}
                       value={groupMemberDraft.roleType}
                     >
                       {Object.entries(groupRoleLabels).map(([value, label]) => (
@@ -2486,7 +2584,10 @@ export default function StalkerProfilesPage() {
                     {groupMemberDraft.roleType === "custom" ? (
                       <input
                         className="group-role-input"
-                        onChange={(event) => setGroupMemberDraft((currentDraft) => ({ ...currentDraft, customRoleName: event.target.value }))}
+                        onChange={(event) => {
+                          setGroupMemberDraft((currentDraft) => ({ ...currentDraft, customRoleName: event.target.value }));
+                          setProfileGroupMessage("");
+                        }}
                         placeholder="Название роли"
                         type="text"
                         value={groupMemberDraft.customRoleName}

@@ -2,6 +2,7 @@ import { requireApiAuth } from "@/lib/auth/require-api-auth";
 import { getPrismaClient } from "@/lib/prisma";
 import { createSystemDate } from "@/lib/stalker-utils";
 import {
+  collectMemberStalkerIds,
   createErrorResponse,
   groupResponseInclude,
   isStalkerGroupStatus,
@@ -55,8 +56,24 @@ export async function POST(request: Request) {
   }
 
   const prisma = getPrismaClient();
-  const stalkers = await prisma.stalker.findMany({ select: { id: true } });
-  const existingStalkerIds = new Set(stalkers.map((stalker) => stalker.id));
+  const requestedStalkerIds = collectMemberStalkerIds(payload.members);
+  const existingStalkerIds = new Set<string>();
+
+  if (requestedStalkerIds.length > 0) {
+    const stalkers = await prisma.stalker.findMany({
+      where: { id: { in: requestedStalkerIds } },
+      select: { id: true },
+    });
+
+    stalkers.forEach((stalker) => {
+      existingStalkerIds.add(stalker.id);
+    });
+
+    if (existingStalkerIds.size !== requestedStalkerIds.length) {
+      return createErrorResponse("Один или несколько сталкеров не найдены.", 404);
+    }
+  }
+
   const now = createSystemDate();
   const members = normalizeMemberPayloads(payload.members, existingStalkerIds, now);
 

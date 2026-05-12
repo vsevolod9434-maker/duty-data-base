@@ -114,6 +114,32 @@ export function mapGroupToResponse(group: DatabaseGroup) {
   };
 }
 
+export function collectMemberStalkerIds(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const ids: string[] = [];
+  const seenIds = new Set<string>();
+
+  value.forEach((member) => {
+    if (!member || typeof member !== "object") {
+      return;
+    }
+
+    const stalkerId = normalizeString((member as StalkerGroupMemberPayload).stalkerId);
+
+    if (!stalkerId || seenIds.has(stalkerId)) {
+      return;
+    }
+
+    seenIds.add(stalkerId);
+    ids.push(stalkerId);
+  });
+
+  return ids;
+}
+
 export function normalizeMemberPayloads(
   value: unknown,
   existingStalkerIds: Set<string>,

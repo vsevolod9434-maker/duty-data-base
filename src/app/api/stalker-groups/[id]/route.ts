@@ -2,6 +2,7 @@ import { requireApiAuth } from "@/lib/auth/require-api-auth";
 import { getPrismaClient } from "@/lib/prisma";
 import { createSystemDate } from "@/lib/stalker-utils";
 import {
+  collectMemberStalkerIds,
   createErrorResponse,
   groupResponseInclude,
   isStalkerGroupStatus,
@@ -78,26 +79,54 @@ export async function PATCH(request: Request, context: RouteContext) {
     data.status = payload.status;
   }
 
+  const prisma = getPrismaClient();
+  let normalizedMembers:
+    | Array<{
+        id: string;
+        stalkerId: string;
+        roleType: "leader" | "member" | "custom";
+        customRoleName: string | null;
+        joinedAt: Date;
+      }>
+    | undefined;
+
+  if (payload.members !== undefined) {
+    const requestedStalkerIds = collectMemberStalkerIds(payload.members);
+    const existingStalkerIds = new Set<string>();
+
+    if (requestedStalkerIds.length > 0) {
+      const stalkers = await prisma.stalker.findMany({
+        where: { id: { in: requestedStalkerIds } },
+        select: { id: true },
+      });
+
+      stalkers.forEach((stalker) => {
+        existingStalkerIds.add(stalker.id);
+      });
+
+      if (existingStalkerIds.size !== requestedStalkerIds.length) {
+        return createErrorResponse("Один или несколько сталкеров не найдены.", 404);
+      }
+    }
+
+    normalizedMembers = normalizeMemberPayloads(payload.members, existingStalkerIds, data.updatedAt);
+  }
+
   try {
-    const prisma = getPrismaClient();
     const group = await prisma.$transaction(async (tx) => {
       const updatedGroup = await tx.stalkerGroup.update({
         data,
         where: { id },
       });
 
-      if (payload.members !== undefined) {
-        const stalkers = await tx.stalker.findMany({ select: { id: true } });
-        const existingStalkerIds = new Set(stalkers.map((stalker) => stalker.id));
-        const members = normalizeMemberPayloads(payload.members, existingStalkerIds, data.updatedAt);
-
+      if (normalizedMembers !== undefined) {
         await tx.stalkerGroupMember.deleteMany({
           where: { groupId: updatedGroup.id },
         });
 
-        if (members.length > 0) {
+        if (normalizedMembers.length > 0) {
           await tx.stalkerGroupMember.createMany({
-            data: members.map((member) => ({
+            data: normalizedMembers.map((member) => ({
               ...member,
               groupId: updatedGroup.id,
             })),
