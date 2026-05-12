@@ -1,33 +1,4 @@
-import Link from "next/link";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
-
-const navigationCards = [
-  {
-    description: "Личные дела, записи, архив и привязанные журналы.",
-    href: "/stalkers/profiles",
-    title: "Профили сталкеров",
-  },
-  {
-    description: "Составы, роли участников и служебные заметки.",
-    href: "/stalkers/groups",
-    title: "Группы сталкеров",
-  },
-  {
-    description: "Заселение, жильцы и контроль оплаты проживания.",
-    href: "/apartments",
-    title: "Квартиры",
-  },
-  {
-    description: "Рабочие журналы и служебные записи.",
-    href: "/journals",
-    title: "Журналы",
-  },
-  {
-    description: "Слои, метки, зоны и маршруты рабочей территории.",
-    href: "/map",
-    title: "Карта",
-  },
-];
 
 export default function Home() {
   return (
@@ -36,25 +7,46 @@ export default function Home() {
         <PdaTopbar activeLabel="Главная" />
 
         <div className="pda-content welcome-page">
-          <section className="welcome-hero animate-panel-in" aria-labelledby="welcome-title">
-            <div className="welcome-hero-frame">
-              <div className="welcome-hero-copy">
-                <p className="welcome-eyebrow">Внутренняя база учёта</p>
-                <h1 id="welcome-title">База данных группировки «Долг»</h1>
-                <p className="welcome-status">Служебный доступ подтверждён</p>
-                <p className="welcome-text">
-                  Добро пожаловать в систему учёта. Доступ к разделам открыт в соответствии с текущим служебным допуском.
-                </p>
-              </div>
+          <section className="welcome-screen animate-panel-in" aria-labelledby="welcome-title">
+            <div className="welcome-screen-layer welcome-screen-layer-grid" aria-hidden="true" />
 
-              <nav className="welcome-nav" aria-label="Основные разделы">
-                {navigationCards.map((card) => (
-                  <Link className="welcome-nav-card interactive-card" href={card.href} key={card.href}>
-                    <span>{card.title}</span>
-                    <small>{card.description}</small>
-                  </Link>
-                ))}
-              </nav>
+            <div className="welcome-shell">
+              <div className="welcome-panel">
+                <div className="welcome-panel-head">
+                  <span className="welcome-indicator" aria-hidden="true" />
+                  <p className="welcome-eyebrow">Внутренняя база учёта</p>
+                </div>
+
+                <div className="welcome-content">
+                  <div className="welcome-copy-rail" aria-hidden="true" />
+
+                  <div className="welcome-hero-copy">
+                    <h1 id="welcome-title">База данных группировки «Долг»</h1>
+                    <p className="welcome-status">Служебный доступ подтверждён</p>
+                    <p className="welcome-text">
+                      Добро пожаловать в систему учёта. Доступ к разделам открыт в соответствии с текущим служебным допуском.
+                    </p>
+                  </div>
+
+                  <div className="welcome-service-panel" aria-hidden="true">
+                    <div className="welcome-service-panel-head">
+                      <span className="welcome-indicator" />
+                      <strong>Служебный режим</strong>
+                    </div>
+                    <div className="welcome-service-list">
+                      <span>Учёт ведётся в штатном порядке</span>
+                      <span>Разделы открыты согласно допуску</span>
+                      <span>Данные доступны для работы</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="welcome-status-strip" aria-hidden="true">
+                  <span>Система учёта активна</span>
+                  <span>Доступ разрешён</span>
+                  <span>Группировка «Долг»</span>
+                </div>
+              </div>
             </div>
           </section>
         </div>
