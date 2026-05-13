@@ -12,7 +12,7 @@ type ApiAuthFailure = {
 type ApiAuthSuccess = {
   ok: true;
   user: User;
-  accessUser: Pick<AccessUser, "displayName" | "isActive" | "login" | "role">;
+  accessUser: Pick<AccessUser, "displayName" | "id" | "isActive" | "login" | "role">;
   role: AccessUser["role"];
   login: string;
   displayName: string | null;
@@ -61,6 +61,7 @@ export async function requireApiAuth(): Promise<ApiAuthResult> {
   const accessUser = await prisma.accessUser.findFirst({
     select: {
       displayName: true,
+      id: true,
       isActive: true,
       login: true,
       role: true,

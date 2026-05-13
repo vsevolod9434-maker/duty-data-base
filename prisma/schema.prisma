@@ -193,6 +193,8 @@ model DutyMember {
   serviceStatus  DutyServiceStatus
   profileStatus  DutyMemberProfileStatus
   notes          String?
+  accessUserId   String?                 @unique
+  accessUser     AccessUser?             @relation(fields: [accessUserId], references: [id], onDelete: SetNull)
   createdAt      DateTime
   updatedAt      DateTime
 }
@@ -220,6 +222,7 @@ model AccessUser {
   isActive        Boolean        @default(true)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
+  dutyMember      DutyMember?
 
   @@index([role])
   @@index([isActive])

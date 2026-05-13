@@ -82,8 +82,30 @@ type DraftZonePreview =
   | { shape: "circle"; centerX: number; centerY: number; radius: number; type: string; colorKey: string; patternKey: string; brightness: number; contrast: number }
   | { shape: "polygon"; points: Array<Pick<MapRoutePointDto, "x" | "y">>; type: string; colorKey: string; patternKey: string; brightness: number; contrast: number };
 
+type DraftMarkerPreview = {
+  brightness: number;
+  colorKey: string;
+  contrast: number;
+  followCursor?: boolean;
+  size: number;
+  type: string;
+  x?: number;
+  y?: number;
+};
+
+type DraftZonePlacementPreview = {
+  brightness: number;
+  colorKey: string;
+  contrast: number;
+  patternKey: string;
+  radius: number;
+  type: string;
+};
+
 type TileMapViewerProps = {
+  draftMarkerPreview?: DraftMarkerPreview | null;
   draftZonePreview?: DraftZonePreview | null;
+  draftZonePlacementPreview?: DraftZonePlacementPreview | null;
   draftRouteColorKey?: string;
   draftRouteLinePattern?: string;
   draftRoutePoints?: Array<Pick<MapRoutePointDto, "x" | "y">>;
@@ -311,8 +333,10 @@ function mapIntersectsViewport(metadata: MapMetadata, viewportSize: ViewportSize
 }
 
 export function TileMapViewer({
+  draftMarkerPreview = null,
   draftRouteColorKey = DEFAULT_MAP_ROUTE_COLOR_KEY,
   draftRouteLinePattern = DEFAULT_MAP_ROUTE_LINE_PATTERN,
+  draftZonePlacementPreview = null,
   draftZonePreview = null,
   draftRoutePoints = [],
   drawingMode = null,
@@ -656,6 +680,52 @@ export function TileMapViewer({
     };
   }, [currentView, draftZonePreview]);
 
+  const draftZoneCursorScreenPreview = useMemo(() => {
+    if (!draftZonePlacementPreview || !cursorCoordinates) {
+      return null;
+    }
+
+    return {
+      cx: currentView.offset.x + cursorCoordinates.x * currentView.scale,
+      cy: currentView.offset.y + cursorCoordinates.y * currentView.scale,
+      brightness: draftZonePlacementPreview.brightness,
+      colorKey: draftZonePlacementPreview.colorKey,
+      contrast: draftZonePlacementPreview.contrast,
+      patternKey: draftZonePlacementPreview.patternKey,
+      radius: draftZonePlacementPreview.radius * currentView.scale,
+      shape: "circle" as const,
+      type: draftZonePlacementPreview.type,
+    };
+  }, [currentView, cursorCoordinates, draftZonePlacementPreview]);
+
+  const activeDraftZoneScreenPreview = draftZoneScreenPreview ?? draftZoneCursorScreenPreview;
+
+  const draftMarkerScreenPreview = useMemo(() => {
+    if (!draftMarkerPreview) {
+      return null;
+    }
+
+    const sourcePoint = draftMarkerPreview.followCursor
+      ? cursorCoordinates
+      : typeof draftMarkerPreview.x === "number" && typeof draftMarkerPreview.y === "number"
+        ? { x: draftMarkerPreview.x, y: draftMarkerPreview.y }
+        : null;
+
+    if (!sourcePoint || !Number.isFinite(sourcePoint.x) || !Number.isFinite(sourcePoint.y)) {
+      return null;
+    }
+
+    return {
+      brightness: draftMarkerPreview.brightness,
+      colorKey: draftMarkerPreview.colorKey,
+      contrast: draftMarkerPreview.contrast,
+      left: currentView.offset.x + sourcePoint.x * currentView.scale,
+      size: draftMarkerPreview.size,
+      top: currentView.offset.y + sourcePoint.y * currentView.scale,
+      type: draftMarkerPreview.type,
+    };
+  }, [currentView, cursorCoordinates, draftMarkerPreview]);
+
   const selectedMarker = useMemo(() => {
     return markers.find((marker) => marker.id === selectedMarkerId && marker.status !== "archived") ?? null;
   }, [markers, selectedMarkerId]);
@@ -981,7 +1051,7 @@ export function TileMapViewer({
       </div>
 
       <div
-        className={`map-viewer-viewport ${isPickingPoint ? "map-viewer-viewport-picking" : ""}`}
+        className={`map-viewer-viewport ${isPickingPoint ? "map-viewer-viewport-picking" : ""} ${drawingMode === "marker" ? "map-viewer-viewport-marker-preview" : ""}`}
         onDoubleClick={handleDoubleClick}
         onClick={handleViewportClick}
         onPointerDown={handlePointerDown}
@@ -1143,29 +1213,29 @@ export function TileMapViewer({
               ))}
             </g>
           ) : null}
-          {draftZoneScreenPreview ? (
+          {activeDraftZoneScreenPreview ? (
             <g
-              className={`map-zone-draft map-zone--${getMapZoneTypeClassName(draftZoneScreenPreview.type)}`}
+              className={`map-zone-draft map-zone--${getMapZoneTypeClassName(activeDraftZoneScreenPreview.type)}`}
               style={{
-                filter: getMapStyleFilter(draftZoneScreenPreview.brightness, draftZoneScreenPreview.contrast),
+                filter: getMapStyleFilter(activeDraftZoneScreenPreview.brightness, activeDraftZoneScreenPreview.contrast),
                 fill:
-                  draftZoneScreenPreview.patternKey === "solid"
-                    ? getZoneColorPreset(draftZoneScreenPreview.colorKey).fill
-                    : `url(#${getFillPatternId(draftZoneScreenPreview.colorKey, draftZoneScreenPreview.patternKey)})`,
-                stroke: getZoneColorPreset(draftZoneScreenPreview.colorKey).stroke,
+                  activeDraftZoneScreenPreview.patternKey === "solid"
+                    ? getZoneColorPreset(activeDraftZoneScreenPreview.colorKey).fill
+                    : `url(#${getFillPatternId(activeDraftZoneScreenPreview.colorKey, activeDraftZoneScreenPreview.patternKey)})`,
+                stroke: getZoneColorPreset(activeDraftZoneScreenPreview.colorKey).stroke,
               }}
             >
-              {draftZoneScreenPreview.shape === "circle" ? (
-                <circle cx={draftZoneScreenPreview.cx} cy={draftZoneScreenPreview.cy} r={draftZoneScreenPreview.radius} />
+              {activeDraftZoneScreenPreview.shape === "circle" ? (
+                <circle cx={activeDraftZoneScreenPreview.cx} cy={activeDraftZoneScreenPreview.cy} r={activeDraftZoneScreenPreview.radius} />
               ) : (
                 <>
-                  {draftZoneScreenPreview.points.length >= 3 ? (
-                    <polygon points={draftZoneScreenPreview.points.map((point) => `${point.x},${point.y}`).join(" ")} />
+                  {activeDraftZoneScreenPreview.points.length >= 3 ? (
+                    <polygon points={activeDraftZoneScreenPreview.points.map((point) => `${point.x},${point.y}`).join(" ")} />
                   ) : null}
-                  {draftZoneScreenPreview.points.length > 1 ? (
-                    <polyline points={draftZoneScreenPreview.points.map((point) => `${point.x},${point.y}`).join(" ")} />
+                  {activeDraftZoneScreenPreview.points.length > 1 ? (
+                    <polyline points={activeDraftZoneScreenPreview.points.map((point) => `${point.x},${point.y}`).join(" ")} />
                   ) : null}
-                  {draftZoneScreenPreview.points.map((point, index) => (
+                  {activeDraftZoneScreenPreview.points.map((point, index) => (
                     <circle cx={point.x} cy={point.y} key={index} r={3.2} />
                   ))}
                 </>
@@ -1198,6 +1268,21 @@ export function TileMapViewer({
               <MapMarkerIcon type={marker.type} />
             </button>
           ))}
+          {draftMarkerScreenPreview ? (
+            <div
+              aria-hidden="true"
+              className={`map-marker map-marker-draft map-marker--${getMapMarkerTypeClassName(draftMarkerScreenPreview.type)}`}
+              style={{
+                "--marker-scale": String(Math.max(0.25, (draftMarkerScreenPreview.size ?? 100) / 100)),
+                color: getZoneColorPreset(draftMarkerScreenPreview.colorKey).marker,
+                filter: getMapStyleFilter(draftMarkerScreenPreview.brightness, draftMarkerScreenPreview.contrast),
+                left: draftMarkerScreenPreview.left,
+                top: draftMarkerScreenPreview.top,
+              } as CSSProperties}
+            >
+              <MapMarkerIcon type={draftMarkerScreenPreview.type} />
+            </div>
+          ) : null}
         </div>
         {selectedMarkerPopover ? (
           <article
@@ -1228,10 +1313,6 @@ export function TileMapViewer({
               <div>
                 <dt>Цвет</dt>
                 <dd>{getZoneColorPreset(selectedMarkerPopover.marker.colorKey).label}</dd>
-              </div>
-              <div>
-                <dt>Формат</dt>
-                <dd>{getFillPatternPreset(selectedMarkerPopover.marker.patternKey).label}</dd>
               </div>
               <div>
                 <dt>Координаты</dt>

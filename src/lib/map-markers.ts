@@ -91,9 +91,9 @@ export const DEFAULT_MAP_MARKER_COLOR_KEY = DEFAULT_MAP_OBJECT_COLOR_KEY;
 export const DEFAULT_MAP_MARKER_PATTERN_KEY = DEFAULT_MAP_FILL_PATTERN;
 export const DEFAULT_MAP_MARKER_SIZE = 100;
 export const MAP_MARKER_SIZE_PRESETS = {
-  large: { label: "Крупный", size: 150 },
-  small: { label: "Маленький", size: 50 },
-  standard: { label: "Стандартный", size: 100 },
+  large: { label: "Крупный", size: 200 },
+  small: { label: "Маленький", size: 100 },
+  standard: { label: "Стандартный", size: 150 },
 } as const;
 
 export const mapMarkerTypeLabels: Record<MapMarkerUiType, string> = {

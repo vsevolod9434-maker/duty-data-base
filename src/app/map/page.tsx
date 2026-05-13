@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, KeyboardEvent as ReactKeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
 import { MapMarkerIcon, TileMapViewer } from "@/components/map/TileMapViewer";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -18,9 +18,9 @@ import {
   updateMapZone,
 } from "@/lib/map-overlay-api";
 import {
+  DEFAULT_MAP_MARKER_COLOR_KEY,
   DEFAULT_MAP_MARKER_TYPE,
   MAP_MARKER_SIZE_PRESETS,
-  getMapMarkerTypeClassName,
   getMapMarkerTypeLabel,
   normalizeMapMarkerType,
   type MapMarkerDto,
@@ -167,6 +167,169 @@ function LayerDeleteIcon() {
   );
 }
 
+function useCloseOnOutsideClick(isOpen: boolean, onClose: () => void) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        onClose();
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [isOpen, onClose]);
+
+  return rootRef;
+}
+
+function MarkerIconDropdown({
+  className = "",
+  colorKey,
+  disabled,
+  onChange,
+  value,
+}: {
+  className?: string;
+  colorKey: MapObjectColorKey;
+  disabled?: boolean;
+  onChange: (value: MapMarkerUiType) => void;
+  value: MapMarkerUiType;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const rootRef = useCloseOnOutsideClick(isOpen, () => setIsOpen(false));
+  const selectedLabel = getMapMarkerTypeLabel(value);
+  const markerColor = getZoneColorPreset(colorKey).marker;
+
+  function handleButtonKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>) {
+    if (event.key === "Escape") {
+      setIsOpen(false);
+    }
+  }
+
+  return (
+    <div className={`filter-field map-visual-select-field ${className}`}>
+      <span>Значок</span>
+      <div className="map-visual-select" ref={rootRef}>
+        <button
+          aria-expanded={isOpen}
+          aria-haspopup="listbox"
+          className="map-visual-select-button"
+          disabled={disabled}
+          onClick={() => setIsOpen((currentValue) => !currentValue)}
+          onKeyDown={handleButtonKeyDown}
+          type="button"
+        >
+          <span className="map-visual-select-marker" style={{ color: markerColor }}>
+            <MapMarkerIcon type={value} />
+          </span>
+          <span className="map-visual-select-label">{selectedLabel}</span>
+          <span aria-hidden="true" className="map-visual-select-chevron">
+            ▾
+          </span>
+        </button>
+        {isOpen ? (
+          <div className="map-visual-select-menu" role="listbox">
+            {orderedMarkerUiTypes.map((type) => (
+              <button
+                aria-selected={value === type}
+                className={`map-visual-select-option ${value === type ? "map-visual-select-option-active" : ""}`}
+                key={type}
+                onClick={() => {
+                  onChange(type);
+                  setIsOpen(false);
+                }}
+                role="option"
+                type="button"
+              >
+                <span className="map-visual-select-marker" style={{ color: markerColor }}>
+                  <MapMarkerIcon type={type} />
+                </span>
+                <span>{getMapMarkerTypeLabel(type)}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function MapColorDropdown<TColor extends MapObjectColorKey>({
+  disabled,
+  getPreset,
+  onChange,
+  value,
+}: {
+  disabled?: boolean;
+  getPreset: (value: TColor) => { label: string; marker: string; stroke: string };
+  onChange: (value: TColor) => void;
+  value: TColor;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const rootRef = useCloseOnOutsideClick(isOpen, () => setIsOpen(false));
+  const selectedColor = getPreset(value);
+
+  function handleButtonKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>) {
+    if (event.key === "Escape") {
+      setIsOpen(false);
+    }
+  }
+
+  return (
+    <div className="filter-field map-visual-select-field">
+      <span>Цвет</span>
+      <div className="map-visual-select" ref={rootRef}>
+        <button
+          aria-expanded={isOpen}
+          aria-haspopup="listbox"
+          className="map-visual-select-button"
+          disabled={disabled}
+          onClick={() => setIsOpen((currentValue) => !currentValue)}
+          onKeyDown={handleButtonKeyDown}
+          type="button"
+        >
+          <span className="map-visual-select-swatch" style={{ backgroundColor: selectedColor.marker, borderColor: selectedColor.stroke }} />
+          <span className="map-visual-select-label">{selectedColor.label}</span>
+          <span aria-hidden="true" className="map-visual-select-chevron">
+            ▾
+          </span>
+        </button>
+        {isOpen ? (
+          <div className="map-visual-select-menu" role="listbox">
+            {orderedMapColorKeys.map((colorKey) => {
+              const color = getPreset(colorKey as TColor);
+              const isSelected = value === colorKey;
+
+              return (
+                <button
+                  aria-selected={isSelected}
+                  className={`map-visual-select-option ${isSelected ? "map-visual-select-option-active" : ""}`}
+                  key={colorKey}
+                  onClick={() => {
+                    onChange(colorKey as TColor);
+                    setIsOpen(false);
+                  }}
+                  role="option"
+                  type="button"
+                >
+                  <span className="map-visual-select-swatch" style={{ backgroundColor: color.marker, borderColor: color.stroke }} />
+                  <span>{color.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 const emptyMarkerDraft: MarkerFormDraft = {
   brightness: "100",
   colorKey: "red",
@@ -236,8 +399,6 @@ const orderedCircleRadiusPresets = [
 ] as const;
 
 const orderedMapColorKeys: MapObjectColorKey[] = ["red", "orange", "yellow", "green", "cyan", "blue", "violet", "black"];
-const styleValuePresets = [100, 125, 150] as const;
-
 function normalizeSearch(value: string) {
   return value.trim().toLocaleLowerCase("ru");
 }
@@ -535,6 +696,18 @@ export default function MapPage() {
     return routes.filter((route) => layerSet.has(route.layer));
   }, [routes, visibleLayers]);
 
+  const viewerMarkers = useMemo(() => {
+    return markerDraft?.id ? visibleMarkers.filter((marker) => marker.id !== markerDraft.id) : visibleMarkers;
+  }, [markerDraft?.id, visibleMarkers]);
+
+  const viewerZones = useMemo(() => {
+    return zoneDraft?.id ? visibleZones.filter((zone) => zone.id !== zoneDraft.id) : visibleZones;
+  }, [visibleZones, zoneDraft?.id]);
+
+  const viewerRoutes = useMemo(() => {
+    return routeDraft?.id ? visibleRoutes.filter((route) => route.id !== routeDraft.id) : visibleRoutes;
+  }, [routeDraft?.id, visibleRoutes]);
+
   const filteredZones = useMemo(() => {
     const query = normalizeSearch(zoneSearch);
 
@@ -592,6 +765,10 @@ export default function MapPage() {
         };
       }
 
+      if (drawingMode === "zone") {
+        return null;
+      }
+
       return {
         brightness: normalizeStyleDraftValue(zoneDraft.brightness),
         centerX: Number(zoneDraft.centerX),
@@ -620,6 +797,49 @@ export default function MapPage() {
     return null;
   }, [drawingMode, drawingPoints, zoneDraft]);
 
+  const draftMarkerPreview = useMemo(() => {
+    if (markerDraft) {
+      return {
+        brightness: normalizeStyleDraftValue(markerDraft.brightness),
+        colorKey: markerDraft.colorKey,
+        contrast: normalizeStyleDraftValue(markerDraft.contrast),
+        followCursor: drawingMode === "marker",
+        size: Math.max(1, Number(markerDraft.size) || 100),
+        type: markerDraft.type,
+        x: Number(markerDraft.x),
+        y: Number(markerDraft.y),
+      };
+    }
+
+    if (drawingMode === "marker") {
+      return {
+        brightness: 100,
+        colorKey: DEFAULT_MAP_MARKER_COLOR_KEY,
+        contrast: 100,
+        followCursor: true,
+        size: 100,
+        type: DEFAULT_MAP_MARKER_TYPE,
+      };
+    }
+
+    return null;
+  }, [drawingMode, markerDraft]);
+
+  const draftZonePlacementPreview = useMemo(() => {
+    if (drawingMode !== "zone" || !zoneDraft || zoneDraft.shape !== "circle") {
+      return null;
+    }
+
+    return {
+      brightness: normalizeStyleDraftValue(zoneDraft.brightness),
+      colorKey: zoneDraft.colorKey,
+      contrast: normalizeStyleDraftValue(zoneDraft.contrast),
+      patternKey: zoneDraft.patternKey,
+      radius: Math.max(1, Number(zoneDraft.radius) || 1),
+      type: zoneDraft.type,
+    };
+  }, [drawingMode, zoneDraft]);
+
   function clearSelection() {
     setSelectedMarkerId(null);
     setSelectedZoneId(null);
@@ -636,12 +856,95 @@ export default function MapPage() {
     setDrawingMessage("");
   }
 
-  function startDrawing(nextMode: DrawingMode, panel: ActivePanel) {
+  function hasDirtyEditor() {
+    const currentDraft = markerDraft ?? zoneDraft ?? routeDraft;
+    const initialDraft = markerDraft ? initialMarkerDraftRef.current : zoneDraft ? initialZoneDraftRef.current : initialRouteDraftRef.current;
+
+    if (currentDraft) {
+      return JSON.stringify(currentDraft) !== JSON.stringify(initialDraft);
+    }
+
+    return drawingPoints.length > 0;
+  }
+
+  function hasOpenEditor() {
+    return Boolean(markerDraft || zoneDraft || routeDraft || drawingMode || drawingPoints.length > 0);
+  }
+
+  function runWithEditorClose(action: () => void) {
+    if (!hasOpenEditor()) {
+      action();
+      return;
+    }
+
+    if (!hasDirtyEditor()) {
+      closeForms();
+      action();
+      return;
+    }
+
+    setConfirmDialog({
+      cancelLabel: "Остаться",
+      confirmLabel: "Закрыть",
+      message: "Вы уверены, что хотите закрыть окно?",
+      onConfirm: () => {
+        closeForms();
+        setConfirmDialog(null);
+        action();
+      },
+      title: "Закрыть окно?",
+      variant: "warning",
+    });
+  }
+
+  function beginDrawing(nextMode: DrawingMode, panel: ActivePanel) {
     clearSelection();
     setActivePanel(panel);
     setDrawingMode(nextMode);
     setDrawingMessage("");
     setDrawingPoints([]);
+    setFormMessage("");
+
+    if (nextMode === "marker") {
+      const nextDraft = createMarkerDraftAtPoint(0, 0);
+      initialMarkerDraftRef.current = nextDraft;
+      initialZoneDraftRef.current = null;
+      initialRouteDraftRef.current = null;
+      setMarkerDraft(nextDraft);
+      setZoneDraft(null);
+      setRouteDraft(null);
+      return;
+    }
+
+    if (nextMode === "zone") {
+      const nextDraft = createCircleZoneDraftAtPoint(0, 0);
+      initialMarkerDraftRef.current = null;
+      initialZoneDraftRef.current = nextDraft;
+      initialRouteDraftRef.current = null;
+      setMarkerDraft(null);
+      setZoneDraft(nextDraft);
+      setRouteDraft(null);
+      return;
+    }
+
+    setMarkerDraft(null);
+    setZoneDraft(null);
+    setRouteDraft(null);
+    initialMarkerDraftRef.current = null;
+    initialZoneDraftRef.current = null;
+    initialRouteDraftRef.current = null;
+  }
+
+  function startDrawing(nextMode: DrawingMode, panel: ActivePanel) {
+    runWithEditorClose(() => beginDrawing(nextMode, panel));
+  }
+
+  function handlePanelChange(nextPanel: ActivePanel) {
+    if (activePanel === nextPanel) {
+      return;
+    }
+
+    runWithEditorClose(() => setActivePanel(nextPanel));
   }
 
   function updateMarkerDraft<K extends keyof MarkerFormDraft>(field: K, value: MarkerFormDraft[K]) {
@@ -678,50 +981,109 @@ export default function MapPage() {
   function openMarkerCreateForm(x: number, y: number) {
     const nextDraft = createMarkerDraftAtPoint(x, y);
     initialMarkerDraftRef.current = nextDraft;
+    initialZoneDraftRef.current = null;
+    initialRouteDraftRef.current = null;
     setMarkerDraft(nextDraft);
+    setZoneDraft(null);
+    setRouteDraft(null);
+    setActivePanel("markers");
+    setFormMessage("");
+  }
+
+  function beginMarkerEditForm(marker: MapMarkerDto) {
+    const nextDraft = createMarkerDraftFromMarker(marker);
+    initialMarkerDraftRef.current = nextDraft;
+    initialZoneDraftRef.current = null;
+    initialRouteDraftRef.current = null;
+    setMarkerDraft(nextDraft);
+    setZoneDraft(null);
+    setRouteDraft(null);
+    setSelectedMarkerId(marker.id);
+    setSelectedZoneId(null);
+    setSelectedRouteId(null);
+    setActivePanel("markers");
+    stopDrawing();
     setFormMessage("");
   }
 
   function openMarkerEditForm(marker: MapMarkerDto) {
-    const nextDraft = createMarkerDraftFromMarker(marker);
-    initialMarkerDraftRef.current = nextDraft;
-    setMarkerDraft(nextDraft);
-    setFormMessage("");
+    runWithEditorClose(() => beginMarkerEditForm(marker));
   }
 
   function openCircleZoneCreateForm(x: number, y: number) {
     const nextDraft = createCircleZoneDraftAtPoint(x, y);
+    initialMarkerDraftRef.current = null;
     initialZoneDraftRef.current = nextDraft;
+    initialRouteDraftRef.current = null;
+    setMarkerDraft(null);
     setZoneDraft(nextDraft);
+    setRouteDraft(null);
+    setActivePanel("zones");
+    setFormMessage("");
+  }
+
+  function beginZoneEditForm(zone: MapZoneDto) {
+    const nextDraft = createZoneDraftFromZone(zone);
+    initialMarkerDraftRef.current = null;
+    initialZoneDraftRef.current = nextDraft;
+    initialRouteDraftRef.current = null;
+    setMarkerDraft(null);
+    setZoneDraft(nextDraft);
+    setRouteDraft(null);
+    setSelectedMarkerId(null);
+    setSelectedZoneId(zone.id);
+    setSelectedRouteId(null);
+    setActivePanel("zones");
+    stopDrawing();
     setFormMessage("");
   }
 
   function openZoneEditForm(zone: MapZoneDto) {
-    const nextDraft = createZoneDraftFromZone(zone);
-    initialZoneDraftRef.current = nextDraft;
-    setZoneDraft(nextDraft);
-    setFormMessage("");
+    runWithEditorClose(() => beginZoneEditForm(zone));
   }
 
   function openPolygonZoneForm(points: MapPoint[], baseZone?: MapZoneDto) {
     const nextDraft = createPolygonZoneDraftFromPoints(points, baseZone);
+    initialMarkerDraftRef.current = null;
     initialZoneDraftRef.current = nextDraft;
+    initialRouteDraftRef.current = null;
+    setMarkerDraft(null);
     setZoneDraft(nextDraft);
+    setRouteDraft(null);
+    setActivePanel("zones");
     setFormMessage("");
   }
 
   function openRouteCreateForm(points: MapPoint[], baseRoute?: MapRouteDto) {
     const nextDraft = createRouteDraftFromPoints(points, baseRoute);
+    initialMarkerDraftRef.current = null;
+    initialZoneDraftRef.current = null;
     initialRouteDraftRef.current = nextDraft;
+    setMarkerDraft(null);
+    setZoneDraft(null);
     setRouteDraft(nextDraft);
+    setActivePanel("routes");
+    setFormMessage("");
+  }
+
+  function beginRouteEditForm(route: MapRouteDto) {
+    const nextDraft = createRouteDraftFromRoute(route);
+    initialMarkerDraftRef.current = null;
+    initialZoneDraftRef.current = null;
+    initialRouteDraftRef.current = nextDraft;
+    setMarkerDraft(null);
+    setZoneDraft(null);
+    setRouteDraft(nextDraft);
+    setSelectedMarkerId(null);
+    setSelectedZoneId(null);
+    setSelectedRouteId(route.id);
+    setActivePanel("routes");
+    stopDrawing();
     setFormMessage("");
   }
 
   function openRouteEditForm(route: MapRouteDto) {
-    const nextDraft = createRouteDraftFromRoute(route);
-    initialRouteDraftRef.current = nextDraft;
-    setRouteDraft(nextDraft);
-    setFormMessage("");
+    runWithEditorClose(() => beginRouteEditForm(route));
   }
 
   function closeForms() {
@@ -729,22 +1091,20 @@ export default function MapPage() {
     setZoneDraft(null);
     setRouteDraft(null);
     setFormMessage("");
+    setDrawingMode(null);
+    setDrawingPoints([]);
+    setDrawingMessage("");
     initialMarkerDraftRef.current = null;
     initialZoneDraftRef.current = null;
     initialRouteDraftRef.current = null;
   }
 
   function requestCloseForms() {
-    const currentDraft = markerDraft ?? zoneDraft ?? routeDraft;
-    const initialDraft = markerDraft ? initialMarkerDraftRef.current : zoneDraft ? initialZoneDraftRef.current : initialRouteDraftRef.current;
-
-    if (!currentDraft) {
+    if (!hasOpenEditor()) {
       return;
     }
 
-    const isDirty = JSON.stringify(currentDraft) !== JSON.stringify(initialDraft);
-
-    if (!isDirty) {
+    if (!hasDirtyEditor()) {
       closeForms();
       return;
     }
@@ -764,12 +1124,28 @@ export default function MapPage() {
 
   function handleMapClick(x: number, y: number) {
     if (drawingMode === "marker") {
+      if (markerDraft) {
+        updateMarkerDraft("x", String(x));
+        updateMarkerDraft("y", String(y));
+        setDrawingMode(null);
+        setFormMessage("");
+        return;
+      }
+
       setDrawingMode(null);
       openMarkerCreateForm(x, y);
       return;
     }
 
     if (drawingMode === "zone") {
+      if (zoneDraft?.shape === "circle") {
+        updateZoneDraft("centerX", String(x));
+        updateZoneDraft("centerY", String(y));
+        setDrawingMode(null);
+        setFormMessage("");
+        return;
+      }
+
       setDrawingMode(null);
       openCircleZoneCreateForm(x, y);
       return;
@@ -823,6 +1199,11 @@ export default function MapPage() {
       return;
     }
 
+    if (!markerDraft.id && drawingMode === "marker") {
+      setFormMessage("Выберите точку на карте.");
+      return;
+    }
+
     setIsSaving(true);
     setFormMessage("");
 
@@ -858,6 +1239,11 @@ export default function MapPage() {
 
     if (!payload.title) {
       setFormMessage("Укажите название зоны.");
+      return;
+    }
+
+    if (!zoneDraft.id && zoneDraft.shape === "circle" && drawingMode === "zone") {
+      setFormMessage("Укажите центр круга.");
       return;
     }
 
@@ -1112,33 +1498,331 @@ export default function MapPage() {
   }
 
   function selectMarker(marker: MapMarkerDto) {
-    setSelectedMarkerId(marker.id);
-    setSelectedZoneId(null);
-    setSelectedRouteId(null);
-    stopDrawing();
-    setFocus({ type: "point", x: marker.x, y: marker.y });
+    runWithEditorClose(() => {
+      beginMarkerEditForm(marker);
+      setFocus({ type: "point", x: marker.x, y: marker.y });
+    });
   }
 
   function selectZone(zone: MapZoneDto) {
-    setSelectedMarkerId(null);
-    setSelectedZoneId(zone.id);
-    setSelectedRouteId(null);
-    stopDrawing();
-
-    const bounds = getZoneBounds(zone);
-    setFocus(bounds ? { bounds, type: "bounds" } : { type: "point", x: zone.centerX, y: zone.centerY });
+    runWithEditorClose(() => {
+      beginZoneEditForm(zone);
+      const bounds = getZoneBounds(zone);
+      setFocus(bounds ? { bounds, type: "bounds" } : { type: "point", x: zone.centerX, y: zone.centerY });
+    });
   }
 
   function selectRoute(route: MapRouteDto) {
-    setSelectedMarkerId(null);
-    setSelectedZoneId(null);
-    setSelectedRouteId(route.id);
-    stopDrawing();
+    runWithEditorClose(() => {
+      beginRouteEditForm(route);
+      const bounds = getRouteBounds(route);
+      if (bounds) {
+        setFocus({ bounds, type: "bounds" });
+      }
+    });
+  }
 
-    const bounds = getRouteBounds(route);
-    if (bounds) {
-      setFocus({ bounds, type: "bounds" });
+  function renderMarkerEditor() {
+    if (!markerDraft) {
+      return null;
     }
+
+    const isPointPending = !markerDraft.id && drawingMode === "marker";
+
+    return (
+      <form className="map-panel-editor" onSubmit={handleMarkerSubmit}>
+        <div className="map-panel-editor-head">
+          <div>
+            <span>{markerDraft.id ? "Изменение объекта" : "Создание объекта"}</span>
+            <h2>{markerDraft.id ? "Редактирование метки" : "Новая метка"}</h2>
+          </div>
+          <p>{isPointPending ? "Наведите курсор на карту и нажмите, чтобы выбрать место установки." : `Координаты: X ${markerDraft.x} · Y ${markerDraft.y}`}</p>
+        </div>
+
+        <div className="map-panel-editor-grid">
+          <label className="filter-field map-form-wide">
+            <span>Название</span>
+            <input disabled={isSaving} maxLength={80} onChange={(event) => updateMarkerDraft("title", event.target.value)} placeholder="Введите название метки" type="text" value={markerDraft.title} />
+          </label>
+          <MarkerIconDropdown className="map-form-wide" colorKey={markerDraft.colorKey} disabled={isSaving} onChange={(value) => updateMarkerDraft("type", value)} value={markerDraft.type} />
+          <label className="filter-field">
+            <span>Слой</span>
+            <select disabled={isSaving} onChange={(event) => updateMarkerDraft("layer", event.target.value)} value={markerDraft.layer}>
+              {layers.map((layer) => (
+                <option key={layer} value={layer}>
+                  {layer}
+                </option>
+              ))}
+            </select>
+          </label>
+          <MapColorDropdown disabled={isSaving} getPreset={getZoneColorPreset} onChange={(value) => updateMarkerDraft("colorKey", value)} value={markerDraft.colorKey} />
+          <label className="filter-field">
+            <span>Размер</span>
+            <input disabled={isSaving} onChange={(event) => updateMarkerDraft("size", event.target.value)} step={5} type="number" value={markerDraft.size} />
+          </label>
+          <div className="map-marker-size-presets map-choice-row map-form-wide">
+            {orderedMarkerSizePresets.map(([key, preset]) => (
+              <button className={`map-preset-button ${Number(markerDraft.size) === preset.size ? "map-choice-active" : ""}`} disabled={isSaving} key={key} onClick={() => setMarkerSizePreset(preset.size)} type="button">
+                {preset.label}
+              </button>
+            ))}
+          </div>
+          <label className="filter-field">
+            <span>Яркость</span>
+            <input disabled={isSaving} onChange={(event) => updateMarkerDraft("brightness", event.target.value)} step={5} type="number" value={markerDraft.brightness} />
+          </label>
+          <label className="filter-field">
+            <span>Контрастность</span>
+            <input disabled={isSaving} onChange={(event) => updateMarkerDraft("contrast", event.target.value)} step={5} type="number" value={markerDraft.contrast} />
+          </label>
+          <label className="filter-field map-form-wide">
+            <span>Описание</span>
+            <textarea disabled={isSaving} maxLength={1000} onChange={(event) => updateMarkerDraft("description", event.target.value)} rows={3} value={markerDraft.description} />
+          </label>
+        </div>
+
+        {formMessage ? <p className="draft-message">{formMessage}</p> : null}
+        <div className="map-panel-editor-actions">
+          <button className="command-row interactive-button" disabled={isSaving} onClick={requestCloseForms} type="button">
+            Отмена
+          </button>
+          <button className="primary-command interactive-button" disabled={isSaving || isPointPending} type="submit">
+            {isSaving ? "Сохранение..." : "Сохранить метку"}
+          </button>
+        </div>
+      </form>
+    );
+  }
+
+  function renderZoneEditor() {
+    if (!zoneDraft) {
+      return null;
+    }
+
+    const isCenterPending = !zoneDraft.id && zoneDraft.shape === "circle" && drawingMode === "zone";
+
+    return (
+      <form className="map-panel-editor" onSubmit={handleZoneSubmit}>
+        <div className="map-panel-editor-head">
+          <div>
+            <span>{zoneDraft.id ? "Изменение объекта" : "Создание объекта"}</span>
+            <h2>{zoneDraft.id ? "Редактирование зоны" : "Новая зона"}</h2>
+          </div>
+          <p>
+            {zoneDraft.shape === "polygon"
+              ? `Точек: ${zoneDraft.points.length}`
+              : isCenterPending
+                ? "Укажите центр круга"
+                : `Центр: X ${zoneDraft.centerX} · Y ${zoneDraft.centerY}`}
+          </p>
+        </div>
+
+        <div className="map-panel-editor-grid">
+          <label className="filter-field map-form-wide">
+            <span>Название</span>
+            <input disabled={isSaving} maxLength={80} onChange={(event) => updateZoneDraft("title", event.target.value)} placeholder="Введите название зоны" type="text" value={zoneDraft.title} />
+          </label>
+          <label className="filter-field map-form-wide">
+            <span>Слой</span>
+            <select disabled={isSaving} onChange={(event) => updateZoneDraft("layer", event.target.value)} value={zoneDraft.layer}>
+              {layers.map((layer) => (
+                <option key={layer} value={layer}>
+                  {layer}
+                </option>
+              ))}
+            </select>
+          </label>
+          {zoneDraft.shape === "circle" ? (
+            <>
+              <label className="filter-field map-form-wide">
+                <span>Радиус</span>
+                <input disabled={isSaving} min={1} onChange={(event) => updateZoneDraft("radius", event.target.value)} type="number" value={zoneDraft.radius} />
+              </label>
+              <div className="map-radius-presets map-choice-row map-form-wide">
+                {orderedCircleRadiusPresets.map(([key, preset]) => (
+                  <button className={`map-preset-button ${Number(zoneDraft.radius) === preset.radius ? "map-choice-active" : ""}`} disabled={isSaving} key={key} onClick={() => setZoneRadiusPreset(preset.radius)} type="button">
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : null}
+          <MapColorDropdown disabled={isSaving} getPreset={getZoneColorPreset} onChange={(value) => updateZoneDraft("colorKey", value)} value={zoneDraft.colorKey} />
+          <label className="filter-field">
+            <span>Формат</span>
+            <select disabled={isSaving} onChange={(event) => updateZoneDraft("patternKey", event.target.value as MapFillPatternKey)} value={zoneDraft.patternKey}>
+              {fillPatternKeys.map((patternKey) => (
+                <option key={patternKey} value={patternKey}>
+                  {getFillPatternPreset(patternKey).label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="filter-field">
+            <span>Яркость</span>
+            <input disabled={isSaving} onChange={(event) => updateZoneDraft("brightness", event.target.value)} step={5} type="number" value={zoneDraft.brightness} />
+          </label>
+          <label className="filter-field">
+            <span>Контрастность</span>
+            <input disabled={isSaving} onChange={(event) => updateZoneDraft("contrast", event.target.value)} step={5} type="number" value={zoneDraft.contrast} />
+          </label>
+          <label className="filter-field map-form-wide">
+            <span>Описание</span>
+            <textarea disabled={isSaving} maxLength={1000} onChange={(event) => updateZoneDraft("description", event.target.value)} rows={3} value={zoneDraft.description} />
+          </label>
+        </div>
+
+        {formMessage ? <p className="draft-message">{formMessage}</p> : null}
+        <div className="map-panel-editor-actions">
+          <button className="command-row interactive-button" disabled={isSaving} onClick={requestCloseForms} type="button">
+            Отмена
+          </button>
+          <button className="primary-command interactive-button" disabled={isSaving || isCenterPending} type="submit">
+            {isSaving ? "Сохранение..." : "Сохранить зону"}
+          </button>
+        </div>
+      </form>
+    );
+  }
+
+  function renderRouteEditor() {
+    if (!routeDraft) {
+      return null;
+    }
+
+    return (
+      <form className="map-panel-editor" onSubmit={handleRouteSubmit}>
+        <div className="map-panel-editor-head">
+          <div>
+            <span>{routeDraft.id ? "Изменение объекта" : "Создание объекта"}</span>
+            <h2>{routeDraft.id ? "Редактирование маршрута" : "Новый маршрут"}</h2>
+          </div>
+          <p>Точек маршрута: {routeDraft.points.length}</p>
+        </div>
+
+        <div className="map-panel-editor-grid">
+          <label className="filter-field map-form-wide">
+            <span>Название</span>
+            <input disabled={isSaving} maxLength={80} onChange={(event) => updateRouteDraft("title", event.target.value)} placeholder="Введите название маршрута" type="text" value={routeDraft.title} />
+          </label>
+          <label className="filter-field map-form-wide">
+            <span>Слой</span>
+            <select disabled={isSaving} onChange={(event) => updateRouteDraft("layer", event.target.value)} value={routeDraft.layer}>
+              {layers.map((layer) => (
+                <option key={layer} value={layer}>
+                  {layer}
+                </option>
+              ))}
+            </select>
+          </label>
+          <MapColorDropdown disabled={isSaving} getPreset={getRouteColorPreset} onChange={(value) => updateRouteDraft("colorKey", value)} value={routeDraft.colorKey} />
+          <label className="filter-field">
+            <span>Формат линии</span>
+            <select disabled={isSaving} onChange={(event) => updateRouteDraft("linePattern", event.target.value as MapLinePatternKey)} value={routeDraft.linePattern}>
+              {linePatternKeys.map((linePattern) => (
+                <option key={linePattern} value={linePattern}>
+                  {getLinePatternPreset(linePattern).label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="filter-field">
+            <span>Яркость</span>
+            <input disabled={isSaving} onChange={(event) => updateRouteDraft("brightness", event.target.value)} step={5} type="number" value={routeDraft.brightness} />
+          </label>
+          <label className="filter-field">
+            <span>Контрастность</span>
+            <input disabled={isSaving} onChange={(event) => updateRouteDraft("contrast", event.target.value)} step={5} type="number" value={routeDraft.contrast} />
+          </label>
+          <label className="filter-field map-form-wide">
+            <span>Описание</span>
+            <textarea disabled={isSaving} maxLength={1000} onChange={(event) => updateRouteDraft("description", event.target.value)} rows={3} value={routeDraft.description} />
+          </label>
+        </div>
+
+        {formMessage ? <p className="draft-message">{formMessage}</p> : null}
+        <div className="map-panel-editor-actions">
+          <button className="command-row interactive-button" disabled={isSaving} onClick={requestCloseForms} type="button">
+            Отмена
+          </button>
+          <button className="primary-command interactive-button" disabled={isSaving} type="submit">
+            {isSaving ? "Сохранение..." : "Сохранить маршрут"}
+          </button>
+        </div>
+      </form>
+    );
+  }
+
+  function renderPolygonDrawingBuilder() {
+    const isReady = drawingPoints.length >= 3;
+
+    return (
+      <div className="map-panel-editor">
+        <div className="map-panel-editor-head">
+          <div>
+            <span>Построение</span>
+            <h2>Новая зона</h2>
+          </div>
+          <p>Укажите точки полигона на карте</p>
+        </div>
+        <p className="map-panel-message map-panel-message-strong">Указано точек: {drawingPoints.length} из 3</p>
+        {drawingMessage ? <p className="map-panel-message map-panel-message-danger">{drawingMessage}</p> : null}
+        <div className="map-route-drawing-actions">
+          <button className="primary-command interactive-button" disabled={!isReady} onClick={finishPolygonDrawing} type="button">
+            Завершить
+          </button>
+          <button className="command-row interactive-button" disabled={drawingPoints.length === 0} onClick={() => setDrawingPoints((currentPoints) => currentPoints.slice(0, -1))} type="button">
+            Убрать последнюю
+          </button>
+          <button className="command-row interactive-button" disabled={drawingPoints.length === 0} onClick={() => setDrawingPoints([])} type="button">
+            Сбросить
+          </button>
+          <button className="command-row interactive-button" onClick={requestCloseForms} type="button">
+            Отмена
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  function renderRouteDrawingBuilder() {
+    const isReady = drawingPoints.length >= 2;
+    const progressText =
+      drawingPoints.length === 0
+        ? "Указано точек: 0 из 2"
+        : drawingPoints.length === 1
+          ? "Указано точек: 1 из 2"
+          : `Указано точек: ${drawingPoints.length}. Можно завершить построение.`;
+
+    return (
+      <div className="map-panel-editor map-route-builder">
+        <div className="map-panel-editor-head">
+          <div>
+            <span>Построение</span>
+            <h2>Новый маршрут</h2>
+          </div>
+          <p>Нажимайте на карту, чтобы добавить точки маршрута.</p>
+        </div>
+        <div className={`map-route-builder-progress ${isReady ? "map-route-builder-progress-ready" : ""}`}>
+          <strong>{progressText}</strong>
+        </div>
+        {drawingMessage ? <p className="map-panel-message map-panel-message-danger">{drawingMessage}</p> : null}
+        <div className="map-route-builder-actions">
+          <button className="primary-command interactive-button" disabled={!isReady} onClick={finishRouteDrawing} type="button">
+            Завершить
+          </button>
+          <button className="command-row interactive-button" disabled={drawingPoints.length === 0} onClick={() => setDrawingPoints((currentPoints) => currentPoints.slice(0, -1))} type="button">
+            Убрать точку
+          </button>
+          <button className="command-row interactive-button" disabled={drawingPoints.length === 0} onClick={() => setDrawingPoints([])} type="button">
+            Сбросить
+          </button>
+          <button className="command-row interactive-button" onClick={requestCloseForms} type="button">
+            Отмена
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -1150,14 +1834,16 @@ export default function MapPage() {
           <div className="map-page-layout">
             <div className="map-work-area">
               <TileMapViewer
-                draftRouteColorKey={DEFAULT_MAP_ROUTE_COLOR_KEY}
-                draftRouteLinePattern={DEFAULT_MAP_ROUTE_LINE_PATTERN}
-                draftRoutePoints={drawingMode === "route" ? drawingPoints : []}
+                draftMarkerPreview={draftMarkerPreview}
+                draftRouteColorKey={routeDraft?.colorKey ?? DEFAULT_MAP_ROUTE_COLOR_KEY}
+                draftRouteLinePattern={routeDraft?.linePattern ?? DEFAULT_MAP_ROUTE_LINE_PATTERN}
+                draftRoutePoints={routeDraft ? routeDraft.points : drawingMode === "route" ? drawingPoints : []}
+                draftZonePlacementPreview={draftZonePlacementPreview}
                 draftZonePreview={draftZonePreview}
                 drawingMode={drawingMode}
                 focusTarget={focusTarget}
                 isPickingPoint={drawingMode !== null}
-                markers={visibleMarkers}
+                markers={viewerMarkers}
                 onMapClick={handleMapClick}
                 onMarkerClear={clearSelection}
                 onMarkerDelete={requestDeleteMarker}
@@ -1171,29 +1857,29 @@ export default function MapPage() {
                 onZoneDelete={requestDeleteZone}
                 onZoneEdit={openZoneEditForm}
                 onZoneSelect={selectZone}
-                routes={visibleRoutes}
-                selectedMarkerId={selectedMarkerId ?? undefined}
-                selectedRouteId={selectedRouteId ?? undefined}
-                selectedZoneId={selectedZoneId ?? undefined}
+                routes={viewerRoutes}
+                selectedMarkerId={markerDraft ? undefined : selectedMarkerId ?? undefined}
+                selectedRouteId={routeDraft ? undefined : selectedRouteId ?? undefined}
+                selectedZoneId={zoneDraft ? undefined : selectedZoneId ?? undefined}
                 visibleLayers={visibleLayers}
-                zones={visibleZones}
+                zones={viewerZones}
               />
               <aside className="map-side-panel">
                 <div className="map-side-panel-head">
                   <h1>Объекты карты</h1>
                   <div className="map-panel-tabs map-panel-tabs-primary" role="tablist" aria-label="Разделы объектов карты">
-                    <button className={activePanel === "markers" ? "map-panel-tab-active" : ""} onClick={() => setActivePanel("markers")} type="button">
+                    <button className={activePanel === "markers" ? "map-panel-tab-active" : ""} onClick={() => handlePanelChange("markers")} type="button">
                       Метки
                     </button>
-                    <button className={activePanel === "zones" ? "map-panel-tab-active" : ""} onClick={() => setActivePanel("zones")} type="button">
+                    <button className={activePanel === "zones" ? "map-panel-tab-active" : ""} onClick={() => handlePanelChange("zones")} type="button">
                       Зоны
                     </button>
-                    <button className={activePanel === "routes" ? "map-panel-tab-active" : ""} onClick={() => setActivePanel("routes")} type="button">
+                    <button className={activePanel === "routes" ? "map-panel-tab-active" : ""} onClick={() => handlePanelChange("routes")} type="button">
                       Маршруты
                     </button>
                   </div>
                   <div className="map-panel-tabs map-panel-tabs-layers" role="tablist" aria-label="Управление слоями">
-                    <button className={activePanel === "layers" ? "map-panel-tab-active" : ""} onClick={() => setActivePanel("layers")} type="button">
+                    <button className={activePanel === "layers" ? "map-panel-tab-active" : ""} onClick={() => handlePanelChange("layers")} type="button">
                       Слои
                     </button>
                   </div>
@@ -1204,137 +1890,98 @@ export default function MapPage() {
 
                 {activePanel === "markers" ? (
                   <section className="map-panel-section map-panel-section-last">
-                    <button className={`primary-command interactive-button ${drawingMode === "marker" ? "map-command-active" : ""}`} onClick={() => startDrawing("marker", "markers")} type="button">
-                      Добавить метку
-                    </button>
-                    {drawingMode === "marker" ? (
-                      <div className="map-panel-inline-state">
-                        <p className="map-panel-message map-panel-message-strong">Выберите точку на карте.</p>
-                        <button className="command-row interactive-button" onClick={stopDrawing} type="button">
-                          Отмена
-                        </button>
-                      </div>
-                    ) : null}
-                    {markers.length > 0 ? (
-                      <div className="map-object-list">
-                        {markers.map((marker) => (
-                          <button className={selectedMarkerId === marker.id ? "map-object-row map-object-row-active" : "map-object-row"} key={marker.id} onClick={() => selectMarker(marker)} type="button">
-                            <span>{marker.title}</span>
-                            <small>{marker.layer}</small>
-                          </button>
-                        ))}
-                      </div>
+                    {markerDraft ? (
+                      renderMarkerEditor()
                     ) : (
-                      <p className="map-panel-message">Метки пока не добавлены.</p>
+                      <>
+                        <button className="primary-command interactive-button" onClick={() => startDrawing("marker", "markers")} type="button">
+                          Добавить метку
+                        </button>
+                        {markers.length > 0 ? (
+                          <div className="map-object-list">
+                            {markers.map((marker) => (
+                              <button className={selectedMarkerId === marker.id ? "map-object-row map-object-row-active" : "map-object-row"} key={marker.id} onClick={() => selectMarker(marker)} type="button">
+                                <span>{marker.title}</span>
+                                <small>{marker.layer}</small>
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="map-panel-message">Метки пока не добавлены.</p>
+                        )}
+                      </>
                     )}
                   </section>
                 ) : null}
 
                 {activePanel === "zones" ? (
                   <section className="map-panel-section map-panel-section-last">
-                    <div className="map-panel-action-grid">
-                      <button className={`primary-command interactive-button ${drawingMode === "zone" ? "map-command-active" : ""}`} onClick={() => startDrawing("zone", "zones")} type="button">
-                        Добавить круг
-                      </button>
-                      <button className={`primary-command interactive-button ${drawingMode === "zone-polygon" ? "map-command-active" : ""}`} onClick={() => startDrawing("zone-polygon", "zones")} type="button">
-                        Добавить полигон
-                      </button>
-                    </div>
-                    {drawingMode === "zone" ? (
-                      <div className="map-panel-inline-state">
-                        <p className="map-panel-message map-panel-message-strong">Выберите центр зоны на карте.</p>
-                        <button className="command-row interactive-button" onClick={stopDrawing} type="button">
-                          Отмена
-                        </button>
-                      </div>
-                    ) : null}
-                    {drawingMode === "zone-polygon" ? (
-                      <div className="map-panel-inline-state">
-                        <p className="map-panel-message map-panel-message-strong">Укажите точки полигона на карте.</p>
-                        <p className="map-panel-message">Точек: {drawingPoints.length}</p>
-                        {drawingMessage ? <p className="map-panel-message map-panel-message-danger">{drawingMessage}</p> : null}
-                        <div className="map-route-drawing-actions">
-                          <button className="primary-command interactive-button" onClick={finishPolygonDrawing} type="button">
-                            Завершить
+                    {zoneDraft ? (
+                      renderZoneEditor()
+                    ) : drawingMode === "zone-polygon" ? (
+                      renderPolygonDrawingBuilder()
+                    ) : (
+                      <>
+                        <div className="map-panel-action-grid">
+                          <button className="primary-command interactive-button" onClick={() => startDrawing("zone", "zones")} type="button">
+                            Добавить круг
                           </button>
-                          <button className="command-row interactive-button" disabled={drawingPoints.length === 0} onClick={() => setDrawingPoints((currentPoints) => currentPoints.slice(0, -1))} type="button">
-                            Убрать последнюю
-                          </button>
-                          <button className="command-row interactive-button" disabled={drawingPoints.length === 0} onClick={() => setDrawingPoints([])} type="button">
-                            Сбросить
-                          </button>
-                          <button className="command-row interactive-button" onClick={stopDrawing} type="button">
-                            Отмена
+                          <button className="primary-command interactive-button" onClick={() => startDrawing("zone-polygon", "zones")} type="button">
+                            Добавить полигон
                           </button>
                         </div>
-                      </div>
-                    ) : null}
-                    <input className="map-search-input" onChange={(event) => setZoneSearch(event.target.value)} placeholder="Поиск зон" type="search" value={zoneSearch} />
-                    {zones.length > 0 ? (
-                      <div className="map-object-list">
-                        {filteredZones.map((zone) => (
-                          <button className={selectedZoneId === zone.id ? "map-object-row map-object-row-active" : "map-object-row"} key={zone.id} onClick={() => selectZone(zone)} type="button">
-                            <span>{zone.title}</span>
-                            <small>
-                              {getMapZoneShapeLabel(zone.shape)} · {zone.layer}
-                            </small>
-                            <small>{getZoneColorPreset(zone.colorKey).label}</small>
-                            <small>
-                              {zone.shape === "polygon" ? `Точек: ${zone.points.length}` : `Радиус: ${zone.radius}`}
-                            </small>
-                          </button>
-                        ))}
-                        {filteredZones.length === 0 ? <p className="map-panel-message">Зоны не найдены.</p> : null}
-                      </div>
-                    ) : (
-                      <p className="map-panel-message">Зоны пока не добавлены.</p>
+                        <input className="map-search-input" onChange={(event) => setZoneSearch(event.target.value)} placeholder="Поиск зон" type="search" value={zoneSearch} />
+                        {zones.length > 0 ? (
+                          <div className="map-object-list">
+                            {filteredZones.map((zone) => (
+                              <button className={selectedZoneId === zone.id ? "map-object-row map-object-row-active" : "map-object-row"} key={zone.id} onClick={() => selectZone(zone)} type="button">
+                                <span>{zone.title}</span>
+                                <small>
+                                  {getMapZoneShapeLabel(zone.shape)} · {zone.layer}
+                                </small>
+                                <small>{getZoneColorPreset(zone.colorKey).label}</small>
+                                <small>{zone.shape === "polygon" ? `Точек: ${zone.points.length}` : `Радиус: ${zone.radius}`}</small>
+                              </button>
+                            ))}
+                            {filteredZones.length === 0 ? <p className="map-panel-message">Зоны не найдены.</p> : null}
+                          </div>
+                        ) : (
+                          <p className="map-panel-message">Зоны пока не добавлены.</p>
+                        )}
+                      </>
                     )}
                   </section>
                 ) : null}
 
                 {activePanel === "routes" ? (
                   <section className="map-panel-section map-panel-section-last">
-                    <button className={`primary-command interactive-button ${drawingMode === "route" ? "map-command-active" : ""}`} onClick={() => startDrawing("route", "routes")} type="button">
-                      Добавить маршрут
-                    </button>
-                    {drawingMode === "route" ? (
-                      <div className="map-panel-inline-state">
-                        <p className="map-panel-message map-panel-message-strong">Укажите точки маршрута на карте.</p>
-                        <p className="map-panel-message">Точек: {drawingPoints.length}</p>
-                        {drawingMessage ? <p className="map-panel-message map-panel-message-danger">{drawingMessage}</p> : null}
-                        <div className="map-route-drawing-actions">
-                          <button className="primary-command interactive-button" onClick={finishRouteDrawing} type="button">
-                            Завершить
-                          </button>
-                          <button className="command-row interactive-button" disabled={drawingPoints.length === 0} onClick={() => setDrawingPoints((currentPoints) => currentPoints.slice(0, -1))} type="button">
-                            Убрать последнюю
-                          </button>
-                          <button className="command-row interactive-button" disabled={drawingPoints.length === 0} onClick={() => setDrawingPoints([])} type="button">
-                            Сбросить
-                          </button>
-                          <button className="command-row interactive-button" onClick={stopDrawing} type="button">
-                            Отмена
-                          </button>
-                        </div>
-                      </div>
-                    ) : null}
-                    <input className="map-search-input" onChange={(event) => setRouteSearch(event.target.value)} placeholder="Поиск маршрутов" type="search" value={routeSearch} />
-                    {routes.length > 0 ? (
-                      <div className="map-object-list">
-                        {filteredRoutes.map((route) => (
-                          <button className={selectedRouteId === route.id ? "map-object-row map-object-row-active" : "map-object-row"} key={route.id} onClick={() => selectRoute(route)} type="button">
-                            <span>{route.title}</span>
-                            <small>
-                              {getRouteColorPreset(route.colorKey).label} · {getLinePatternPreset(route.linePattern).label}
-                            </small>
-                            <small>{route.layer}</small>
-                            <small>Точек: {route.points.length}</small>
-                          </button>
-                        ))}
-                        {filteredRoutes.length === 0 ? <p className="map-panel-message">Маршруты не найдены.</p> : null}
-                      </div>
+                    {routeDraft ? (
+                      renderRouteEditor()
+                    ) : drawingMode === "route" ? (
+                      renderRouteDrawingBuilder()
                     ) : (
-                      <p className="map-panel-message">Маршруты пока не добавлены.</p>
+                      <>
+                        <div className="map-route-panel-overview">
+                          <button className="primary-command interactive-button" onClick={() => startDrawing("route", "routes")} type="button">
+                            Добавить маршрут
+                          </button>
+                          <input className="map-search-input" onChange={(event) => setRouteSearch(event.target.value)} placeholder="Поиск маршрутов" type="search" value={routeSearch} />
+                        </div>
+                        {routes.length > 0 ? (
+                          <div className="map-object-list map-route-list">
+                            {filteredRoutes.map((route) => (
+                              <button className={selectedRouteId === route.id ? "map-object-row map-route-row map-object-row-active" : "map-object-row map-route-row"} key={route.id} onClick={() => selectRoute(route)} type="button">
+                                <span>{route.title}</span>
+                                <small>Слой: {route.layer}</small>
+                                <small>Формат линии: {getLinePatternPreset(route.linePattern).label}</small>
+                              </button>
+                            ))}
+                            {filteredRoutes.length === 0 ? <p className="map-panel-message">Маршруты не найдены.</p> : null}
+                          </div>
+                        ) : (
+                          <p className="map-panel-message">Маршруты пока не добавлены.</p>
+                        )}
+                      </>
                     )}
                   </section>
                 ) : null}
@@ -1438,7 +2085,7 @@ export default function MapPage() {
           </div>
         </div>
 
-        {markerDraft ? (
+        {Boolean(0) && markerDraft ? (
           <div className="pda-modal-backdrop animate-fade-in" onMouseDown={requestCloseForms}>
             <form className="pda-modal map-marker-modal animate-modal-in" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleMarkerSubmit}>
               <div className="map-form-header">
@@ -1450,7 +2097,7 @@ export default function MapPage() {
                   </p>
                 </div>
               </div>
-              <div className="map-object-form">
+              <div className="map-object-form map-object-form-compact">
                 <section className="map-form-section map-form-section-primary">
                   <div className="map-form-section-head">
                     <h2>Основные сведения</h2>
@@ -1501,58 +2148,12 @@ export default function MapPage() {
                     <h2>Оформление</h2>
                   </div>
                   <div className="map-form-style-stack">
-                    <div className="map-form-control-block">
-                      <span className="map-form-control-title">Значок</span>
-                      <div className="map-icon-choice-grid">
-                        {orderedMarkerUiTypes.map((type) => (
-                          <button
-                            className={`map-icon-choice ${markerDraft.type === type ? "map-choice-active" : ""}`}
-                            disabled={isSaving}
-                            key={type}
-                            onClick={() => updateMarkerDraft("type", type)}
-                            type="button"
-                          >
-                            <span className={`map-icon-choice-preview map-marker--${getMapMarkerTypeClassName(type)}`}>
-                              <MapMarkerIcon type={type} />
-                            </span>
-                            <span>{getMapMarkerTypeLabel(type)}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="map-form-control-block">
-                      <span className="map-form-control-title">Цвет</span>
-                      <div className="map-color-choice-grid">
-                        {orderedMapColorKeys.map((colorKey) => {
-                          const color = getZoneColorPreset(colorKey);
-                          return (
-                            <button
-                              className={`map-color-choice ${markerDraft.colorKey === colorKey ? "map-choice-active" : ""}`}
-                              disabled={isSaving}
-                              key={colorKey}
-                              onClick={() => updateMarkerDraft("colorKey", colorKey)}
-                              type="button"
-                            >
-                              <span className="map-color-swatch" style={{ backgroundColor: color.marker, borderColor: color.stroke }} />
-                              <span>{color.label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
+                    <div className="map-form-grid">
+                      <MarkerIconDropdown colorKey={markerDraft.colorKey} disabled={isSaving} onChange={(value) => updateMarkerDraft("type", value)} value={markerDraft.type} />
+                      <MapColorDropdown disabled={isSaving} getPreset={getZoneColorPreset} onChange={(value) => updateMarkerDraft("colorKey", value)} value={markerDraft.colorKey} />
                     </div>
 
                     <div className="map-form-grid">
-                      <label className="filter-field">
-                        <span>Формат</span>
-                        <select disabled={isSaving} onChange={(event) => updateMarkerDraft("patternKey", event.target.value as MapFillPatternKey)} value={markerDraft.patternKey}>
-                          {fillPatternKeys.map((patternKey) => (
-                            <option key={patternKey} value={patternKey}>
-                              {getFillPatternPreset(patternKey).label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
                       <label className="filter-field">
                         <span>Размер</span>
                         <input disabled={isSaving} onChange={(event) => updateMarkerDraft("size", event.target.value)} step={5} type="number" value={markerDraft.size} />
@@ -1577,24 +2178,10 @@ export default function MapPage() {
                       <label className="filter-field map-style-number-field">
                         <span>Яркость</span>
                         <input disabled={isSaving} onChange={(event) => updateMarkerDraft("brightness", event.target.value)} step={5} type="number" value={markerDraft.brightness} />
-                        <div className="map-choice-row">
-                          {styleValuePresets.map((value) => (
-                            <button className={`map-preset-button ${Number(markerDraft.brightness) === value ? "map-choice-active" : ""}`} disabled={isSaving} key={value} onClick={() => updateMarkerDraft("brightness", String(value))} type="button">
-                              {value}
-                            </button>
-                          ))}
-                        </div>
                       </label>
                       <label className="filter-field map-style-number-field">
                         <span>Контрастность</span>
                         <input disabled={isSaving} onChange={(event) => updateMarkerDraft("contrast", event.target.value)} step={5} type="number" value={markerDraft.contrast} />
-                        <div className="map-choice-row">
-                          {styleValuePresets.map((value) => (
-                            <button className={`map-preset-button ${Number(markerDraft.contrast) === value ? "map-choice-active" : ""}`} disabled={isSaving} key={value} onClick={() => updateMarkerDraft("contrast", String(value))} type="button">
-                              {value}
-                            </button>
-                          ))}
-                        </div>
                       </label>
                     </div>
                   </div>
@@ -1606,7 +2193,7 @@ export default function MapPage() {
                   </div>
                   <label className="filter-field map-form-wide">
                     <span>Описание</span>
-                    <textarea disabled={isSaving} maxLength={1000} onChange={(event) => updateMarkerDraft("description", event.target.value)} rows={4} value={markerDraft.description} />
+                    <textarea disabled={isSaving} maxLength={1000} onChange={(event) => updateMarkerDraft("description", event.target.value)} rows={3} value={markerDraft.description} />
                   </label>
                 </section>
               </div>
@@ -1624,7 +2211,7 @@ export default function MapPage() {
           </div>
         ) : null}
 
-        {zoneDraft ? (
+        {Boolean(0) && zoneDraft ? (
           <div className="pda-modal-backdrop animate-fade-in" onMouseDown={requestCloseForms}>
             <form className="pda-modal map-marker-modal animate-modal-in" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleZoneSubmit}>
               <div className="map-form-header">
@@ -1634,7 +2221,7 @@ export default function MapPage() {
                   <p>{zoneDraft.shape === "polygon" ? `Точек: ${zoneDraft.points.length}` : `Центр: X ${zoneDraft.centerX} · Y ${zoneDraft.centerY}`}</p>
                 </div>
               </div>
-              <div className="map-object-form">
+              <div className="map-object-form map-object-form-compact">
                 <section className="map-form-section map-form-section-primary">
                   <div className="map-form-section-head">
                     <h2>Основные сведения</h2>
@@ -1717,28 +2304,8 @@ export default function MapPage() {
                     <h2>Оформление</h2>
                   </div>
                   <div className="map-form-style-stack">
-                    <div className="map-form-control-block">
-                      <span className="map-form-control-title">Цвет</span>
-                      <div className="map-color-choice-grid">
-                        {orderedMapColorKeys.map((colorKey) => {
-                          const color = getZoneColorPreset(colorKey);
-                          return (
-                            <button
-                              className={`map-color-choice ${zoneDraft.colorKey === colorKey ? "map-choice-active" : ""}`}
-                              disabled={isSaving}
-                              key={colorKey}
-                              onClick={() => updateZoneDraft("colorKey", colorKey as MapZoneColorKey)}
-                              type="button"
-                            >
-                              <span className="map-color-swatch" style={{ backgroundColor: color.marker, borderColor: color.stroke }} />
-                              <span>{color.label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
                     <div className="map-form-grid">
+                      <MapColorDropdown disabled={isSaving} getPreset={getZoneColorPreset} onChange={(value) => updateZoneDraft("colorKey", value)} value={zoneDraft.colorKey} />
                       <label className="filter-field">
                         <span>Формат</span>
                         <select disabled={isSaving} onChange={(event) => updateZoneDraft("patternKey", event.target.value as MapFillPatternKey)} value={zoneDraft.patternKey}>
@@ -1755,24 +2322,10 @@ export default function MapPage() {
                       <label className="filter-field map-style-number-field">
                         <span>Яркость</span>
                         <input disabled={isSaving} onChange={(event) => updateZoneDraft("brightness", event.target.value)} step={5} type="number" value={zoneDraft.brightness} />
-                        <div className="map-choice-row">
-                          {styleValuePresets.map((value) => (
-                            <button className={`map-preset-button ${Number(zoneDraft.brightness) === value ? "map-choice-active" : ""}`} disabled={isSaving} key={value} onClick={() => updateZoneDraft("brightness", String(value))} type="button">
-                              {value}
-                            </button>
-                          ))}
-                        </div>
                       </label>
                       <label className="filter-field map-style-number-field">
                         <span>Контрастность</span>
                         <input disabled={isSaving} onChange={(event) => updateZoneDraft("contrast", event.target.value)} step={5} type="number" value={zoneDraft.contrast} />
-                        <div className="map-choice-row">
-                          {styleValuePresets.map((value) => (
-                            <button className={`map-preset-button ${Number(zoneDraft.contrast) === value ? "map-choice-active" : ""}`} disabled={isSaving} key={value} onClick={() => updateZoneDraft("contrast", String(value))} type="button">
-                              {value}
-                            </button>
-                          ))}
-                        </div>
                       </label>
                     </div>
                   </div>
@@ -1784,7 +2337,7 @@ export default function MapPage() {
                   </div>
                   <label className="filter-field map-form-wide">
                     <span>Описание</span>
-                    <textarea disabled={isSaving} maxLength={1000} onChange={(event) => updateZoneDraft("description", event.target.value)} rows={4} value={zoneDraft.description} />
+                    <textarea disabled={isSaving} maxLength={1000} onChange={(event) => updateZoneDraft("description", event.target.value)} rows={3} value={zoneDraft.description} />
                   </label>
                 </section>
               </div>
@@ -1802,7 +2355,7 @@ export default function MapPage() {
           </div>
         ) : null}
 
-        {routeDraft ? (
+        {Boolean(0) && routeDraft ? (
           <div className="pda-modal-backdrop animate-fade-in" onMouseDown={requestCloseForms}>
             <form className="pda-modal map-marker-modal animate-modal-in" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleRouteSubmit}>
               <div className="map-form-header">
@@ -1812,7 +2365,7 @@ export default function MapPage() {
                   <p>Точек маршрута: {routeDraft.points.length}</p>
                 </div>
               </div>
-              <div className="map-object-form">
+              <div className="map-object-form map-object-form-compact">
                 <section className="map-form-section map-form-section-primary">
                   <div className="map-form-section-head">
                     <h2>Основные сведения</h2>
@@ -1858,28 +2411,8 @@ export default function MapPage() {
                     <h2>Оформление</h2>
                   </div>
                   <div className="map-form-style-stack">
-                    <div className="map-form-control-block">
-                      <span className="map-form-control-title">Цвет</span>
-                      <div className="map-color-choice-grid">
-                        {orderedMapColorKeys.map((colorKey) => {
-                          const color = getRouteColorPreset(colorKey);
-                          return (
-                            <button
-                              className={`map-color-choice ${routeDraft.colorKey === colorKey ? "map-choice-active" : ""}`}
-                              disabled={isSaving}
-                              key={colorKey}
-                              onClick={() => updateRouteDraft("colorKey", colorKey as MapRouteColorKey)}
-                              type="button"
-                            >
-                              <span className="map-color-swatch" style={{ backgroundColor: color.marker, borderColor: color.stroke }} />
-                              <span>{color.label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
                     <div className="map-form-grid">
+                      <MapColorDropdown disabled={isSaving} getPreset={getRouteColorPreset} onChange={(value) => updateRouteDraft("colorKey", value)} value={routeDraft.colorKey} />
                       <label className="filter-field">
                         <span>Формат линии</span>
                         <select disabled={isSaving} onChange={(event) => updateRouteDraft("linePattern", event.target.value as MapLinePatternKey)} value={routeDraft.linePattern}>
@@ -1896,24 +2429,10 @@ export default function MapPage() {
                       <label className="filter-field map-style-number-field">
                         <span>Яркость</span>
                         <input disabled={isSaving} onChange={(event) => updateRouteDraft("brightness", event.target.value)} step={5} type="number" value={routeDraft.brightness} />
-                        <div className="map-choice-row">
-                          {styleValuePresets.map((value) => (
-                            <button className={`map-preset-button ${Number(routeDraft.brightness) === value ? "map-choice-active" : ""}`} disabled={isSaving} key={value} onClick={() => updateRouteDraft("brightness", String(value))} type="button">
-                              {value}
-                            </button>
-                          ))}
-                        </div>
                       </label>
                       <label className="filter-field map-style-number-field">
                         <span>Контрастность</span>
                         <input disabled={isSaving} onChange={(event) => updateRouteDraft("contrast", event.target.value)} step={5} type="number" value={routeDraft.contrast} />
-                        <div className="map-choice-row">
-                          {styleValuePresets.map((value) => (
-                            <button className={`map-preset-button ${Number(routeDraft.contrast) === value ? "map-choice-active" : ""}`} disabled={isSaving} key={value} onClick={() => updateRouteDraft("contrast", String(value))} type="button">
-                              {value}
-                            </button>
-                          ))}
-                        </div>
                       </label>
                     </div>
                   </div>
@@ -1925,7 +2444,7 @@ export default function MapPage() {
                   </div>
                   <label className="filter-field map-form-wide">
                     <span>Описание</span>
-                    <textarea disabled={isSaving} maxLength={1000} onChange={(event) => updateRouteDraft("description", event.target.value)} rows={4} value={routeDraft.description} />
+                    <textarea disabled={isSaving} maxLength={1000} onChange={(event) => updateRouteDraft("description", event.target.value)} rows={3} value={routeDraft.description} />
                   </label>
                 </section>
               </div>
