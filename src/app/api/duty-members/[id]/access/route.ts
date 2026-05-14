@@ -33,10 +33,12 @@ export async function PATCH(request: Request, context: DutyMemberAccessContext) 
 
   const { id } = await context.params;
   const prisma = getPrismaClient();
-  const member = await prisma.dutyMember.findUnique({
-    include: dutyMemberInclude,
-    where: { id },
-  });
+  const member = await prisma.dutyMember
+    .findUnique({
+      include: dutyMemberInclude,
+      where: { id },
+    })
+    .catch(() => null);
 
   if (!member) {
     return createDutyMemberErrorResponse("Профиль не найден.", 404);
@@ -63,10 +65,12 @@ export async function PATCH(request: Request, context: DutyMemberAccessContext) 
     return createDutyMemberErrorResponse("Не удалось выполнить операцию.", 500);
   }
 
-  const updatedMember = await prisma.dutyMember.findUnique({
-    include: dutyMemberInclude,
-    where: { id },
-  });
+  const updatedMember = await prisma.dutyMember
+    .findUnique({
+      include: dutyMemberInclude,
+      where: { id },
+    })
+    .catch(() => null);
 
   if (!updatedMember) {
     return createDutyMemberErrorResponse("Профиль не найден.", 404);

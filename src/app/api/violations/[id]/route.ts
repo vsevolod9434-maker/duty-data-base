@@ -53,7 +53,6 @@ export async function PATCH(request: Request, context: RouteContext) {
       closureNote?: string | null;
       date?: Date;
       description?: string;
-      issuedBy?: string | null;
       notes?: string | null;
       updatedAt: Date;
     } = {
@@ -106,10 +105,6 @@ export async function PATCH(request: Request, context: RouteContext) {
       }
 
       data.description = description;
-    }
-
-    if (payload.issuedBy !== undefined) {
-      data.issuedBy = normalizeNullableString(payload.issuedBy);
     }
 
     if (payload.notes !== undefined) {

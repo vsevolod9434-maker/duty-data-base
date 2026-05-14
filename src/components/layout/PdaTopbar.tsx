@@ -22,10 +22,9 @@ type PdaTopbarProps = {
 export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaTopbarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const stalkersMenuRef = useRef<HTMLDivElement | null>(null);
+  const navMenuRef = useRef<HTMLElement | null>(null);
   const [moscowTime, setMoscowTime] = useState<string | null>(null);
-  const [isStalkersMenuOpen, setIsStalkersMenuOpen] = useState(false);
-  const [isDutyBlockedModalOpen, setIsDutyBlockedModalOpen] = useState(false);
+  const [openDropdownLabel, setOpenDropdownLabel] = useState<string | null>(null);
   const [userLabel, setUserLabel] = useState("");
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -107,19 +106,19 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
   }, []);
 
   useEffect(() => {
-    if (!isStalkersMenuOpen) {
+    if (!openDropdownLabel) {
       return;
     }
 
     const closeOnOutsideAction = (event: MouseEvent | FocusEvent) => {
-      if (!stalkersMenuRef.current?.contains(event.target as Node)) {
-        setIsStalkersMenuOpen(false);
+      if (!navMenuRef.current?.contains(event.target as Node)) {
+        setOpenDropdownLabel(null);
       }
     };
 
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setIsStalkersMenuOpen(false);
+        setOpenDropdownLabel(null);
       }
     };
 
@@ -132,7 +131,7 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
       document.removeEventListener("focusin", closeOnOutsideAction);
       document.removeEventListener("keydown", closeOnEscape);
     };
-  }, [isStalkersMenuOpen]);
+  }, [openDropdownLabel]);
 
   return (
     <header className="pda-topbar registry-topbar">
@@ -146,19 +145,21 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
           </div>
         </div>
 
-        <nav className="pda-main-nav registry-main-nav" aria-label="Основные разделы">
+        <nav className="pda-main-nav registry-main-nav" aria-label="Основные разделы" ref={navMenuRef}>
           {navigation.map((tab) => {
             const isActive = tab.label === activeTab.label;
-            const hasStalkersDropdown = tab.href === "/stalkers/profiles" && tab.subtabs.length > 0;
+            const hasDropdown = tab.subtabs.some((subtab) => subtab.href.startsWith("/"));
+            const isDropdownOpen = openDropdownLabel === tab.label;
 
-            if (hasStalkersDropdown) {
+            if (hasDropdown) {
               return (
-                <div className="pda-nav-dropdown" key={tab.label} ref={stalkersMenuRef}>
+                <div className="pda-nav-dropdown" key={tab.label} onMouseEnter={() => setOpenDropdownLabel(tab.label)}>
                   <button
                     aria-current={isActive ? "page" : undefined}
-                    aria-expanded={isStalkersMenuOpen}
+                    aria-expanded={isDropdownOpen}
                     className={`pda-tab registry-nav-tab pda-nav-dropdown-trigger ${isActive ? "pda-tab-active registry-nav-tab-active" : ""}`}
-                    onClick={() => setIsStalkersMenuOpen((isOpen) => !isOpen)}
+                    onClick={() => setOpenDropdownLabel((currentLabel) => (currentLabel === tab.label ? null : tab.label))}
+                    onFocus={() => setOpenDropdownLabel(tab.label)}
                     type="button"
                   >
                     <span>{tab.label}</span>
@@ -166,7 +167,7 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
                       ▾
                     </span>
                   </button>
-                  {isStalkersMenuOpen ? (
+                  {isDropdownOpen ? (
                     <div className="pda-nav-dropdown-menu" role="menu">
                       {tab.subtabs.map((subtab) => {
                         const isSubtabActive = subtab.label === currentSubtabLabel || subtab.href === pathname;
@@ -177,7 +178,7 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
                             className={`pda-nav-dropdown-option ${isSubtabActive ? "pda-nav-dropdown-option-active" : ""}`}
                             href={subtab.href}
                             key={subtab.label}
-                            onClick={() => setIsStalkersMenuOpen(false)}
+                            onClick={() => setOpenDropdownLabel(null)}
                             role="menuitem"
                           >
                             {subtab.label}
@@ -187,20 +188,6 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
                     </div>
                   ) : null}
                 </div>
-              );
-            }
-
-            if (tab.href === "/duty-members") {
-              return (
-                <button
-                  aria-current={isActive ? "page" : undefined}
-                  className={`pda-tab registry-nav-tab ${isActive ? "pda-tab-active registry-nav-tab-active" : ""}`}
-                  key={tab.label}
-                  onClick={() => setIsDutyBlockedModalOpen(true)}
-                  type="button"
-                >
-                  {tab.label}
-                </button>
               );
             }
 
@@ -231,23 +218,6 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
           <span className="battery" aria-label="Батарея" />
         </div>
       </div>
-      {isDutyBlockedModalOpen ? (
-        <div className="pda-modal-backdrop animate-fade-in" onMouseDown={() => setIsDutyBlockedModalOpen(false)}>
-          <div className="pda-modal task-modal animate-modal-in" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="section-header modal-header">
-              <div className="min-w-0">
-                <h1>Состав</h1>
-                <p>Функционал временно недоступен. Обратитесь к системному администратору.</p>
-              </div>
-            </div>
-            <div className="modal-actions">
-              <button className="primary-command interactive-button" onClick={() => setIsDutyBlockedModalOpen(false)} type="button">
-                Закрыть
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </header>
   );
 }

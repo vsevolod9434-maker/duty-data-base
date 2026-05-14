@@ -12,6 +12,18 @@ export const dutyMemberInclude = {
       role: true,
     },
   },
+  staffPositions: {
+    include: {
+      section: {
+        select: {
+          id: true,
+          name: true,
+          sortOrder: true,
+        },
+      },
+    },
+    orderBy: [{ section: { sortOrder: "asc" as const } }, { sortOrder: "asc" as const }],
+  },
 };
 
 const serviceStatuses = new Set<DutyServiceStatus>(["active", "leave", "wounded", "missing", "discharged"]);
@@ -51,6 +63,16 @@ type DutyMemberRecord = {
   serviceStatus: DutyServiceStatus;
   unit: string | null;
   updatedAt: Date;
+  staffPositions: Array<{
+    id: string;
+    title: string;
+    sortOrder: number;
+    section: {
+      id: string;
+      name: string;
+      sortOrder: number;
+    };
+  }>;
 };
 
 export function createDutyMemberErrorResponse(message: string, status = 400) {
@@ -93,6 +115,13 @@ export function mapDutyMemberToResponse(member: DutyMemberRecord) {
     serviceStatus: member.serviceStatus,
     profileStatus: member.profileStatus,
     notes: member.notes,
+    positions: member.staffPositions.map((position) => ({
+      id: position.id,
+      title: position.title,
+      sectionId: position.section.id,
+      sectionName: position.section.name,
+      sortOrder: position.sortOrder,
+    })),
     createdAt: member.createdAt.toISOString(),
     updatedAt: member.updatedAt.toISOString(),
     access: member.accessUser

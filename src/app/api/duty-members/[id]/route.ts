@@ -26,10 +26,12 @@ export async function GET(_request: Request, context: DutyMemberContext) {
 
   const { id } = await context.params;
   const prisma = getPrismaClient();
-  const member = await prisma.dutyMember.findUnique({
-    include: dutyMemberInclude,
-    where: { id },
-  });
+  const member = await prisma.dutyMember
+    .findUnique({
+      include: dutyMemberInclude,
+      where: { id },
+    })
+    .catch(() => null);
 
   if (!member) {
     return createDutyMemberErrorResponse("Профиль не найден.", 404);
@@ -63,10 +65,12 @@ export async function PATCH(request: Request, context: DutyMemberContext) {
   }
 
   const prisma = getPrismaClient();
-  const currentMember = await prisma.dutyMember.findUnique({
-    include: dutyMemberInclude,
-    where: { id },
-  });
+  const currentMember = await prisma.dutyMember
+    .findUnique({
+      include: dutyMemberInclude,
+      where: { id },
+    })
+    .catch(() => null);
 
   if (!currentMember) {
     return createDutyMemberErrorResponse("Профиль не найден.", 404);
@@ -78,13 +82,15 @@ export async function PATCH(request: Request, context: DutyMemberContext) {
 
   const normalizedAccessLogin = normalizeAccessLogin(payload.accessLogin);
   const accessUser = normalizedAccessLogin
-    ? await prisma.accessUser.findUnique({
-        select: {
-          id: true,
-          role: true,
-        },
-        where: { normalizedLogin: normalizedAccessLogin },
-      })
+    ? await prisma.accessUser
+        .findUnique({
+          select: {
+            id: true,
+            role: true,
+          },
+          where: { normalizedLogin: normalizedAccessLogin },
+        })
+        .catch(() => null)
     : null;
 
   if (normalizedAccessLogin && !accessUser) {
@@ -96,13 +102,15 @@ export async function PATCH(request: Request, context: DutyMemberContext) {
   }
 
   if (accessUser) {
-    const linkedMember = await prisma.dutyMember.findFirst({
-      select: { id: true },
-      where: {
-        accessUserId: accessUser.id,
-        NOT: { id },
-      },
-    });
+    const linkedMember = await prisma.dutyMember
+      .findFirst({
+        select: { id: true },
+        where: {
+          accessUserId: accessUser.id,
+          NOT: { id },
+        },
+      })
+      .catch(() => null);
 
     if (linkedMember) {
       return createDutyMemberErrorResponse("Профиль доступа уже связан с составом.");
@@ -137,10 +145,12 @@ export async function DELETE(_request: Request, context: DutyMemberContext) {
 
   const { id } = await context.params;
   const prisma = getPrismaClient();
-  const member = await prisma.dutyMember.findUnique({
-    include: dutyMemberInclude,
-    where: { id },
-  });
+  const member = await prisma.dutyMember
+    .findUnique({
+      include: dutyMemberInclude,
+      where: { id },
+    })
+    .catch(() => null);
 
   if (!member) {
     return createDutyMemberErrorResponse("Профиль не найден.", 404);
@@ -155,26 +165,32 @@ export async function DELETE(_request: Request, context: DutyMemberContext) {
     return createDutyMemberErrorResponse(permission.message, 403);
   }
 
-  const deleted = await prisma
+  const excludedMember = await prisma
     .$transaction(async (transaction) => {
-      if (member.accessUser) {
-        await transaction.accessUser.update({
-          data: { isActive: false },
-          where: { id: member.accessUser.id },
-        });
-      }
-
-      await transaction.dutyMember.delete({
-        where: { id },
+      await transaction.dutyStaffPosition.updateMany({
+        data: {
+          assignedAt: null,
+          dutyMemberId: null,
+          updatedAt: new Date(),
+        },
+        where: { dutyMemberId: id },
       });
 
-      return true;
+      return transaction.dutyMember.update({
+        data: {
+          profileStatus: "archived",
+          serviceStatus: "discharged",
+          updatedAt: new Date(),
+        },
+        include: dutyMemberInclude,
+        where: { id },
+      });
     })
-    .catch(() => false);
+    .catch(() => null);
 
-  if (!deleted) {
+  if (!excludedMember) {
     return createDutyMemberErrorResponse("Не удалось выполнить операцию.", 500);
   }
 
-  return Response.json({ ok: true });
+  return Response.json(mapDutyMemberToResponse(excludedMember));
 }

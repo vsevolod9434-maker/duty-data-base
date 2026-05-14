@@ -1,4 +1,5 @@
 import { requireApiAuth } from "@/lib/auth/require-api-auth";
+import { getAccessUserDisplayName } from "@/lib/auth/access-user-display";
 import { getPrismaClient } from "@/lib/prisma";
 import { createSystemDate } from "@/lib/stalker-utils";
 import {
@@ -49,6 +50,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   try {
     const prisma = getPrismaClient();
     const currentTask = await prisma.task.findUniqueOrThrow({ where: { id } });
+    const actorName = getAccessUserDisplayName(auth.accessUser);
     const data: {
       assigneeType?: "stalker" | "group" | "manual";
       stalkerId?: string | null;
@@ -59,7 +61,6 @@ export async function PATCH(request: Request, context: RouteContext) {
       description?: string;
       reward?: string | null;
       notes?: string | null;
-      issuedBy?: string | null;
       acceptedBy?: string | null;
       completedAt?: Date | null;
       status?: "active" | "completed" | "cancelled";
@@ -154,20 +155,17 @@ export async function PATCH(request: Request, context: RouteContext) {
       data.notes = normalizeNullableString(payload.notes);
     }
 
-    if (payload.issuedBy !== undefined) {
-      data.issuedBy = normalizeNullableString(payload.issuedBy);
-    }
-
-    if (payload.acceptedBy !== undefined) {
-      data.acceptedBy = normalizeNullableString(payload.acceptedBy);
-    }
-
     if (payload.completedAt !== undefined) {
       data.completedAt = parseNullableDate(payload.completedAt);
     }
 
     if (isTaskStatus(payload.status)) {
       data.status = payload.status;
+
+      if (payload.status === "completed" && currentTask.status !== "completed") {
+        data.acceptedBy = actorName;
+        data.completedAt = data.completedAt ?? createSystemDate();
+      }
     }
 
     const task = await prisma.task.update({

@@ -1,4 +1,5 @@
 import { requireApiAuth } from "@/lib/auth/require-api-auth";
+import { getAccessUserDisplayName } from "@/lib/auth/access-user-display";
 import { getPrismaClient } from "@/lib/prisma";
 import { createSystemDate } from "@/lib/stalker-utils";
 import {
@@ -59,6 +60,7 @@ export async function POST(request: Request) {
   }
 
   const now = createSystemDate();
+  const actorName = getAccessUserDisplayName(auth.accessUser);
   const prisma = getPrismaClient();
   const stalker = await prisma.stalker.create({
     data: {
@@ -74,8 +76,8 @@ export async function POST(request: Request) {
       status: isStalkerProfileStatus(payload.status) ? payload.status : "active",
       createdAt: now,
       updatedAt: now,
-      createdBy: normalizeNullableString(payload.createdBy),
-      updatedBy: normalizeNullableString(payload.updatedBy),
+      createdBy: actorName,
+      updatedBy: null,
     },
   });
 

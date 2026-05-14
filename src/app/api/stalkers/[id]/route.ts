@@ -1,4 +1,5 @@
 import { requireApiAuth } from "@/lib/auth/require-api-auth";
+import { getAccessUserDisplayName } from "@/lib/auth/access-user-display";
 import { getPrismaClient } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { createSystemDate } from "@/lib/stalker-utils";
@@ -53,6 +54,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   const data: Prisma.StalkerUpdateInput = {
     updatedAt: createSystemDate(),
+    updatedBy: getAccessUserDisplayName(auth.accessUser),
   };
 
   if (payload.registryNumber !== undefined) {
@@ -113,14 +115,6 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   if (payload.status !== undefined) {
     data.status = payload.status;
-  }
-
-  if (payload.createdBy !== undefined) {
-    data.createdBy = normalizeNullableString(payload.createdBy);
-  }
-
-  if (payload.updatedBy !== undefined) {
-    data.updatedBy = normalizeNullableString(payload.updatedBy);
   }
 
   try {

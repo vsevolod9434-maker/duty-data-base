@@ -195,8 +195,39 @@ model DutyMember {
   notes          String?
   accessUserId   String?                 @unique
   accessUser     AccessUser?             @relation(fields: [accessUserId], references: [id], onDelete: SetNull)
+  staffPositions DutyStaffPosition[]
   createdAt      DateTime
   updatedAt      DateTime
+}
+
+model DutyStaffSection {
+  id        String              @id
+  name      String
+  sortOrder Int
+  positions DutyStaffPosition[]
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@index([sortOrder])
+}
+
+model DutyStaffPosition {
+  id           String            @id
+  sectionId    String
+  title        String
+  sortOrder    Int
+  dutyMemberId String?
+  assignedAt   DateTime?
+  assignedBy   String?
+  updatedBy    String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  section      DutyStaffSection  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  dutyMember   DutyMember?       @relation(fields: [dutyMemberId], references: [id], onDelete: SetNull)
+
+  @@index([sectionId])
+  @@index([dutyMemberId])
+  @@index([sortOrder])
 }
 
 model ActivityLog {

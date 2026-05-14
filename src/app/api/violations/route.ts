@@ -1,4 +1,5 @@
 import { requireApiAuth } from "@/lib/auth/require-api-auth";
+import { getAccessUserDisplayName } from "@/lib/auth/access-user-display";
 import { getPrismaClient } from "@/lib/prisma";
 import { createSystemDate } from "@/lib/stalker-utils";
 import {
@@ -58,6 +59,7 @@ export async function POST(request: Request) {
   const stalkers = await prisma.stalker.findMany({ select: { id: true } });
   const subject = normalizeViolationSubject(payload, new Set(stalkers.map((stalker) => stalker.id)));
   const now = createSystemDate();
+  const actorName = getAccessUserDisplayName(auth.accessUser);
   const violation = await prisma.violation.create({
     data: {
       id: crypto.randomUUID(),
@@ -69,7 +71,7 @@ export async function POST(request: Request) {
       closureNote: normalizeNullableString(payload.closureNote),
       date: parseStoredDate(payload.date, now),
       description,
-      issuedBy: normalizeNullableString(payload.issuedBy),
+      issuedBy: actorName,
       notes: normalizeNullableString(payload.notes),
       createdAt: now,
       updatedAt: now,

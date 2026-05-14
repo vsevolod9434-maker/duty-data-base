@@ -1,4 +1,5 @@
 import { requireApiAuth } from "@/lib/auth/require-api-auth";
+import { getAccessUserDisplayName } from "@/lib/auth/access-user-display";
 import { getPrismaClient } from "@/lib/prisma";
 import { createSystemDate } from "@/lib/stalker-utils";
 import {
@@ -60,8 +61,9 @@ export async function POST(request: Request) {
   const stalkers = await prisma.stalker.findMany({ select: { id: true } });
   const existingStalkerIds = new Set(stalkers.map((stalker) => stalker.id));
   const now = createSystemDate();
+  const actorName = getAccessUserDisplayName(auth.accessUser);
   const tenants = normalizeTenantPayloads(payload.tenants, existingStalkerIds, now);
-  const payments = normalizePaymentPayloads(payload.payments, now);
+  const payments = normalizePaymentPayloads(payload.payments, now, actorName);
 
   const apartment = await prisma.apartment.create({
     data: {

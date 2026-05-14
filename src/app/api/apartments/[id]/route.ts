@@ -1,4 +1,5 @@
 import { requireApiAuth } from "@/lib/auth/require-api-auth";
+import { getAccessUserDisplayName } from "@/lib/auth/access-user-display";
 import { getPrismaClient } from "@/lib/prisma";
 import { createSystemDate } from "@/lib/stalker-utils";
 import {
@@ -49,6 +50,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const now = createSystemDate();
+  const actorName = getAccessUserDisplayName(auth.accessUser);
   const data: {
     name?: string;
     status?: "free" | "occupied";
@@ -99,7 +101,26 @@ export async function PATCH(request: Request, context: RouteContext) {
       }
 
       if (payload.payments !== undefined) {
-        const payments = normalizePaymentPayloads(payload.payments, now);
+        const existingPayments = await tx.apartmentPayment.findMany({
+          select: {
+            acceptedBy: true,
+            id: true,
+            issuedBy: true,
+            responsibleBy: true,
+          },
+          where: { apartmentId: id },
+        });
+        const existingAttributionById = new Map(
+          existingPayments.map((payment) => [
+            payment.id,
+            {
+              acceptedBy: payment.acceptedBy,
+              issuedBy: payment.issuedBy,
+              responsibleBy: payment.responsibleBy,
+            },
+          ]),
+        );
+        const payments = normalizePaymentPayloads(payload.payments, now, actorName, existingAttributionById);
 
         await tx.apartmentPayment.deleteMany({
           where: { apartmentId: id },

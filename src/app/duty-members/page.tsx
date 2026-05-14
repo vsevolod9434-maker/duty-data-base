@@ -8,6 +8,7 @@ import { getRoleLabel, type UserRole } from "@/lib/auth-roles";
 
 type DutyServiceStatus = "active" | "leave" | "wounded" | "missing" | "discharged";
 type DutyMemberProfileStatus = "active" | "archived";
+type DutyAccessFilter = "all" | "with_access" | "without_access" | "blocked";
 
 type DutyMemberAccess = {
   login: string;
@@ -15,6 +16,14 @@ type DutyMemberAccess = {
   role: UserRole;
   roleLabel: string;
   isActive: boolean;
+};
+
+type DutyMemberPosition = {
+  id: string;
+  title: string;
+  sectionId: string;
+  sectionName: string;
+  sortOrder: number;
 };
 
 type DutyMember = {
@@ -27,6 +36,7 @@ type DutyMember = {
   serviceStatus: DutyServiceStatus;
   profileStatus: DutyMemberProfileStatus;
   notes: string | null;
+  positions: DutyMemberPosition[];
   access: DutyMemberAccess | null;
 };
 
@@ -36,16 +46,22 @@ type CurrentUser = {
   role: UserRole;
 };
 
+type AccessUserOption = {
+  login: string;
+  displayName: string | null;
+  role: UserRole;
+  roleLabel: string;
+  isActive: boolean;
+  dutyMemberId: string | null;
+};
+
 type DutyMemberDraft = {
   accessLogin: string;
   callsign: string;
   fullName: string;
   notes: string;
-  position: string;
-  profileStatus: DutyMemberProfileStatus;
   rank: string;
   serviceStatus: DutyServiceStatus;
-  unit: string;
 };
 
 type ConfirmState = {
@@ -61,36 +77,42 @@ const emptyDraft: DutyMemberDraft = {
   callsign: "",
   fullName: "",
   notes: "",
-  position: "",
-  profileStatus: "active",
   rank: "",
   serviceStatus: "active",
-  unit: "",
 };
 
 const serviceStatusLabels: Record<DutyServiceStatus, string> = {
-  active: "На службе",
-  leave: "В отпуске",
-  wounded: "Ранен",
-  missing: "Пропал",
-  discharged: "Списан",
+  active: "В строю",
+  leave: "В резерве",
+  wounded: "Временно отстранён",
+  missing: "Временно отстранён",
+  discharged: "Исключён",
 };
 
-const profileStatusLabels: Record<DutyMemberProfileStatus, string> = {
-  active: "Активен",
-  archived: "Архив",
-};
+const serviceStatusOptions: Array<{ label: string; value: DutyServiceStatus }> = [
+  { label: "В строю", value: "active" },
+  { label: "В резерве", value: "leave" },
+  { label: "Временно отстранён", value: "wounded" },
+  { label: "Исключён", value: "discharged" },
+];
+
+const accessFilters: Array<{ label: string; value: DutyAccessFilter }> = [
+  { label: "Все", value: "all" },
+  { label: "С доступом", value: "with_access" },
+  { label: "Без доступа", value: "without_access" },
+  { label: "Заблокированы", value: "blocked" },
+];
 
 function getMemberPrimaryName(member: DutyMember) {
-  return member.callsign || member.fullName || "Без имени";
+  return member.fullName || member.callsign || "Без имени";
 }
 
 function getMemberSecondaryName(member: DutyMember) {
-  return member.callsign ? member.fullName : "";
+  return member.callsign ? member.callsign : "";
 }
 
 function getMemberDutyLine(member: DutyMember) {
-  return [member.rank, member.position, member.unit].filter(Boolean).join(" · ") || "Служебные данные не указаны";
+  return [member.rank, serviceStatusLabels[member.serviceStatus]].filter(Boolean).join(" · ") || "Служебные данные не указаны";
 }
 
 function getAccessStatus(member: DutyMember) {
@@ -119,11 +141,8 @@ function createDraft(member?: DutyMember): DutyMemberDraft {
     callsign: member.callsign ?? "",
     fullName: member.fullName,
     notes: member.notes ?? "",
-    position: member.position ?? "",
-    profileStatus: member.profileStatus,
     rank: member.rank ?? "",
-    serviceStatus: member.serviceStatus,
-    unit: member.unit ?? "",
+    serviceStatus: member.serviceStatus === "missing" ? "wounded" : member.serviceStatus,
   };
 }
 
@@ -137,27 +156,61 @@ function matchesMemberSearch(member: DutyMember, query: string) {
   return [
     member.fullName,
     member.callsign,
-    member.position,
     member.rank,
-    member.unit,
+    serviceStatusLabels[member.serviceStatus],
     member.access?.login,
+    member.access?.displayName,
     member.access?.roleLabel,
+    ...member.positions.flatMap((position) => [position.title, position.sectionName]),
   ]
     .filter(Boolean)
     .some((value) => value!.toLocaleLowerCase("ru-RU").includes(normalizedQuery));
+}
+
+function matchesAccessFilter(member: DutyMember, filter: DutyAccessFilter) {
+  if (filter === "with_access") {
+    return Boolean(member.access?.isActive);
+  }
+
+  if (filter === "without_access") {
+    return !member.access;
+  }
+
+  if (filter === "blocked") {
+    return Boolean(member.access && !member.access.isActive);
+  }
+
+  return true;
+}
+
+function buildMemberPayload(draft: DutyMemberDraft) {
+  const isExcluded = draft.serviceStatus === "discharged";
+
+  return {
+    accessLogin: draft.accessLogin,
+    callsign: draft.callsign,
+    fullName: draft.fullName,
+    notes: draft.notes,
+    rank: draft.rank,
+    serviceStatus: draft.serviceStatus,
+    profileStatus: isExcluded ? "archived" : "active",
+  };
 }
 
 export default function DutyMembersPage() {
   const [members, setMembers] = useState<DutyMember[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [accessUsers, setAccessUsers] = useState<AccessUserOption[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [accessFilter, setAccessFilter] = useState<DutyAccessFilter>("all");
   const [draft, setDraft] = useState<DutyMemberDraft>(emptyDraft);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState("");
+  const [actionMessage, setActionMessage] = useState("");
+  const [loadError, setLoadError] = useState("");
   const [confirmDialog, setConfirmDialog] = useState<ConfirmState | null>(null);
   const [passwordDraft, setPasswordDraft] = useState({
     currentPassword: "",
@@ -172,12 +225,16 @@ export default function DutyMembersPage() {
     [members, selectedMemberId],
   );
   const filteredMembers = useMemo(
-    () => members.filter((member) => matchesMemberSearch(member, searchQuery)),
-    [members, searchQuery],
+    () => members.filter((member) => matchesAccessFilter(member, accessFilter)).filter((member) => matchesMemberSearch(member, searchQuery)),
+    [accessFilter, members, searchQuery],
   );
   const canManage = currentUser?.role === "system_admin" || currentUser?.role === "officer";
   const isOwnProfile = Boolean(selectedMember?.access && selectedMember.access.login === currentUser?.login);
   const isEditing = isCreating || Boolean(editingId);
+  const availableAccessUsers = useMemo(
+    () => accessUsers.filter((user) => !user.dutyMemberId || user.dutyMemberId === editingId),
+    [accessUsers, editingId],
+  );
 
   useEffect(() => {
     let isCancelled = false;
@@ -185,29 +242,41 @@ export default function DutyMembersPage() {
     const loadHandle = window.setTimeout(() => {
       async function loadInitialData() {
         setIsLoading(true);
-        setMessage("");
+        setLoadError("");
 
-        try {
-          const [loadedMembers, loadedUser] = await Promise.all([
-            apiFetchJson<DutyMember[]>("/api/duty-members"),
-            apiFetchJson<CurrentUser>("/api/auth/me"),
-          ]);
+        const loadedUser = await apiFetchJson<CurrentUser>("/api/auth/me").catch(() => null);
 
-          if (isCancelled) {
-            return;
-          }
-
-          setMembers(loadedMembers);
+        if (!isCancelled && loadedUser) {
           setCurrentUser(loadedUser);
+        }
+
+        const loadedMembers = await apiFetchJson<DutyMember[]>(
+          "/api/duty-members",
+          undefined,
+          "Не удалось загрузить состав. Повторите попытку позже.",
+        ).catch((error) => {
+          if (!isCancelled) {
+            setLoadError(error instanceof Error ? error.message : "Не удалось загрузить состав. Повторите попытку позже.");
+          }
+
+          return null;
+        });
+
+        if (!isCancelled && loadedMembers) {
+          setMembers(loadedMembers);
           setSelectedMemberId((currentId) => currentId ?? loadedMembers[0]?.id ?? null);
-        } catch (error) {
+        }
+
+        if (loadedUser?.role === "system_admin" || loadedUser?.role === "officer") {
+          const loadedAccessUsers = await apiFetchJson<AccessUserOption[]>("/api/duty-members/access-users").catch(() => []);
+
           if (!isCancelled) {
-            setMessage(error instanceof Error ? error.message : "Не удалось загрузить состав.");
+            setAccessUsers(loadedAccessUsers);
           }
-        } finally {
-          if (!isCancelled) {
-            setIsLoading(false);
-          }
+        }
+
+        if (!isCancelled) {
+          setIsLoading(false);
         }
       }
 
@@ -222,45 +291,45 @@ export default function DutyMembersPage() {
 
   function updateDraft(field: keyof DutyMemberDraft, value: string) {
     setDraft((currentDraft) => ({ ...currentDraft, [field]: value }));
-    setMessage("");
+    setActionMessage("");
   }
 
   function startCreate() {
     setIsCreating(true);
     setEditingId(null);
     setDraft(emptyDraft);
-    setMessage("");
+    setActionMessage("");
   }
 
   function startEdit(member: DutyMember) {
     setIsCreating(false);
     setEditingId(member.id);
     setDraft(createDraft(member));
-    setMessage("");
+    setActionMessage("");
   }
 
   function closeForm() {
     setIsCreating(false);
     setEditingId(null);
     setDraft(emptyDraft);
-    setMessage("");
+    setActionMessage("");
   }
 
   async function handleMemberSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!canManage) {
-      setMessage("Доступ к операции запрещён.");
+      setActionMessage("Доступ к операции запрещён.");
       return;
     }
 
     if (!draft.fullName.trim()) {
-      setMessage("Укажите ФИО.");
+      setActionMessage("Укажите ФИО.");
       return;
     }
 
     setIsSaving(true);
-    setMessage("");
+    setActionMessage("");
 
     try {
       const savedMember = await apiFetchJson<DutyMember>(
@@ -268,7 +337,7 @@ export default function DutyMembersPage() {
         {
           method: editingId ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(draft),
+          body: JSON.stringify(buildMemberPayload(draft)),
         },
       );
 
@@ -279,10 +348,16 @@ export default function DutyMembersPage() {
 
         return [savedMember, ...currentMembers];
       });
+      setAccessUsers((currentUsers) =>
+        currentUsers.map((user) => ({
+          ...user,
+          dutyMemberId: user.login === savedMember.access?.login ? savedMember.id : user.dutyMemberId === savedMember.id ? null : user.dutyMemberId,
+        })),
+      );
       setSelectedMemberId(savedMember.id);
       closeForm();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Не удалось сохранить профиль.");
+      setActionMessage(error instanceof Error ? error.message : "Не удалось сохранить профиль.");
     } finally {
       setIsSaving(false);
     }
@@ -320,7 +395,7 @@ export default function DutyMembersPage() {
 
   async function changeAccess(member: DutyMember, isActive: boolean) {
     setIsSaving(true);
-    setMessage("");
+    setActionMessage("");
 
     try {
       const updatedMember = await apiFetchJson<DutyMember>(`/api/duty-members/${member.id}/access`, {
@@ -332,42 +407,39 @@ export default function DutyMembersPage() {
       setMembers((currentMembers) => currentMembers.map((currentMember) => (currentMember.id === updatedMember.id ? updatedMember : currentMember)));
       setConfirmDialog(null);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Не удалось выполнить операцию.");
+      setActionMessage(error instanceof Error ? error.message : "Не удалось выполнить операцию.");
     } finally {
       setIsSaving(false);
     }
   }
 
-  function requestDelete(member: DutyMember) {
+  function requestExclude(member: DutyMember) {
     setConfirmDialog({
-      title: "Удалить профиль?",
-      message: "Профиль состава будет удалён из системы учёта.",
-      confirmLabel: "Удалить",
+      title: "Исключить из состава?",
+      message: "Профиль будет переведён в состояние исключённого из состава.",
+      confirmLabel: "Исключить",
       variant: "danger",
       onConfirm: async () => {
-        await deleteMember(member);
+        await excludeMember(member);
       },
     });
   }
 
-  async function deleteMember(member: DutyMember) {
+  async function excludeMember(member: DutyMember) {
     setIsSaving(true);
-    setMessage("");
+    setActionMessage("");
 
     try {
-      await apiFetchJson<{ ok: true }>(`/api/duty-members/${member.id}`, {
+      const updatedMember = await apiFetchJson<DutyMember>(`/api/duty-members/${member.id}`, {
         method: "DELETE",
       });
 
-      setMembers((currentMembers) => {
-        const nextMembers = currentMembers.filter((currentMember) => currentMember.id !== member.id);
-        setSelectedMemberId(nextMembers[0]?.id ?? null);
-        return nextMembers;
-      });
+      setMembers((currentMembers) => currentMembers.map((currentMember) => (currentMember.id === updatedMember.id ? updatedMember : currentMember)));
+      setSelectedMemberId(updatedMember.id);
       setConfirmDialog(null);
       closeForm();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Не удалось удалить профиль.");
+      setActionMessage(error instanceof Error ? error.message : "Не удалось выполнить операцию.");
     } finally {
       setIsSaving(false);
     }
@@ -417,37 +489,26 @@ export default function DutyMembersPage() {
             <input disabled={isSaving} maxLength={80} onChange={(event) => updateDraft("callsign", event.target.value)} value={draft.callsign} />
           </label>
           <label className="filter-field">
-            <span>Логин доступа</span>
-            <input disabled={isSaving} maxLength={64} onChange={(event) => updateDraft("accessLogin", event.target.value)} value={draft.accessLogin} />
-          </label>
-          <label className="filter-field">
             <span>Звание</span>
             <input disabled={isSaving} maxLength={80} onChange={(event) => updateDraft("rank", event.target.value)} value={draft.rank} />
           </label>
           <label className="filter-field">
-            <span>Должность</span>
-            <input disabled={isSaving} maxLength={120} onChange={(event) => updateDraft("position", event.target.value)} value={draft.position} />
-          </label>
-          <label className="filter-field">
-            <span>Подразделение</span>
-            <input disabled={isSaving} maxLength={120} onChange={(event) => updateDraft("unit", event.target.value)} value={draft.unit} />
-          </label>
-          <label className="filter-field">
-            <span>Статус службы</span>
+            <span>Статус состава</span>
             <select disabled={isSaving} onChange={(event) => updateDraft("serviceStatus", event.target.value)} value={draft.serviceStatus}>
-              {Object.entries(serviceStatusLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
+              {serviceStatusOptions.map((status) => (
+                <option key={status.value} value={status.value}>
+                  {status.label}
                 </option>
               ))}
             </select>
           </label>
           <label className="filter-field">
-            <span>Статус профиля</span>
-            <select disabled={isSaving} onChange={(event) => updateDraft("profileStatus", event.target.value)} value={draft.profileStatus}>
-              {Object.entries(profileStatusLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
+            <span>Связанный пользователь доступа</span>
+            <select disabled={isSaving} onChange={(event) => updateDraft("accessLogin", event.target.value)} value={draft.accessLogin}>
+              <option value="">Не назначать доступ</option>
+              {availableAccessUsers.map((user) => (
+                <option key={user.login} value={user.login}>
+                  {user.displayName || user.login} · {user.roleLabel}
                 </option>
               ))}
             </select>
@@ -472,35 +533,41 @@ export default function DutyMembersPage() {
   return (
     <main className="pda-page duty-members-page">
       <section className="pda-screen">
-        <PdaTopbar activeLabel="Состав" />
+        <PdaTopbar activeLabel="Состав" activeSubtabLabel="Профили состава" />
 
         <div className="pda-content duty-members-content">
           <section className="duty-members-shell">
-            <header className="duty-mode-header">
-              <div>
-                <h1>Состав группировки</h1>
-                <p>Служебные профили участников состава и контроль доступа к системе учёта.</p>
-              </div>
-              {canManage ? (
-                <button className="primary-command interactive-button" onClick={startCreate} type="button">
-                  Добавить профиль
-                </button>
-              ) : null}
-            </header>
-
             <section className="duty-members-layout">
               <div className="registry-panel registry-panel-list duty-members-list-panel">
-                <div className="filter-bar duty-list-filter">
-                  <label className="filter-field">
-                    <span>Поиск по составу</span>
-                    <input onChange={(event) => setSearchQuery(event.target.value)} placeholder="ФИО, позывной, должность или логин" type="search" value={searchQuery} />
-                  </label>
+                <div className="registry-panel duty-members-list-controls">
+                  <div className="duty-member-search-filter-row">
+                    <label className="filter-field">
+                      <span>Поиск по составу</span>
+                      <input onChange={(event) => setSearchQuery(event.target.value)} placeholder="ФИО, позывной, звание или доступ" type="search" value={searchQuery} />
+                    </label>
+                    <label className="filter-field duty-member-access-filter">
+                      <span>Фильтр доступа</span>
+                      <select onChange={(event) => setAccessFilter(event.target.value as DutyAccessFilter)} value={accessFilter}>
+                        {accessFilters.map((filter) => (
+                          <option key={filter.value} value={filter.value}>
+                            {filter.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  {canManage ? (
+                    <button className="primary-command interactive-button duty-member-add-button" onClick={startCreate} type="button">
+                      Добавить профиль
+                    </button>
+                  ) : null}
                 </div>
 
                 {isLoading ? <p className="empty-state">Загрузка состава...</p> : null}
-                {!isLoading && members.length === 0 ? <p className="empty-state">Профили состава пока не добавлены.</p> : null}
-                {!isLoading && members.length > 0 && filteredMembers.length === 0 ? <p className="empty-state">Профили не найдены.</p> : null}
-                {!isLoading && filteredMembers.length > 0 ? (
+                {!isLoading && loadError ? <p className="draft-message">{loadError}</p> : null}
+                {!isLoading && !loadError && members.length === 0 ? <p className="empty-state">Профили состава пока не добавлены.</p> : null}
+                {!isLoading && !loadError && members.length > 0 && filteredMembers.length === 0 ? <p className="empty-state">Профили не найдены.</p> : null}
+                {!isLoading && !loadError && filteredMembers.length > 0 ? (
                   <div className="duty-member-list">
                     {filteredMembers.map((member) => (
                       <button
@@ -513,8 +580,13 @@ export default function DutyMembersPage() {
                         type="button"
                       >
                         <span>{getMemberPrimaryName(member)}</span>
-                        {getMemberSecondaryName(member) ? <small>{getMemberSecondaryName(member)}</small> : null}
+                        {getMemberSecondaryName(member) ? <small>Позывной: {getMemberSecondaryName(member)}</small> : null}
                         <small>{getMemberDutyLine(member)}</small>
+                        <small>
+                          {member.positions.length > 0
+                            ? member.positions.map((position) => position.title).join(" · ")
+                            : "Должность не назначена."}
+                        </small>
                         <em className={getAccessBadgeClass(member)}>{getAccessStatus(member)}</em>
                       </button>
                     ))}
@@ -523,7 +595,7 @@ export default function DutyMembersPage() {
               </div>
 
               <div className="registry-panel registry-panel-detail duty-member-detail-panel">
-                {message ? <p className="draft-message">{message}</p> : null}
+                {actionMessage ? <p className="draft-message">{actionMessage}</p> : null}
                 {renderMemberForm()}
 
                 {!isEditing && selectedMember ? (
@@ -536,30 +608,22 @@ export default function DutyMembersPage() {
                         </div>
                         <span className={getAccessBadgeClass(selectedMember)}>{getAccessStatus(selectedMember)}</span>
                       </div>
-                      {getMemberSecondaryName(selectedMember) ? <p className="duty-member-subtitle">{getMemberSecondaryName(selectedMember)}</p> : null}
+                      {getMemberSecondaryName(selectedMember) ? <p className="duty-member-subtitle">Позывной: {getMemberSecondaryName(selectedMember)}</p> : null}
                       <dl className="registry-info-grid">
+                        <div className="registry-info-field">
+                          <dt>ФИО</dt>
+                          <dd>{selectedMember.fullName || "Не указано"}</dd>
+                        </div>
                         <div className="registry-info-field">
                           <dt>Звание</dt>
                           <dd>{selectedMember.rank || "Не указано"}</dd>
                         </div>
                         <div className="registry-info-field">
-                          <dt>Должность</dt>
-                          <dd>{selectedMember.position || "Не указана"}</dd>
-                        </div>
-                        <div className="registry-info-field">
-                          <dt>Подразделение</dt>
-                          <dd>{selectedMember.unit || "Не указано"}</dd>
-                        </div>
-                        <div className="registry-info-field">
-                          <dt>Статус службы</dt>
+                          <dt>Статус состава</dt>
                           <dd>{serviceStatusLabels[selectedMember.serviceStatus]}</dd>
                         </div>
                         <div className="registry-info-field">
-                          <dt>Статус профиля</dt>
-                          <dd>{profileStatusLabels[selectedMember.profileStatus]}</dd>
-                        </div>
-                        <div className="registry-info-field">
-                          <dt>Служебная роль</dt>
+                          <dt>Роль доступа</dt>
                           <dd>{selectedMember.access ? getRoleLabel(selectedMember.access.role) : "Не назначена"}</dd>
                         </div>
                       </dl>
@@ -569,27 +633,52 @@ export default function DutyMembersPage() {
                     <div className="profile-detail-block">
                       <div className="block-heading-row">
                         <div>
+                          <span>Должности</span>
+                          <h2>Назначения в штатном списке</h2>
+                        </div>
+                      </div>
+                      {selectedMember.positions.length > 0 ? (
+                        <div className="duty-position-list">
+                          {selectedMember.positions.map((position) => (
+                            <div className="duty-position-row" key={position.id}>
+                              <strong>{position.title}</strong>
+                              <span>{position.sectionName}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="empty-state">Должность не назначена.</p>
+                      )}
+                    </div>
+
+                    <div className="profile-detail-block">
+                      <div className="block-heading-row">
+                        <div>
                           <span>Служебный доступ</span>
-                          <h2>{selectedMember.access ? selectedMember.access.login : "Доступ не назначен"}</h2>
+                          <h2>{getAccessStatus(selectedMember)}</h2>
                         </div>
                       </div>
                       {selectedMember.access ? (
                         <dl className="registry-info-grid">
                           <div className="registry-info-field">
-                            <dt>Имя доступа</dt>
+                            <dt>Логин</dt>
+                            <dd>{selectedMember.access.login}</dd>
+                          </div>
+                          <div className="registry-info-field">
+                            <dt>Отображаемое имя</dt>
                             <dd>{selectedMember.access.displayName || selectedMember.access.login}</dd>
                           </div>
                           <div className="registry-info-field">
-                            <dt>Роль</dt>
+                            <dt>Роль доступа</dt>
                             <dd>{selectedMember.access.roleLabel}</dd>
                           </div>
                           <div className="registry-info-field">
-                            <dt>Состояние</dt>
+                            <dt>Статус доступа</dt>
                             <dd>{getAccessStatus(selectedMember)}</dd>
                           </div>
                         </dl>
                       ) : (
-                        <p className="empty-state">Профиль состава не связан со служебным доступом.</p>
+                        <p className="empty-state">Доступ не назначен</p>
                       )}
                     </div>
 
@@ -603,7 +692,7 @@ export default function DutyMembersPage() {
                         </div>
                         <div className="toolbar-row duty-member-actions">
                           <button className="command-row interactive-button" onClick={() => startEdit(selectedMember)} type="button">
-                            Редактировать профиль
+                            Изменить профиль
                           </button>
                           {selectedMember.access?.isActive ? (
                             <button className="command-row interactive-button" disabled={!canManageTarget(selectedMember)} onClick={() => requestAccessChange(selectedMember, false)} type="button">
@@ -613,9 +702,11 @@ export default function DutyMembersPage() {
                             <button className="command-row interactive-button" disabled={!canManageTarget(selectedMember)} onClick={() => requestAccessChange(selectedMember, true)} type="button">
                               Восстановить доступ
                             </button>
-                          ) : null}
-                          <button className="primary-command interactive-button" disabled={!canManageTarget(selectedMember)} onClick={() => requestDelete(selectedMember)} type="button">
-                            Удалить профиль
+                          ) : (
+                            <span className="registry-status-badge-muted">Доступ не назначен</span>
+                          )}
+                          <button className="primary-command interactive-button" disabled={!canManageTarget(selectedMember)} onClick={() => requestExclude(selectedMember)} type="button">
+                            Исключить из состава
                           </button>
                         </div>
                       </div>
@@ -654,9 +745,9 @@ export default function DutyMembersPage() {
                   </article>
                 ) : null}
 
-                {!isEditing && !selectedMember && !isLoading ? (
+                {!isEditing && !selectedMember && !isLoading && !loadError ? (
                   <div className="empty-state profile-detail-empty">
-                    <p>Выберите профиль состава или добавьте новый.</p>
+                    <p>{canManage ? "Выберите профиль состава или добавьте новый." : "Выберите профиль состава."}</p>
                   </div>
                 ) : null}
               </div>

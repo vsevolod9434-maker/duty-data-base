@@ -1,4 +1,5 @@
 import { requireApiAuth } from "@/lib/auth/require-api-auth";
+import { getAccessUserDisplayName } from "@/lib/auth/access-user-display";
 import { getPrismaClient } from "@/lib/prisma";
 import { createSystemDate } from "@/lib/stalker-utils";
 import {
@@ -34,6 +35,7 @@ export async function POST(request: Request) {
   const stalkers = await prisma.stalker.findMany({ select: { id: true } });
   const existingStalkerIds = new Set(stalkers.map((stalker) => stalker.id));
   const now = createSystemDate();
+  const actorName = getAccessUserDisplayName(auth.accessUser);
   let skippedTenants = 0;
 
   const candidates = payload
@@ -53,7 +55,7 @@ export async function POST(request: Request) {
         status: getOccupancyStatus(tenants.length),
         notes: normalizeNullableString(apartment.notes),
         tenants,
-        payments: normalizePaymentPayloads(apartment.payments, updatedAt),
+        payments: normalizePaymentPayloads(apartment.payments, updatedAt, actorName),
         createdAt,
         updatedAt,
       };

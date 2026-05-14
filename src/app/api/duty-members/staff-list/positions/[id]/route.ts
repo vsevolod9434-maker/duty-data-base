@@ -1,0 +1,93 @@
+import { getAccessUserDisplayName } from "@/lib/auth/access-user-display";
+import { requireApiAuth } from "@/lib/auth/require-api-auth";
+import { getPrismaClient } from "@/lib/prisma";
+import {
+  createStaffListErrorResponse,
+  mapStaffSectionToResponse,
+  staffListInclude,
+} from "../../staff-list-route-utils";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+type PositionContext = {
+  params: Promise<{ id: string }>;
+};
+
+type PositionPayload = {
+  dutyMemberId?: unknown;
+};
+
+export async function PATCH(request: Request, context: PositionContext) {
+  const auth = await requireApiAuth();
+
+  if (!auth.ok) {
+    return auth.response;
+  }
+
+  if (auth.role !== "system_admin" && auth.role !== "officer") {
+    return createStaffListErrorResponse("Доступ к операции запрещён.", 403);
+  }
+
+  const { id } = await context.params;
+  const payload = (await request.json().catch(() => null)) as PositionPayload | null;
+  const nextDutyMemberId =
+    payload && typeof payload.dutyMemberId === "string" && payload.dutyMemberId.trim()
+      ? payload.dutyMemberId.trim()
+      : null;
+  const prisma = getPrismaClient();
+
+  const position = await prisma.dutyStaffPosition
+    .findUnique({
+      select: { id: true },
+      where: { id },
+    })
+    .catch(() => null);
+
+  if (!position) {
+    return createStaffListErrorResponse("Должность не найдена.", 404);
+  }
+
+  if (nextDutyMemberId) {
+    const member = await prisma.dutyMember
+      .findUnique({
+        select: { id: true },
+        where: { id: nextDutyMemberId },
+      })
+      .catch(() => null);
+
+    if (!member) {
+      return createStaffListErrorResponse("Профиль не найден.", 404);
+    }
+  }
+
+  const actorName = getAccessUserDisplayName(auth.accessUser);
+
+  try {
+    await prisma.dutyStaffPosition.update({
+      data: nextDutyMemberId
+        ? {
+            assignedAt: new Date(),
+            assignedBy: actorName,
+            dutyMemberId: nextDutyMemberId,
+            updatedBy: actorName,
+          }
+        : {
+            assignedAt: null,
+            dutyMemberId: null,
+            updatedBy: actorName,
+          },
+      where: { id },
+    });
+
+    const sections = await prisma.dutyStaffSection.findMany({
+      include: staffListInclude,
+      orderBy: { sortOrder: "asc" },
+    });
+
+    return Response.json(sections.map(mapStaffSectionToResponse));
+  } catch {
+    return createStaffListErrorResponse("Не удалось выполнить операцию.", 500);
+  }
+}
+

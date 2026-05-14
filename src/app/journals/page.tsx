@@ -3,6 +3,7 @@
 import type { Dispatch, FormEvent, MouseEvent, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
+import { ActionAuthorLine } from "@/components/ui/ActionAuthorLine";
 import { Pagination } from "@/components/ui/Pagination";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { TaskRecordCard } from "@/components/ui/TaskRecordCard";
@@ -10,6 +11,7 @@ import { TradeRecordCard } from "@/components/ui/TradeRecordCard";
 import { ViolationRecordCard } from "@/components/ui/ViolationRecordCard";
 import { addActivityLogEntry } from "@/lib/activity-log";
 import { apiFetchJson } from "@/lib/api-client";
+import { fetchCurrentUserLabel } from "@/lib/current-user-label";
 import {
   createTask,
   createTradeOperation,
@@ -366,9 +368,9 @@ export default function JournalsPage() {
   const [purchaseTableMessage, setPurchaseTableMessage] = useState("");
   const [violationFormMessage, setViolationFormMessage] = useState("");
   const [violationTableMessage, setViolationTableMessage] = useState("");
-  const [completeTaskAcceptedBy, setCompleteTaskAcceptedBy] = useState("");
   const [violationClosureNote, setViolationClosureNote] = useState("");
   const [violationClosureMessage, setViolationClosureMessage] = useState("");
+  const [currentUserLabel, setCurrentUserLabel] = useState("текущий пользователь");
   const [taskStalkerSearch, setTaskStalkerSearch] = useState(createEntitySearchState);
   const [taskGroupSearch, setTaskGroupSearch] = useState(createEntitySearchState);
   const [tradeStalkerSearch, setTradeStalkerSearch] = useState(createEntitySearchState);
@@ -454,6 +456,13 @@ export default function JournalsPage() {
       }
 
       void loadJournalData();
+      void fetchCurrentUserLabel()
+        .then((label) => {
+          if (!isCancelled) {
+            setCurrentUserLabel(label);
+          }
+        })
+        .catch(() => undefined);
     }, 0);
 
     return () => {
@@ -685,7 +694,6 @@ export default function JournalsPage() {
       ? tradeDraftQuantity * tradeDraftPrice
       : 0;
   const isEditingTask = Boolean(editingTaskId);
-  const editingTask = tasks.find((task) => task.id === editingTaskId);
   const isEditingTrade = Boolean(editingTradeId);
   const isEditingViolation = Boolean(editingViolationId);
   const journalCounters: Record<JournalTab, number> = {
@@ -776,7 +784,7 @@ export default function JournalsPage() {
   }
 
   function isCompleteTaskDirty() {
-    return completeTaskAcceptedBy.trim().length > 0;
+    return false;
   }
 
   function getInitialTradeDraft() {
@@ -912,13 +920,11 @@ export default function JournalsPage() {
 
   function openCompleteTaskModal(taskId: string) {
     setCompletingTaskId(taskId);
-    setCompleteTaskAcceptedBy("");
     setCompleteTaskMessage("");
   }
 
   function closeCompleteTaskModal() {
     setCompletingTaskId("");
-    setCompleteTaskAcceptedBy("");
     setCompleteTaskMessage("");
   }
 
@@ -1103,7 +1109,6 @@ export default function JournalsPage() {
           },
         ],
         totalAmount: quantity * price,
-        issuedBy: tradeDraft.issuedBy.trim(),
         notes: tradeDraft.notes.trim(),
         operationDate: tradeDraft.operationDate,
       }).catch(() => {
@@ -1178,7 +1183,6 @@ export default function JournalsPage() {
       manualParticipantName,
       items: [item],
       totalAmount: quantity * price,
-      issuedBy: tradeDraft.issuedBy.trim(),
       notes: tradeDraft.notes.trim(),
       operationDate: tradeDraft.operationDate,
     }).catch(() => {
@@ -1257,7 +1261,6 @@ export default function JournalsPage() {
       const updatedViolation = await updateViolation(editingViolationId, {
         date: violationDraft.date,
         description,
-        issuedBy: violationDraft.issuedBy.trim(),
         notes: violationDraft.notes.trim(),
       }).catch(() => {
         setViolationFormMessage("Не удалось сохранить нарушение.");
@@ -1311,7 +1314,6 @@ export default function JournalsPage() {
       status: "active",
       date: violationDraft.date,
       description,
-      issuedBy: violationDraft.issuedBy.trim(),
       notes: violationDraft.notes.trim(),
     }).catch(() => {
       setViolationFormMessage("Не удалось сохранить нарушение.");
@@ -1456,16 +1458,12 @@ export default function JournalsPage() {
     }
 
     if (editingTaskId) {
-      const acceptedBy = taskDraft.acceptedBy.trim();
-      const currentTask = tasks.find((task) => task.id === editingTaskId);
       const updatedTask = await updateTask(editingTaskId, {
         issuedAt: taskDraft.issuedAt,
         dueAt: taskDraft.dueAt,
         description,
         reward: taskDraft.reward.trim(),
         notes: taskDraft.notes.trim(),
-        issuedBy: taskDraft.issuedBy.trim(),
-        acceptedBy: currentTask?.status === "completed" ? currentTask.acceptedBy : acceptedBy || null,
       }).catch(() => {
         setTaskFormMessage("Не удалось сохранить задание.");
         return null;
@@ -1550,8 +1548,6 @@ export default function JournalsPage() {
       description,
       reward: taskDraft.reward.trim(),
       notes: taskDraft.notes.trim(),
-      issuedBy: taskDraft.issuedBy.trim(),
-      acceptedBy: null,
       completedAt: null,
       status: "active",
     }).catch(() => {
@@ -1579,13 +1575,7 @@ export default function JournalsPage() {
   async function handleCompleteTaskSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const task = tasks.find((currentTask) => currentTask.id === completingTaskId);
-    const normalizedAcceptedBy = completeTaskAcceptedBy.trim();
-    if (!normalizedAcceptedBy) {
-      setCompleteTaskMessage("Укажите, кто принял выполнение задания.");
-      return;
-    }
     const updatedTask = await updateTask(completingTaskId, {
-      acceptedBy: normalizedAcceptedBy,
       completedAt: getSystemTimestamp(),
       status: "completed",
     }).catch(() => {
@@ -2015,21 +2005,10 @@ export default function JournalsPage() {
               <section className="form-section">
                 <div className="form-section-heading">
                   <h2>Подтверждение</h2>
-                  <span>Укажите, кто принял выполнение</span>
+                  <span>Выполнение будет засчитано текущим пользователем</span>
                 </div>
                 <div className="task-complete-grid">
-                  <label className="filter-field">
-                    <span>Кто засчитал</span>
-                    <input
-                      onChange={(event) => {
-                        setCompleteTaskAcceptedBy(event.target.value);
-                        setCompleteTaskMessage("");
-                      }}
-                      placeholder="Позывной или должность члена Долга"
-                      type="text"
-                      value={completeTaskAcceptedBy}
-                    />
-                  </label>
+                  <ActionAuthorLine action="Принимает" name={currentUserLabel} />
                 </div>
               </section>
             </div>
@@ -2158,21 +2137,7 @@ export default function JournalsPage() {
                     <span>Награда</span>
                     <input onChange={(event) => updateTaskDraft("reward", event.target.value)} placeholder="Например: 5000 рублей" type="text" value={taskDraft.reward} />
                   </label>
-                  <label className="filter-field">
-                    <span>Кто выдал</span>
-                    <input onChange={(event) => updateTaskDraft("issuedBy", event.target.value)} placeholder="Позывной или должность" type="text" value={taskDraft.issuedBy} />
-                  </label>
-                  {isEditingTask && editingTask?.status !== "completed" ? (
-                    <label className="filter-field">
-                      <span>Кто принял выполнение</span>
-                      <input
-                        onChange={(event) => updateTaskDraft("acceptedBy", event.target.value)}
-                        placeholder="Позывной или должность"
-                        type="text"
-                        value={taskDraft.acceptedBy}
-                      />
-                    </label>
-                  ) : null}
+                  <ActionAuthorLine action={isEditingTask ? "Изменяет" : "Оформляет"} name={currentUserLabel} />
                 </div>
               </section>
 
@@ -2360,10 +2325,7 @@ export default function JournalsPage() {
                     <span>Дата операции</span>
                     <input max={SYSTEM_DATE_MAX} min={SYSTEM_DATE_MIN} onChange={(event) => updateTradeDraft("operationDate", event.target.value)} type="date" value={tradeDraft.operationDate} />
                   </label>
-                  <label className="filter-field">
-                    <span>Кто оформил</span>
-                    <input onChange={(event) => updateTradeDraft("issuedBy", event.target.value)} placeholder="Позывной или должность" type="text" value={tradeDraft.issuedBy} />
-                  </label>
+                  <ActionAuthorLine action={isEditingTrade ? "Изменяет" : "Оформляет"} name={currentUserLabel} />
                   <label className="filter-field task-form-wide">
                     <span>Заметки</span>
                     <textarea onChange={(event) => updateTradeDraft("notes", event.target.value)} placeholder="Комментарий к операции" value={tradeDraft.notes} />
@@ -2471,10 +2433,7 @@ export default function JournalsPage() {
                     <span>Дата нарушения</span>
                     <input max={SYSTEM_DATE_MAX} min={SYSTEM_DATE_MIN} onChange={(event) => updateViolationDraft("date", event.target.value)} type="date" value={violationDraft.date} />
                   </label>
-                  <label className="filter-field">
-                    <span>Кто оформил</span>
-                    <input onChange={(event) => updateViolationDraft("issuedBy", event.target.value)} placeholder="Позывной или должность" type="text" value={violationDraft.issuedBy} />
-                  </label>
+                  <ActionAuthorLine action={isEditingViolation ? "Изменяет" : "Оформляет"} name={currentUserLabel} />
                   <label className="filter-field task-form-wide">
                     <span>Описание нарушения</span>
                     <textarea onChange={(event) => updateViolationDraft("description", event.target.value)} placeholder="Опишите нарушение" value={violationDraft.description} />
@@ -2528,6 +2487,7 @@ export default function JournalsPage() {
                   <h2>Подтверждение</h2>
                   <span>Нарушение останется в истории и перейдёт в погашенные</span>
                 </div>
+                <ActionAuthorLine action="Закрывает" name={currentUserLabel} />
                 <label className="filter-field">
                   <span>Что сталкер сделал для закрытия нарушения</span>
                   <textarea

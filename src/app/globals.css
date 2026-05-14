@@ -8709,6 +8709,22 @@ body::after,
   color: var(--muted);
 }
 
+.action-author-line {
+  grid-column: 1 / -1;
+  margin: 0;
+  border: 1px solid var(--registry-border);
+  background: rgba(8, 10, 11, 0.72);
+  color: rgba(220, 226, 226, 0.82);
+  font-size: 0.84rem;
+  line-height: 1.35;
+  padding: 0.55rem 0.62rem;
+}
+
+.action-author-line span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
 .duty-members-page .duty-members-content {
   min-height: 0;
 }
@@ -8738,6 +8754,12 @@ body::after,
 .duty-member-list {
   display: grid;
   gap: 0.48rem;
+}
+
+.duty-members-list-controls {
+  display: grid;
+  gap: 0.55rem;
+  margin-bottom: 0.2rem;
 }
 
 .duty-member-list-row {
@@ -8841,6 +8863,116 @@ body::after,
   opacity: 0.48;
 }
 
+.duty-member-search-filter-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(200px, 0.48fr);
+  gap: 0.55rem;
+  align-items: end;
+}
+
+.duty-member-access-filter {
+  min-width: 0;
+}
+
+.duty-member-add-button {
+  justify-self: start;
+}
+
+.duty-position-list,
+.duty-staff-sections,
+.duty-staff-position-list,
+.duty-staff-member-picker {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.duty-position-row,
+.duty-staff-position-row {
+  display: grid;
+  min-width: 0;
+  gap: 0.45rem;
+  border: 1px solid var(--registry-border);
+  background: var(--registry-surface-2);
+  padding: 0.7rem;
+}
+
+.duty-position-row strong,
+.duty-staff-position-main strong {
+  color: var(--foreground-strong);
+  font-size: 0.92rem;
+  overflow-wrap: anywhere;
+}
+
+.duty-position-row span,
+.duty-staff-position-main span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.duty-staff-intro h2 {
+  margin: 0;
+  color: var(--foreground-strong);
+  font-size: clamp(1.1rem, 2vw, 1.45rem);
+  line-height: 1.25;
+}
+
+.duty-staff-position-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.duty-staff-position-main {
+  display: grid;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.duty-staff-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+.duty-staff-actions .interactive-button {
+  min-height: 2rem;
+  padding: 0.4rem 0.58rem;
+}
+
+.duty-staff-actions .interactive-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.duty-vacancy-label {
+  display: inline-flex;
+  width: fit-content;
+  border: 1px solid rgba(151, 159, 159, 0.22);
+  background: rgba(9, 11, 12, 0.58);
+  color: rgba(205, 211, 211, 0.74);
+  font-weight: 800;
+  line-height: 1;
+  padding: 0.32rem 0.45rem;
+}
+
+.duty-staff-footnote {
+  margin: 0;
+  border-top: 1px solid var(--registry-border);
+  color: var(--muted);
+  font-size: 0.86rem;
+  padding-top: 0.7rem;
+}
+
+.duty-staff-assign-modal {
+  max-width: 38rem;
+}
+
+.duty-staff-member-picker {
+  max-height: min(42vh, 24rem);
+  overflow: auto;
+  padding-right: 0.2rem;
+}
+
 .duty-password-form {
   margin-top: 0;
 }
@@ -8864,6 +8996,18 @@ body::after,
   .duty-members-page .duty-members-layout,
   .duty-member-form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .duty-member-search-filter-row {
+    grid-template-columns: 1fr;
+  }
+
+  .duty-staff-position-row {
+    grid-template-columns: 1fr;
+  }
+
+  .duty-staff-actions {
+    justify-content: flex-start;
   }
 }
 

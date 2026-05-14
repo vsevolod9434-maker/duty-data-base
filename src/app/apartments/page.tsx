@@ -4,8 +4,10 @@
 import type { FormEvent, KeyboardEvent, MouseEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
+import { ActionAuthorLine } from "@/components/ui/ActionAuthorLine";
 import { addActivityLogEntry } from "@/lib/activity-log";
 import { apiFetchJson } from "@/lib/api-client";
+import { fetchCurrentUserLabel } from "@/lib/current-user-label";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Pagination } from "@/components/ui/Pagination";
 import {
@@ -215,13 +217,26 @@ async function fetchApartments() {
   return payload.map(normalizeApiApartment);
 }
 
+function serializeApartmentForRequest(apartment: Apartment): Apartment {
+  return {
+    ...apartment,
+    payments: apartment.payments.map((payment) => {
+      const safePayment = { ...payment };
+      delete safePayment.acceptedBy;
+      delete safePayment.issuedBy;
+      delete safePayment.responsibleBy;
+      return safePayment;
+    }),
+  };
+}
+
 async function saveApartmentRequest(apartment: Apartment) {
   const responsePayload = await apiFetchJson<ApartmentApiResponse>(`/api/apartments/${encodeURIComponent(apartment.id)}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(apartment),
+    body: JSON.stringify(serializeApartmentForRequest(apartment)),
   });
 
   return normalizeApiApartment(responsePayload);
@@ -261,6 +276,7 @@ export default function ApartmentsPage() {
   const [tenantMessage, setTenantMessage] = useState("");
   const [paymentMessage, setPaymentMessage] = useState("");
   const [notesMessage, setNotesMessage] = useState("");
+  const [currentUserLabel, setCurrentUserLabel] = useState("текущий пользователь");
   const [tenantPage, setTenantPage] = useState(1);
   const [paymentPage, setPaymentPage] = useState(1);
 
@@ -321,6 +337,13 @@ export default function ApartmentsPage() {
       }
 
       void loadServerData();
+      void fetchCurrentUserLabel()
+        .then((label) => {
+          if (!isCancelled) {
+            setCurrentUserLabel(label);
+          }
+        })
+        .catch(() => undefined);
     }, 0);
 
     return () => {
@@ -1502,6 +1525,7 @@ export default function ApartmentsPage() {
                       <input min="0" onChange={(event) => updatePaymentDraft("amount", event.target.value)} type="number" value={paymentDraft.amount} />
                     </label>
                   )}
+                  <ActionAuthorLine action={editingPaymentId ? "Изменяет" : "Принимает"} name={currentUserLabel} />
                   <label className="filter-field">
                     <span>Заметки</span>
                     <textarea onChange={(event) => updatePaymentDraft("notes", event.target.value)} placeholder="Комментарий к оплате" value={paymentDraft.notes} />

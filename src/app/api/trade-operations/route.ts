@@ -1,4 +1,5 @@
 import { requireApiAuth } from "@/lib/auth/require-api-auth";
+import { getAccessUserDisplayName } from "@/lib/auth/access-user-display";
 import { getPrismaClient } from "@/lib/prisma";
 import { createSystemDate } from "@/lib/stalker-utils";
 import {
@@ -67,6 +68,7 @@ export async function POST(request: Request) {
     new Set(groups.map((group) => group.id)),
   );
   const now = createSystemDate();
+  const actorName = getAccessUserDisplayName(auth.accessUser);
   const operation = await prisma.tradeOperation.create({
     data: {
       id: crypto.randomUUID(),
@@ -76,7 +78,7 @@ export async function POST(request: Request) {
       groupId: subject.groupId,
       manualParticipantName: subject.manualParticipantName,
       totalAmount: calculateTotalAmount(items),
-      issuedBy: normalizeNullableString(payload.issuedBy),
+      issuedBy: actorName,
       notes: normalizeNullableString(payload.notes),
       operationDate: parseNullableDate(payload.operationDate),
       createdAt: now,

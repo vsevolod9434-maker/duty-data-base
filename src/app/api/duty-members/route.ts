@@ -20,12 +20,17 @@ export async function GET() {
   }
 
   const prisma = getPrismaClient();
-  const members = await prisma.dutyMember.findMany({
-    include: dutyMemberInclude,
-    orderBy: [{ profileStatus: "asc" }, { fullName: "asc" }],
-  });
 
-  return Response.json(members.map(mapDutyMemberToResponse));
+  try {
+    const members = await prisma.dutyMember.findMany({
+      include: dutyMemberInclude,
+      orderBy: [{ profileStatus: "asc" }, { fullName: "asc" }],
+    });
+
+    return Response.json(members.map(mapDutyMemberToResponse));
+  } catch {
+    return createDutyMemberErrorResponse("Не удалось загрузить состав. Повторите попытку позже.", 500);
+  }
 }
 
 export async function POST(request: Request) {
@@ -54,13 +59,15 @@ export async function POST(request: Request) {
   const prisma = getPrismaClient();
   const normalizedAccessLogin = normalizeAccessLogin(payload.accessLogin);
   const accessUser = normalizedAccessLogin
-    ? await prisma.accessUser.findUnique({
-        select: {
-          id: true,
-          role: true,
-        },
-        where: { normalizedLogin: normalizedAccessLogin },
-      })
+    ? await prisma.accessUser
+        .findUnique({
+          select: {
+            id: true,
+            role: true,
+          },
+          where: { normalizedLogin: normalizedAccessLogin },
+        })
+        .catch(() => null)
     : null;
 
   if (normalizedAccessLogin && !accessUser) {
@@ -72,10 +79,12 @@ export async function POST(request: Request) {
   }
 
   if (accessUser) {
-    const linkedMember = await prisma.dutyMember.findFirst({
-      select: { id: true },
-      where: { accessUserId: accessUser.id },
-    });
+    const linkedMember = await prisma.dutyMember
+      .findFirst({
+        select: { id: true },
+        where: { accessUserId: accessUser.id },
+      })
+      .catch(() => null);
 
     if (linkedMember) {
       return createDutyMemberErrorResponse("Профиль доступа уже связан с составом.");

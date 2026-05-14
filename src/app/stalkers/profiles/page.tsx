@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 import { useEffect, useMemo, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
+import { ActionAuthorLine } from "@/components/ui/ActionAuthorLine";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Pagination } from "@/components/ui/Pagination";
 import { getTaskActionVisibility, TaskRecordCard } from "@/components/ui/TaskRecordCard";
@@ -10,6 +11,7 @@ import { TradeRecordCard } from "@/components/ui/TradeRecordCard";
 import { ViolationRecordCard } from "@/components/ui/ViolationRecordCard";
 import { addActivityLogEntry } from "@/lib/activity-log";
 import { apiFetch, apiFetchJson } from "@/lib/api-client";
+import { fetchCurrentUserLabel } from "@/lib/current-user-label";
 import {
   createTask,
   createTradeOperation,
@@ -477,7 +479,6 @@ export default function StalkerProfilesPage() {
   const [draft, setDraft] = useState(emptyDraft);
   const [taskDraft, setTaskDraft] = useState(createEmptyTaskDraft);
   const [editTaskDraft, setEditTaskDraft] = useState(createEmptyTaskDraft);
-  const [completeTaskDraft, setCompleteTaskDraft] = useState({ acceptedBy: "" });
   const [tradeDraft, setTradeDraft] = useState(() => createEmptyTradeDraft("sale"));
   const [violationDraft, setViolationDraft] = useState(createEmptyViolationDraft);
   const [photoLoadFailed, setPhotoLoadFailed] = useState(false);
@@ -490,6 +491,7 @@ export default function StalkerProfilesPage() {
   const [violationFormMessage, setViolationFormMessage] = useState("");
   const [violationClosureNote, setViolationClosureNote] = useState("");
   const [violationClosureMessage, setViolationClosureMessage] = useState("");
+  const [currentUserLabel, setCurrentUserLabel] = useState("текущий пользователь");
   const [profileGroupMessage, setProfileGroupMessage] = useState("");
   const [tableMessage, setTableMessage] = useState("");
   const [taskMessage, setTaskMessage] = useState("");
@@ -591,6 +593,13 @@ export default function StalkerProfilesPage() {
       }
 
       void loadProfiles();
+      void fetchCurrentUserLabel()
+        .then((label) => {
+          if (!isCancelled) {
+            setCurrentUserLabel(label);
+          }
+        })
+        .catch(() => undefined);
     }, 0);
 
     return () => {
@@ -958,8 +967,7 @@ export default function StalkerProfilesPage() {
   }
 
   function isCompleteTaskDraftDirty() {
-    const task = completingTaskId ? tasks.find((currentTask) => currentTask.id === completingTaskId) : null;
-    return completeTaskDraft.acceptedBy !== (task?.acceptedBy ?? "");
+    return false;
   }
 
   function getInitialTradeDraft() {
@@ -1336,13 +1344,11 @@ export default function StalkerProfilesPage() {
 
   function openCompleteTask(task: Task) {
     setCompletingTaskId(task.id);
-    setCompleteTaskDraft({ acceptedBy: task.acceptedBy ?? "" });
     setCompleteTaskMessage("");
   }
 
   function closeCompleteTaskDialog() {
     setCompletingTaskId("");
-    setCompleteTaskDraft({ acceptedBy: "" });
     setCompleteTaskMessage("");
   }
 
@@ -1442,8 +1448,6 @@ export default function StalkerProfilesPage() {
       description,
       reward: taskDraft.reward.trim(),
       notes: taskDraft.notes.trim(),
-      issuedBy: taskDraft.issuedBy.trim(),
-      acceptedBy: null,
       completedAt: null,
       status: "active",
     }).catch(() => {
@@ -1509,7 +1513,6 @@ export default function StalkerProfilesPage() {
             id: currentOperation?.items[0]?.id ?? item.id,
           },
         ],
-        issuedBy: tradeDraft.issuedBy.trim(),
         notes: tradeDraft.notes.trim(),
         operationDate: tradeDraft.operationDate,
       }).catch(() => {
@@ -1537,7 +1540,6 @@ export default function StalkerProfilesPage() {
       groupId: null,
       items: [item],
       totalAmount: quantity * price,
-      issuedBy: tradeDraft.issuedBy.trim(),
       notes: tradeDraft.notes.trim(),
       operationDate: tradeDraft.operationDate,
     }).catch(() => {
@@ -1600,7 +1602,6 @@ export default function StalkerProfilesPage() {
       const updatedViolation = await updateViolation(editingViolationId, {
         date: violationDraft.date,
         description,
-        issuedBy: violationDraft.issuedBy.trim(),
         notes: violationDraft.notes.trim(),
       }).catch(() => {
         setViolationFormMessage("Не удалось сохранить нарушение.");
@@ -1626,7 +1627,6 @@ export default function StalkerProfilesPage() {
       status: "active",
       date: violationDraft.date,
       description,
-      issuedBy: violationDraft.issuedBy.trim(),
       notes: violationDraft.notes.trim(),
     }).catch(() => {
       setViolationFormMessage("Не удалось сохранить нарушение.");
@@ -1719,7 +1719,6 @@ export default function StalkerProfilesPage() {
       description,
       reward: editTaskDraft.reward.trim(),
       notes: editTaskDraft.notes.trim(),
-      issuedBy: editTaskDraft.issuedBy.trim(),
     }).catch(() => {
       setEditTaskMessage("Не удалось сохранить задание.");
       return null;
@@ -1737,17 +1736,9 @@ export default function StalkerProfilesPage() {
   async function handleCompleteTaskSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const acceptedBy = completeTaskDraft.acceptedBy.trim();
-
-    if (!acceptedBy) {
-      setCompleteTaskMessage("Укажите, кто засчитал задание.");
-      return;
-    }
-
     const currentTask = tasks.find((task) => task.id === completingTaskId);
     const updatedTask = await updateTask(completingTaskId, {
       status: "completed",
-      acceptedBy,
       completedAt: currentTask?.completedAt || getTodayDate(),
     }).catch(() => {
       setCompleteTaskMessage("Не удалось засчитать задание.");
@@ -2647,10 +2638,7 @@ export default function StalkerProfilesPage() {
                     <span>Награда</span>
                     <input onChange={(event) => updateEditTaskDraft("reward", event.target.value)} placeholder="Например: 5000 рублей или аптечка" type="text" value={editTaskDraft.reward} />
                   </label>
-                  <label className="filter-field">
-                    <span>Кто выдал</span>
-                    <input onChange={(event) => updateEditTaskDraft("issuedBy", event.target.value)} placeholder="Позывной или должность члена Долга" type="text" value={editTaskDraft.issuedBy} />
-                  </label>
+                  <ActionAuthorLine action="Изменяет" name={currentUserLabel} />
                 </div>
               </section>
 
@@ -2709,13 +2697,10 @@ export default function StalkerProfilesPage() {
               <section className="form-section">
                 <div className="form-section-heading">
                   <h2>Подтверждение</h2>
-                  <span>Укажите, кто принял выполнение</span>
+                  <span>Выполнение будет засчитано текущим пользователем</span>
                 </div>
                 <div className="task-complete-grid">
-                  <label className="filter-field">
-                    <span>Кто засчитал</span>
-                    <input onChange={(event) => setCompleteTaskDraft({ acceptedBy: event.target.value })} placeholder="Позывной или должность члена Долга" type="text" value={completeTaskDraft.acceptedBy} />
-                  </label>
+                  <ActionAuthorLine action="Принимает" name={currentUserLabel} />
                 </div>
               </section>
             </div>
@@ -2772,10 +2757,7 @@ export default function StalkerProfilesPage() {
                     <span>Награда</span>
                     <input onChange={(event) => updateTaskDraft("reward", event.target.value)} placeholder="Например: 5000 рублей или аптечка" type="text" value={taskDraft.reward} />
                   </label>
-                  <label className="filter-field">
-                    <span>Кто выдал</span>
-                    <input onChange={(event) => updateTaskDraft("issuedBy", event.target.value)} placeholder="Позывной или должность члена Долга" type="text" value={taskDraft.issuedBy} />
-                  </label>
+                  <ActionAuthorLine action="Оформляет" name={currentUserLabel} />
                 </div>
               </section>
 
@@ -2893,10 +2875,7 @@ export default function StalkerProfilesPage() {
                     <span>Дата операции</span>
                     <input max={SYSTEM_DATE_MAX} min={SYSTEM_DATE_MIN} onChange={(event) => updateTradeDraft("operationDate", event.target.value)} type="date" value={tradeDraft.operationDate} />
                   </label>
-                  <label className="filter-field">
-                    <span>Кто оформил</span>
-                    <input onChange={(event) => updateTradeDraft("issuedBy", event.target.value)} placeholder="Позывной или должность" type="text" value={tradeDraft.issuedBy} />
-                  </label>
+                  <ActionAuthorLine action={editingTradeId ? "Изменяет" : "Оформляет"} name={currentUserLabel} />
                   <label className="filter-field task-form-wide">
                     <span>Заметки</span>
                     <textarea onChange={(event) => updateTradeDraft("notes", event.target.value)} placeholder="Комментарий к операции" value={tradeDraft.notes} />
@@ -2953,10 +2932,7 @@ export default function StalkerProfilesPage() {
                     <span>Дата нарушения</span>
                     <input max={SYSTEM_DATE_MAX} min={SYSTEM_DATE_MIN} onChange={(event) => updateViolationDraft("date", event.target.value)} type="date" value={violationDraft.date} />
                   </label>
-                  <label className="filter-field">
-                    <span>Кто оформил</span>
-                    <input onChange={(event) => updateViolationDraft("issuedBy", event.target.value)} placeholder="Позывной или должность" type="text" value={violationDraft.issuedBy} />
-                  </label>
+                  <ActionAuthorLine action={editingViolationId ? "Изменяет" : "Оформляет"} name={currentUserLabel} />
                   <label className="filter-field task-form-wide">
                     <span>Описание нарушения</span>
                     <textarea onChange={(event) => updateViolationDraft("description", event.target.value)} placeholder="Опишите нарушение" value={violationDraft.description} />
@@ -3013,6 +2989,7 @@ export default function StalkerProfilesPage() {
                   <h2>Подтверждение</h2>
                   <span>Нарушение останется в истории, но перейдёт в погашенные</span>
                 </div>
+                <ActionAuthorLine action="Закрывает" name={currentUserLabel} />
                 <label className="filter-field">
                   <span>Что сталкер сделал для закрытия нарушения</span>
                   <textarea

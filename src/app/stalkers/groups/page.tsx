@@ -4,10 +4,12 @@
 import type { FormEvent, MouseEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
+import { ActionAuthorLine } from "@/components/ui/ActionAuthorLine";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { getTaskActionVisibility, TaskRecordCard } from "@/components/ui/TaskRecordCard";
 import { addActivityLogEntry } from "@/lib/activity-log";
 import { apiFetch, apiFetchJson } from "@/lib/api-client";
+import { fetchCurrentUserLabel } from "@/lib/current-user-label";
 import { createTask, deleteTaskRecord, fetchTasks, updateTask } from "@/lib/journal-api";
 import {
   stalkerGroups as initialStalkerGroups,
@@ -289,8 +291,8 @@ export default function StalkerGroupsPage() {
     onConfirm: () => void | Promise<void>;
   } | null>(null);
   const [completingGroupTaskId, setCompletingGroupTaskId] = useState("");
-  const [completeGroupTaskAcceptedBy, setCompleteGroupTaskAcceptedBy] = useState("");
   const [completeGroupTaskMessage, setCompleteGroupTaskMessage] = useState("");
+  const [currentUserLabel, setCurrentUserLabel] = useState("текущий пользователь");
 
   const profileById = useMemo(() => {
     return new Map(profiles.map((profile) => [profile.id, profile]));
@@ -354,6 +356,13 @@ export default function StalkerGroupsPage() {
       }
 
       void loadServerData();
+      void fetchCurrentUserLabel()
+        .then((label) => {
+          if (!isCancelled) {
+            setCurrentUserLabel(label);
+          }
+        })
+        .catch(() => undefined);
     }, 0);
 
     return () => {
@@ -573,7 +582,7 @@ export default function StalkerGroupsPage() {
   }
 
   function isCompleteGroupTaskDirty() {
-    return completeGroupTaskAcceptedBy.trim().length > 0;
+    return false;
   }
 
   function openEditGroup(group: StalkerGroup) {
@@ -1098,7 +1107,6 @@ export default function StalkerGroupsPage() {
 
   function closeCompleteGroupTaskModal() {
     setCompletingGroupTaskId("");
-    setCompleteGroupTaskAcceptedBy("");
     setCompleteGroupTaskMessage("");
   }
 
@@ -1123,15 +1131,9 @@ export default function StalkerGroupsPage() {
     }
 
     const description = groupTaskDraft.description.trim();
-    const acceptedBy = groupTaskDraft.acceptedBy.trim();
 
     if (!description) {
       setGroupTaskFormMessage("Опишите задание.");
-      return;
-    }
-
-    if (groupTaskDraft.status === "completed" && !acceptedBy) {
-      setGroupTaskFormMessage("Укажите, кто принял выполнение задания.");
       return;
     }
 
@@ -1143,8 +1145,6 @@ export default function StalkerGroupsPage() {
         description,
         reward: groupTaskDraft.reward.trim(),
         notes: groupTaskDraft.notes.trim(),
-        issuedBy: groupTaskDraft.issuedBy.trim(),
-        acceptedBy: groupTaskDraft.status === "completed" ? acceptedBy : null,
         completedAt: groupTaskDraft.status === "completed" ? currentTask?.completedAt || getSystemTimestamp() : null,
         status: groupTaskDraft.status,
       }).catch(() => {
@@ -1177,8 +1177,6 @@ export default function StalkerGroupsPage() {
       description,
       reward: groupTaskDraft.reward.trim(),
       notes: groupTaskDraft.notes.trim(),
-      issuedBy: groupTaskDraft.issuedBy.trim(),
-      acceptedBy: groupTaskDraft.status === "completed" ? acceptedBy : null,
       completedAt,
       status: groupTaskDraft.status,
     }).catch(() => {
@@ -1202,7 +1200,6 @@ export default function StalkerGroupsPage() {
 
   function completeGroupTask(taskId: string) {
     setCompletingGroupTaskId(taskId);
-    setCompleteGroupTaskAcceptedBy("");
     setCompleteGroupTaskMessage("");
   }
 
@@ -1210,19 +1207,12 @@ export default function StalkerGroupsPage() {
     event.preventDefault();
 
     const task = tasks.find((currentTask) => currentTask.id === completingGroupTaskId);
-    const normalizedAcceptedBy = completeGroupTaskAcceptedBy.trim();
 
     if (!task) {
       return;
     }
 
-    if (!normalizedAcceptedBy) {
-      setCompleteGroupTaskMessage("Укажите, кто принял выполнение задания.");
-      return;
-    }
-
     const updatedTask = await updateTask(completingGroupTaskId, {
-      acceptedBy: normalizedAcceptedBy,
       completedAt: getSystemTimestamp(),
       status: "completed",
     }).catch(() => {
@@ -1867,14 +1857,7 @@ export default function StalkerGroupsPage() {
                     <span>Награда</span>
                     <input onChange={(event) => updateGroupTaskDraft("reward", event.target.value)} placeholder="Например: 5000 рублей" type="text" value={groupTaskDraft.reward} />
                   </label>
-                  <label className="filter-field">
-                    <span>Кто выдал</span>
-                    <input onChange={(event) => updateGroupTaskDraft("issuedBy", event.target.value)} placeholder="Позывной или должность" type="text" value={groupTaskDraft.issuedBy} />
-                  </label>
-                  <label className="filter-field">
-                    <span>Кто принял выполнение</span>
-                    <input onChange={(event) => updateGroupTaskDraft("acceptedBy", event.target.value)} placeholder="Заполняется для выполненного задания" type="text" value={groupTaskDraft.acceptedBy} />
-                  </label>
+                  <ActionAuthorLine action={editingGroupTaskId ? "Изменяет" : "Оформляет"} name={currentUserLabel} />
                 </div>
               </section>
 
@@ -2166,7 +2149,7 @@ export default function StalkerGroupsPage() {
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>Засчитать групповое задание</h1>
-                <p>Укажите, кто принял выполнение задания.</p>
+                <p>Выполнение будет засчитано текущим пользователем.</p>
               </div>
             </div>
 
@@ -2176,19 +2159,7 @@ export default function StalkerGroupsPage() {
                   <h2>Подтверждение</h2>
                   <span>Задание перейдёт в выполненные</span>
                 </div>
-                <label className="filter-field">
-                  <span>Кто принял выполнение</span>
-                  <input
-                    autoFocus
-                    onChange={(event) => {
-                      setCompleteGroupTaskAcceptedBy(event.target.value);
-                      setCompleteGroupTaskMessage("");
-                    }}
-                    placeholder="Позывной или должность"
-                    type="text"
-                    value={completeGroupTaskAcceptedBy}
-                  />
-                </label>
+                <ActionAuthorLine action="Принимает" name={currentUserLabel} />
               </section>
             </div>
 

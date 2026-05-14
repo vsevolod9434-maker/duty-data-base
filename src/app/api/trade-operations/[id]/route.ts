@@ -56,7 +56,6 @@ export async function PATCH(request: Request, context: RouteContext) {
       groupId?: string | null;
       manualParticipantName?: string | null;
       totalAmount?: number;
-      issuedBy?: string | null;
       notes?: string | null;
       operationDate?: Date | null;
       updatedAt: Date;
@@ -93,10 +92,6 @@ export async function PATCH(request: Request, context: RouteContext) {
       data.stalkerId = subject.stalkerId;
       data.groupId = subject.groupId;
       data.manualParticipantName = subject.manualParticipantName;
-    }
-
-    if (payload.issuedBy !== undefined) {
-      data.issuedBy = normalizeNullableString(payload.issuedBy);
     }
 
     if (payload.notes !== undefined) {

@@ -9,6 +9,7 @@
     "lint": "eslint",
     "postinstall": "prisma generate",
     "access-user:create": "tsx scripts/create-access-user.ts",
+    "duty-staff:seed": "tsx scripts/seed-duty-staff.ts",
     "check:encoding": "node scripts/check-text-encoding.mjs",
     "map:tiles": "node scripts/generate-map-tiles.mjs"
   },

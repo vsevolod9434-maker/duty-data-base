@@ -1,4 +1,5 @@
 import { requireApiAuth } from "@/lib/auth/require-api-auth";
+import { getAccessUserDisplayName } from "@/lib/auth/access-user-display";
 import { getPrismaClient } from "@/lib/prisma";
 import { createSystemDate } from "@/lib/stalker-utils";
 import {
@@ -94,6 +95,7 @@ export async function POST(request: Request) {
   }
 
   const now = createSystemDate();
+  const actorName = getAccessUserDisplayName(auth.accessUser);
   const task = await prisma.task.create({
     data: {
       id: crypto.randomUUID(),
@@ -106,8 +108,8 @@ export async function POST(request: Request) {
       description,
       reward: normalizeNullableString(payload.reward),
       notes: normalizeNullableString(payload.notes),
-      issuedBy: normalizeNullableString(payload.issuedBy),
-      acceptedBy: normalizeNullableString(payload.acceptedBy),
+      issuedBy: actorName,
+      acceptedBy: isTaskStatus(payload.status) && payload.status === "completed" ? actorName : null,
       completedAt: parseNullableDate(payload.completedAt),
       status: isTaskStatus(payload.status) ? payload.status : "active",
       createdAt: now,

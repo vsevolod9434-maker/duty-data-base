@@ -9,6 +9,25 @@ function normalizeNullableDate(value: unknown) {
   return typeof value === "string" ? value : "";
 }
 
+function sanitizeTaskPayload(payload: Partial<Task>) {
+  const safePayload = { ...payload };
+  delete safePayload.acceptedBy;
+  delete safePayload.issuedBy;
+  return safePayload;
+}
+
+function sanitizeTradeOperationPayload(payload: Partial<TradeOperation>) {
+  const safePayload = { ...payload };
+  delete safePayload.issuedBy;
+  return safePayload;
+}
+
+function sanitizeViolationPayload(payload: Partial<Violation>) {
+  const safePayload = { ...payload };
+  delete safePayload.issuedBy;
+  return safePayload;
+}
+
 export function normalizeTaskRecord(task: Task): Task {
   return {
     ...task,
@@ -63,7 +82,7 @@ export async function fetchTasks() {
 
 export async function createTask(payload: Partial<Task>) {
   const task = await apiFetchJson<Task>("/api/tasks", {
-    body: JSON.stringify(payload),
+    body: JSON.stringify(sanitizeTaskPayload(payload)),
     headers: { "Content-Type": "application/json" },
     method: "POST",
   });
@@ -72,7 +91,7 @@ export async function createTask(payload: Partial<Task>) {
 
 export async function updateTask(taskId: string, payload: Partial<Task>) {
   const task = await apiFetchJson<Task>(`/api/tasks/${taskId}`, {
-    body: JSON.stringify(payload),
+    body: JSON.stringify(sanitizeTaskPayload(payload)),
     headers: { "Content-Type": "application/json" },
     method: "PATCH",
   });
@@ -102,7 +121,7 @@ export async function fetchTradeOperations() {
 
 export async function createTradeOperation(payload: Partial<TradeOperation>) {
   const operation = await apiFetchJson<TradeOperation>("/api/trade-operations", {
-    body: JSON.stringify(payload),
+    body: JSON.stringify(sanitizeTradeOperationPayload(payload)),
     headers: { "Content-Type": "application/json" },
     method: "POST",
   });
@@ -111,7 +130,7 @@ export async function createTradeOperation(payload: Partial<TradeOperation>) {
 
 export async function updateTradeOperation(operationId: string, payload: Partial<TradeOperation>) {
   const operation = await apiFetchJson<TradeOperation>(`/api/trade-operations/${operationId}`, {
-    body: JSON.stringify(payload),
+    body: JSON.stringify(sanitizeTradeOperationPayload(payload)),
     headers: { "Content-Type": "application/json" },
     method: "PATCH",
   });
@@ -141,7 +160,7 @@ export async function fetchViolations() {
 
 export async function createViolation(payload: Partial<Violation>) {
   const violation = await apiFetchJson<Violation>("/api/violations", {
-    body: JSON.stringify(payload),
+    body: JSON.stringify(sanitizeViolationPayload(payload)),
     headers: { "Content-Type": "application/json" },
     method: "POST",
   });
@@ -150,7 +169,7 @@ export async function createViolation(payload: Partial<Violation>) {
 
 export async function updateViolation(violationId: string, payload: Partial<Violation>) {
   const violation = await apiFetchJson<Violation>(`/api/violations/${violationId}`, {
-    body: JSON.stringify(payload),
+    body: JSON.stringify(sanitizeViolationPayload(payload)),
     headers: { "Content-Type": "application/json" },
     method: "PATCH",
   });

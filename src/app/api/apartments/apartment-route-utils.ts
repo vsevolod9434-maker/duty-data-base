@@ -195,7 +195,18 @@ export function normalizeTenantPayloads(value: unknown, existingStalkerIds: Set<
   });
 }
 
-export function normalizePaymentPayloads(value: unknown, fallbackDate: Date) {
+type ExistingPaymentAttribution = {
+  acceptedBy: string | null;
+  issuedBy: string | null;
+  responsibleBy: string | null;
+};
+
+export function normalizePaymentPayloads(
+  value: unknown,
+  fallbackDate: Date,
+  actorName: string,
+  existingAttributionById = new Map<string, ExistingPaymentAttribution>(),
+) {
   if (!Array.isArray(value)) {
     return [];
   }
@@ -228,9 +239,17 @@ export function normalizePaymentPayloads(value: unknown, fallbackDate: Date) {
     const amount = typeof candidate.amount === "number" && Number.isFinite(candidate.amount) ? Math.trunc(candidate.amount) : 0;
     const paymentType = isApartmentPaymentType(candidate.paymentType) ? candidate.paymentType : null;
 
+    const id = normalizeString(candidate.id) || crypto.randomUUID();
+    const existingAttribution = existingAttributionById.get(id);
+    const attribution = existingAttribution ?? {
+      acceptedBy: actorName,
+      issuedBy: actorName,
+      responsibleBy: actorName,
+    };
+
     return [
       {
-        id: normalizeString(candidate.id) || crypto.randomUUID(),
+        id,
         paidAt,
         amount,
         paymentType,
@@ -238,9 +257,9 @@ export function normalizePaymentPayloads(value: unknown, fallbackDate: Date) {
         paidUntil,
         notes: normalizeNullableString(candidate.notes),
         createdAt: parseStoredDate(candidate.createdAt, fallbackDate),
-        acceptedBy: normalizeNullableString(candidate.acceptedBy),
-        issuedBy: normalizeNullableString(candidate.issuedBy),
-        responsibleBy: normalizeNullableString(candidate.responsibleBy),
+        acceptedBy: attribution.acceptedBy,
+        issuedBy: attribution.issuedBy,
+        responsibleBy: attribution.responsibleBy,
       },
     ];
   });
