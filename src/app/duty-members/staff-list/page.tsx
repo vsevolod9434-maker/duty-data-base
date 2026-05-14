@@ -216,23 +216,33 @@ export default function DutyStaffListPage() {
                       </div>
                     </div>
 
-                    <div className="duty-staff-position-list">
+                    <div className="duty-staff-table" role="table" aria-label={section.name}>
+                      <div className="duty-staff-table-head" role="row">
+                        <span role="columnheader">Должность</span>
+                        <span role="columnheader">Назначен</span>
+                        {canManage ? <span role="columnheader">Действия</span> : null}
+                      </div>
                       {section.positions.map((position) => (
-                        <article className="duty-staff-position-row" key={position.id}>
-                          <div className="duty-staff-position-main">
+                        <article className="duty-staff-table-row" key={position.id} role="row">
+                          <div className="duty-staff-cell duty-staff-cell-position" data-label="Должность" role="cell">
                             <strong>{position.title}</strong>
+                          </div>
+                          <div className="duty-staff-cell duty-staff-cell-assignee" data-label="Назначен" role="cell">
                             {position.member ? (
-                              <span>{getMemberLabel(position.member)}</span>
+                              <>
+                                <strong>{getMemberLabel(position.member)}</strong>
+                                {position.member.callsign ? <span>Позывной: {position.member.callsign}</span> : null}
+                              </>
                             ) : (
                               <span className="duty-vacancy-label">Вакант</span>
                             )}
                           </div>
                           {canManage ? (
-                            <div className="duty-staff-actions">
-                              <button className="command-row interactive-button" disabled={isSaving} onClick={() => openAssignDialog(position)} type="button">
+                            <div className="duty-staff-cell duty-staff-cell-actions" data-label="Действия" role="cell">
+                              <button className="duty-staff-action-button" disabled={isSaving} onClick={() => openAssignDialog(position)} type="button">
                                 {position.member ? "Заменить" : "Назначить"}
                               </button>
-                              <button className="command-row interactive-button" disabled={isSaving || !position.member} onClick={() => requestRelease(position)} type="button">
+                              <button className="duty-staff-action-button duty-staff-action-muted" disabled={isSaving || !position.member} onClick={() => requestRelease(position)} type="button">
                                 Освободить
                               </button>
                             </div>

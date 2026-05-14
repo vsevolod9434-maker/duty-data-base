@@ -34,6 +34,7 @@ export type DutyMemberPayload = {
   callsign?: unknown;
   fullName?: unknown;
   notes?: unknown;
+  photoUrl?: unknown;
   position?: unknown;
   profileStatus?: unknown;
   rank?: unknown;
@@ -57,6 +58,7 @@ type DutyMemberRecord = {
   fullName: string;
   id: string;
   notes: string | null;
+  photoUrl: string | null;
   position: string | null;
   profileStatus: DutyMemberProfileStatus;
   rank: string | null;
@@ -115,6 +117,7 @@ export function mapDutyMemberToResponse(member: DutyMemberRecord) {
     serviceStatus: member.serviceStatus,
     profileStatus: member.profileStatus,
     notes: member.notes,
+    photoUrl: member.photoUrl,
     positions: member.staffPositions.map((position) => ({
       id: position.id,
       title: position.title,
@@ -155,6 +158,7 @@ export function buildDutyMemberData(payload: DutyMemberPayload) {
       rank: normalizeNullableString(payload.rank),
       position: normalizeNullableString(payload.position),
       unit: normalizeNullableString(payload.unit),
+      photoUrl: normalizeNullableString(payload.photoUrl),
       serviceStatus,
       profileStatus,
       notes: normalizeNullableString(payload.notes),

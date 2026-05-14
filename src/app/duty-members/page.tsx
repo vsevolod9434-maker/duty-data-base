@@ -1,5 +1,6 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -36,6 +37,7 @@ type DutyMember = {
   serviceStatus: DutyServiceStatus;
   profileStatus: DutyMemberProfileStatus;
   notes: string | null;
+  photoUrl: string | null;
   positions: DutyMemberPosition[];
   access: DutyMemberAccess | null;
 };
@@ -60,6 +62,7 @@ type DutyMemberDraft = {
   callsign: string;
   fullName: string;
   notes: string;
+  photoUrl: string;
   rank: string;
   serviceStatus: DutyServiceStatus;
 };
@@ -77,6 +80,7 @@ const emptyDraft: DutyMemberDraft = {
   callsign: "",
   fullName: "",
   notes: "",
+  photoUrl: "",
   rank: "",
   serviceStatus: "active",
 };
@@ -111,10 +115,6 @@ function getMemberSecondaryName(member: DutyMember) {
   return member.callsign ? member.callsign : "";
 }
 
-function getMemberDutyLine(member: DutyMember) {
-  return [member.rank, serviceStatusLabels[member.serviceStatus]].filter(Boolean).join(" · ") || "Служебные данные не указаны";
-}
-
 function getAccessStatus(member: DutyMember) {
   if (!member.access) {
     return "Доступ не назначен";
@@ -131,6 +131,21 @@ function getAccessBadgeClass(member: DutyMember) {
   return member.access.isActive ? "registry-status-badge-active" : "registry-status-badge-danger";
 }
 
+function getMemberPositionSummary(member: DutyMember) {
+  if (member.positions.length === 0) {
+    return "Должность не назначена.";
+  }
+
+  const [firstPosition, ...remainingPositions] = member.positions;
+  return remainingPositions.length > 0 ? `${firstPosition.title} · + ещё ${remainingPositions.length}` : firstPosition.title;
+}
+
+function getMemberMetaLine(member: DutyMember) {
+  return [member.rank, member.callsign ? `Позывной: ${member.callsign}` : null, serviceStatusLabels[member.serviceStatus]]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 function createDraft(member?: DutyMember): DutyMemberDraft {
   if (!member) {
     return emptyDraft;
@@ -141,6 +156,7 @@ function createDraft(member?: DutyMember): DutyMemberDraft {
     callsign: member.callsign ?? "",
     fullName: member.fullName,
     notes: member.notes ?? "",
+    photoUrl: member.photoUrl ?? "",
     rank: member.rank ?? "",
     serviceStatus: member.serviceStatus === "missing" ? "wounded" : member.serviceStatus,
   };
@@ -191,6 +207,7 @@ function buildMemberPayload(draft: DutyMemberDraft) {
     callsign: draft.callsign,
     fullName: draft.fullName,
     notes: draft.notes,
+    photoUrl: draft.photoUrl,
     rank: draft.rank,
     serviceStatus: draft.serviceStatus,
     profileStatus: isExcluded ? "archived" : "active",
@@ -471,62 +488,83 @@ export default function DutyMembersPage() {
       return null;
     }
 
+    const normalizedPhotoUrl = draft.photoUrl.trim();
+
     return (
-      <form className="duty-member-editor registry-panel" onSubmit={handleMemberSubmit}>
-        <div className="registry-section-header">
-          <div>
-            <span className="eyebrow-text">{editingId ? "Изменение профиля" : "Новый профиль"}</span>
-            <h2>{editingId ? "Редактирование профиля состава" : "Добавление в состав"}</h2>
+      <div className="pda-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && closeForm()}>
+        <form className="pda-modal duty-member-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleMemberSubmit}>
+          <div className="section-header modal-header">
+            <div className="min-w-0">
+              <span className="eyebrow-text">{editingId ? "Изменение профиля" : "Новый профиль"}</span>
+              <h1>{editingId ? "Редактирование профиля состава" : "Добавление в состав"}</h1>
+            </div>
           </div>
-        </div>
-        <div className="duty-member-form-grid">
-          <label className="filter-field duty-member-form-wide">
-            <span>ФИО</span>
-            <input disabled={isSaving} maxLength={120} onChange={(event) => updateDraft("fullName", event.target.value)} value={draft.fullName} />
-          </label>
-          <label className="filter-field">
-            <span>Позывной</span>
-            <input disabled={isSaving} maxLength={80} onChange={(event) => updateDraft("callsign", event.target.value)} value={draft.callsign} />
-          </label>
-          <label className="filter-field">
-            <span>Звание</span>
-            <input disabled={isSaving} maxLength={80} onChange={(event) => updateDraft("rank", event.target.value)} value={draft.rank} />
-          </label>
-          <label className="filter-field">
-            <span>Статус состава</span>
-            <select disabled={isSaving} onChange={(event) => updateDraft("serviceStatus", event.target.value)} value={draft.serviceStatus}>
-              {serviceStatusOptions.map((status) => (
-                <option key={status.value} value={status.value}>
-                  {status.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="filter-field">
-            <span>Связанный пользователь доступа</span>
-            <select disabled={isSaving} onChange={(event) => updateDraft("accessLogin", event.target.value)} value={draft.accessLogin}>
-              <option value="">Не назначать доступ</option>
-              {availableAccessUsers.map((user) => (
-                <option key={user.login} value={user.login}>
-                  {user.displayName || user.login} · {user.roleLabel}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="filter-field duty-member-form-wide">
-            <span>Заметки</span>
-            <textarea disabled={isSaving} maxLength={1000} onChange={(event) => updateDraft("notes", event.target.value)} value={draft.notes} />
-          </label>
-        </div>
-        <div className="modal-actions duty-member-form-actions">
+          <div className="modal-body duty-member-modal-body">
+            <div className="duty-member-form-grid">
+              <label className="filter-field duty-member-form-wide">
+                <span>ФИО</span>
+                <input disabled={isSaving} maxLength={120} onChange={(event) => updateDraft("fullName", event.target.value)} value={draft.fullName} />
+              </label>
+              <label className="filter-field">
+                <span>Позывной</span>
+                <input disabled={isSaving} maxLength={80} onChange={(event) => updateDraft("callsign", event.target.value)} value={draft.callsign} />
+              </label>
+              <label className="filter-field">
+                <span>Звание</span>
+                <input disabled={isSaving} maxLength={80} onChange={(event) => updateDraft("rank", event.target.value)} value={draft.rank} />
+              </label>
+              <label className="filter-field">
+                <span>Статус состава</span>
+                <select disabled={isSaving} onChange={(event) => updateDraft("serviceStatus", event.target.value)} value={draft.serviceStatus}>
+                  {serviceStatusOptions.map((status) => (
+                    <option key={status.value} value={status.value}>
+                      {status.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="filter-field">
+                <span>Связанный пользователь доступа</span>
+                <select disabled={isSaving} onChange={(event) => updateDraft("accessLogin", event.target.value)} value={draft.accessLogin}>
+                  <option value="">Не назначать доступ</option>
+                  {availableAccessUsers.map((user) => (
+                    <option key={user.login} value={user.login}>
+                      {user.displayName || user.login} · {user.roleLabel}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="filter-field duty-member-form-wide">
+                <span>Фотография</span>
+                <input disabled={isSaving} maxLength={500} onChange={(event) => updateDraft("photoUrl", event.target.value)} placeholder="Например: https://..." type="url" value={draft.photoUrl} />
+              </label>
+              <div className="profile-photo-preview duty-member-photo-preview">
+                <span className="profile-photo-title">Фото профиля</span>
+                <div className="profile-photo-frame">
+                  {normalizedPhotoUrl ? (
+                    <img alt="Фотография профиля состава" src={normalizedPhotoUrl} />
+                  ) : (
+                    <img alt="Фотография не указана" className="profile-photo-placeholder" src="/no-data-person.png" />
+                  )}
+                </div>
+              </div>
+              <label className="filter-field duty-member-form-wide">
+                <span>Заметки</span>
+                <textarea disabled={isSaving} maxLength={1000} onChange={(event) => updateDraft("notes", event.target.value)} value={draft.notes} />
+              </label>
+            </div>
+            {actionMessage ? <p className="draft-message">{actionMessage}</p> : null}
+          </div>
+          <div className="modal-actions duty-member-form-actions">
           <button className="command-row interactive-button" disabled={isSaving} onClick={closeForm} type="button">
             Отмена
           </button>
           <button className="primary-command interactive-button" disabled={isSaving} type="submit">
             {isSaving ? "Сохранение..." : "Сохранить профиль"}
           </button>
-        </div>
-      </form>
+          </div>
+        </form>
+      </div>
     );
   }
 
@@ -579,15 +617,29 @@ export default function DutyMembersPage() {
                         }}
                         type="button"
                       >
-                        <span>{getMemberPrimaryName(member)}</span>
-                        {getMemberSecondaryName(member) ? <small>Позывной: {getMemberSecondaryName(member)}</small> : null}
-                        <small>{getMemberDutyLine(member)}</small>
-                        <small>
-                          {member.positions.length > 0
-                            ? member.positions.map((position) => position.title).join(" · ")
-                            : "Должность не назначена."}
-                        </small>
-                        <em className={getAccessBadgeClass(member)}>{getAccessStatus(member)}</em>
+                        <span className="duty-member-list-photo">
+                          <img
+                            alt="Фотография профиля состава"
+                            className={!member.photoUrl ? "profile-photo-placeholder" : undefined}
+                            src={member.photoUrl || "/no-data-person.png"}
+                          />
+                        </span>
+                        <span className="duty-member-list-copy">
+                          <span className="profile-list-item-head">
+                            <strong className="profile-list-name">{getMemberPrimaryName(member)}</strong>
+                            <span className={`profile-state-badge badge-chip ${selectedMemberId === member.id ? "badge-service-group" : ""}`}>
+                              {serviceStatusLabels[member.serviceStatus]}
+                            </span>
+                          </span>
+                          <span className="profile-list-info-row">
+                            {getMemberSecondaryName(member) ? <span className="profile-list-meta">Позывной: {getMemberSecondaryName(member)}</span> : null}
+                            {member.rank ? <span className="profile-list-meta">{member.rank}</span> : null}
+                          </span>
+                          <span className="profile-list-meta duty-member-position-preview">{getMemberPositionSummary(member)}</span>
+                          <span className="profile-list-badges">
+                            <span className={`profile-state-badge badge-chip ${getAccessBadgeClass(member)}`}>{getAccessStatus(member)}</span>
+                          </span>
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -596,19 +648,52 @@ export default function DutyMembersPage() {
 
               <div className="registry-panel registry-panel-detail duty-member-detail-panel">
                 {actionMessage ? <p className="draft-message">{actionMessage}</p> : null}
-                {renderMemberForm()}
 
                 {!isEditing && selectedMember ? (
                   <article className="duty-member-profile">
+                    <div className="profile-detail duty-member-detail-card">
+                      <div className="profile-hero duty-member-hero">
+                        <div className="profile-hero-photo duty-member-hero-photo">
+                          <img
+                            alt="Фотография профиля состава"
+                            className={!selectedMember.photoUrl ? "profile-photo-placeholder" : undefined}
+                            src={selectedMember.photoUrl || "/no-data-person.png"}
+                          />
+                        </div>
+
+                        <div className="profile-hero-main">
+                          <div className="profile-hero-head">
+                            <div className="profile-hero-badges">
+                              <span className="profile-badge badge-chip">{serviceStatusLabels[selectedMember.serviceStatus]}</span>
+                              <span className={`profile-badge badge-chip ${getAccessBadgeClass(selectedMember)}`}>{getAccessStatus(selectedMember)}</span>
+                            </div>
+                            <div className="profile-hero-identity">
+                              <h1 className="profile-hero-title">{getMemberPrimaryName(selectedMember)}</h1>
+                              <p className="profile-hero-subtitle">{getMemberMetaLine(selectedMember) || "Служебные сведения не указаны."}</p>
+                            </div>
+                          </div>
+
+                          <div className="profile-hero-notes">
+                            <section className="profile-hero-note">
+                              <span>Должность</span>
+                              <p>{getMemberPositionSummary(selectedMember)}</p>
+                            </section>
+                            <section className="profile-hero-note">
+                              <span>Заметки</span>
+                              <p>{selectedMember.notes || "Заметок нет."}</p>
+                            </section>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="profile-detail-block">
                       <div className="block-heading-row">
                         <div>
-                          <span>Профиль состава</span>
-                          <h2>{getMemberPrimaryName(selectedMember)}</h2>
+                          <span>Сведения</span>
+                          <h2>Основные данные</h2>
                         </div>
-                        <span className={getAccessBadgeClass(selectedMember)}>{getAccessStatus(selectedMember)}</span>
                       </div>
-                      {getMemberSecondaryName(selectedMember) ? <p className="duty-member-subtitle">Позывной: {getMemberSecondaryName(selectedMember)}</p> : null}
                       <dl className="registry-info-grid">
                         <div className="registry-info-field">
                           <dt>ФИО</dt>
@@ -755,6 +840,8 @@ export default function DutyMembersPage() {
           </section>
         </div>
       </section>
+
+      {renderMemberForm()}
 
       {confirmDialog ? (
         <ConfirmDialog

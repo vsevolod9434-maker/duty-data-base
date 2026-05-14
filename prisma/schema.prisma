@@ -190,6 +190,7 @@ model DutyMember {
   position       String?
   staffPositionId String?
   unit           String?
+  photoUrl       String?
   serviceStatus  DutyServiceStatus
   profileStatus  DutyMemberProfileStatus
   notes          String?
