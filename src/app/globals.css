@@ -8930,45 +8930,20 @@ body::after,
   height: 100%;
   min-width: 0;
   min-height: 0;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.42rem;
   border: 1px solid rgba(190, 204, 209, 0.12);
   background:
-    radial-gradient(circle at 50% 24%, rgba(122, 132, 134, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 48%),
     linear-gradient(180deg, #151a1c, #07090a);
   color: rgba(198, 207, 208, 0.74);
-  font-size: 0.56rem;
+  font-size: 0.7rem;
   font-weight: 900;
-  letter-spacing: 0.08em;
-  line-height: 1.15;
+  letter-spacing: 0.14em;
+  line-height: 1;
   padding: 0.46rem;
   text-align: center;
   text-transform: uppercase;
-}
-
-.duty-member-photo-silhouette {
-  position: relative;
-  width: 2.05rem;
-  height: 2.55rem;
-  border: 1px solid rgba(202, 212, 214, 0.18);
-  border-radius: 999px 999px 0.5rem 0.5rem;
-  background: rgba(76, 84, 86, 0.42);
-  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.32);
-}
-
-.duty-member-photo-silhouette::before {
-  position: absolute;
-  top: -0.96rem;
-  left: 50%;
-  width: 1.22rem;
-  height: 1.22rem;
-  border: 1px solid rgba(202, 212, 214, 0.2);
-  border-radius: 50%;
-  background: rgba(92, 101, 103, 0.52);
-  content: "";
-  transform: translateX(-50%);
 }
 
 .profile-photo-frame .duty-member-photo-placeholder {
@@ -8988,6 +8963,10 @@ body::after,
 .duty-members-page .duty-member-detail-card {
   border: 0;
   background: transparent;
+}
+
+.duty-members-page .duty-member-hero.duty-member-hero-with-actions {
+  grid-template-columns: 11.5rem minmax(0, 1fr) minmax(13.5rem, 14.8rem);
 }
 
 .duty-members-page .duty-member-hero {
@@ -9059,9 +9038,9 @@ body::after,
   margin: 0;
   overflow-wrap: anywhere;
   color: #f1f5f5;
-  font-size: clamp(1.85rem, 2.25vw, 2.45rem);
+  font-size: clamp(1.52rem, 1.95vw, 2rem);
   font-weight: 900;
-  line-height: 1.02;
+  line-height: 1.04;
   letter-spacing: 0;
   text-transform: uppercase;
 }
@@ -9113,6 +9092,29 @@ body::after,
   line-height: 1.24;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.duty-member-hero-actions {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0.28rem;
+}
+
+.duty-member-hero-actions .registry-status-badge-muted {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  border: 1px solid rgba(190, 204, 209, 0.14);
+  background: rgba(11, 14, 15, 0.72);
+  color: rgba(193, 201, 202, 0.78);
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.4rem 0.5rem;
+  text-align: center;
 }
 
 .duty-members-page .duty-member-profile-section {
@@ -9179,27 +9181,32 @@ body::after,
   gap: 0.42rem;
 }
 
-.duty-members-page .duty-member-actions .duty-member-action-button {
+.duty-members-page .duty-member-actions .duty-member-action-button,
+.duty-member-hero-actions .duty-member-action-button {
   width: auto;
-  min-height: 2.18rem;
+  min-height: 2rem;
   border-color: rgba(190, 204, 209, 0.16);
   background: rgba(16, 19, 20, 0.88);
   color: rgba(228, 233, 233, 0.9);
-  padding: 0.48rem 0.72rem;
+  padding: 0.42rem 0.62rem;
+  text-align: center;
 }
 
-.duty-members-page .duty-member-actions .duty-member-action-button:hover:not(:disabled) {
+.duty-members-page .duty-member-actions .duty-member-action-button:hover:not(:disabled),
+.duty-member-hero-actions .duty-member-action-button:hover:not(:disabled) {
   border-color: rgba(209, 69, 76, 0.42);
   background: rgba(55, 30, 32, 0.76);
 }
 
-.duty-members-page .duty-member-actions .duty-member-danger-action {
+.duty-members-page .duty-member-actions .duty-member-danger-action,
+.duty-member-hero-actions .duty-member-danger-action {
   border-color: rgba(209, 69, 76, 0.5);
   background: rgba(94, 26, 32, 0.64);
   color: #f0c2c5;
 }
 
-.duty-members-page .duty-member-actions .interactive-button:disabled {
+.duty-members-page .duty-member-actions .interactive-button:disabled,
+.duty-member-hero-actions .interactive-button:disabled {
   cursor: not-allowed;
   opacity: 0.48;
 }
@@ -9542,9 +9549,18 @@ body::after,
     grid-template-columns: 1fr;
   }
 
+  .duty-members-page .duty-member-hero.duty-member-hero-with-actions {
+    grid-template-columns: 1fr;
+  }
+
   .duty-members-page .duty-member-hero-photo {
     width: min(100%, 15rem);
     min-height: 16rem;
+  }
+
+  .duty-member-hero-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
   }
 
   .duty-member-search-filter-row {

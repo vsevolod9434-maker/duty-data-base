@@ -161,8 +161,7 @@ function DutyMemberPhoto({ alt, className = "", src }: { alt: string; className?
 
   return (
     <span aria-label="Фотография отсутствует" className={`duty-member-photo-placeholder ${className}`} role="img">
-      <span className="duty-member-photo-silhouette" aria-hidden="true" />
-      <span>ФОТО ОТСУТСТВУЕТ</span>
+      <span>NO DATA</span>
     </span>
   );
 }
@@ -838,7 +837,7 @@ export default function DutyMembersPage() {
                 {!isEditing && selectedMember ? (
                   <article className="duty-member-profile">
                     <div className="profile-detail duty-member-detail-card">
-                      <div className="profile-hero duty-member-hero">
+                      <div className={canManage ? "profile-hero duty-member-hero duty-member-hero-with-actions" : "profile-hero duty-member-hero"}>
                         <div className="profile-hero-photo duty-member-hero-photo">
                           <DutyMemberPhoto alt="Фотография профиля состава" src={selectedMember.photoUrl} />
                         </div>
@@ -869,34 +868,32 @@ export default function DutyMembersPage() {
                             </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
 
-                    <div className="profile-detail-block duty-member-profile-section">
-                      <div className="block-heading-row">
-                        <div>
-                          <span>Сведения</span>
-                          <h2>Основные сведения</h2>
-                        </div>
+                        {canManage ? (
+                          <div className="duty-member-hero-actions">
+                            <button className="command-row interactive-button duty-member-action-button" onClick={() => startEdit(selectedMember)} type="button">
+                              Изменить профиль
+                            </button>
+                            {selectedMember.access?.isActive ? (
+                              <button className="command-row interactive-button duty-member-action-button" disabled={!canManageTarget(selectedMember)} onClick={() => requestAccessChange(selectedMember, false)} type="button">
+                                Временно заблокировать доступ
+                              </button>
+                            ) : selectedMember.access ? (
+                              <button className="command-row interactive-button duty-member-action-button" disabled={!canManageTarget(selectedMember)} onClick={() => requestAccessChange(selectedMember, true)} type="button">
+                                Восстановить доступ
+                              </button>
+                            ) : (
+                              <span className="registry-status-badge-muted">Доступ не назначен</span>
+                            )}
+                            <button className="command-row interactive-button duty-member-action-button" disabled={!canManageTarget(selectedMember)} onClick={() => openResetPassword(selectedMember)} type="button">
+                              Сбросить пароль
+                            </button>
+                            <button className="primary-command interactive-button duty-member-action-button duty-member-danger-action" disabled={!canManageTarget(selectedMember)} onClick={() => requestExclude(selectedMember)} type="button">
+                              Исключить из состава
+                            </button>
+                          </div>
+                        ) : null}
                       </div>
-                      <dl className="registry-info-grid">
-                        <div className="registry-info-field">
-                          <dt>ФИО</dt>
-                          <dd>{selectedMember.fullName || "Не указано"}</dd>
-                        </div>
-                        <div className="registry-info-field">
-                          <dt>Позывной</dt>
-                          <dd>{selectedMember.callsign || "Не указан"}</dd>
-                        </div>
-                        <div className="registry-info-field">
-                          <dt>Звание</dt>
-                          <dd>{selectedMember.rank || "Не указано"}</dd>
-                        </div>
-                        <div className="registry-info-field">
-                          <dt>Статус состава</dt>
-                          <dd>{serviceStatusLabels[selectedMember.serviceStatus]}</dd>
-                        </div>
-                      </dl>
                     </div>
 
                     <div className="profile-detail-block duty-member-profile-section">
@@ -934,16 +931,8 @@ export default function DutyMembersPage() {
                             <dd>{selectedMember.access.login}</dd>
                           </div>
                           <div className="registry-info-field">
-                            <dt>Отображаемое имя</dt>
-                            <dd>{selectedMember.access.displayName || selectedMember.access.login}</dd>
-                          </div>
-                          <div className="registry-info-field">
                             <dt>Роль доступа</dt>
                             <dd>{selectedMember.access.roleLabel}</dd>
-                          </div>
-                          <div className="registry-info-field">
-                            <dt>Статус доступа</dt>
-                            <dd>{getAccessStatus(selectedMember)}</dd>
                           </div>
                         </dl>
                       ) : (
@@ -960,39 +949,6 @@ export default function DutyMembersPage() {
                       </div>
                       <p className="duty-member-notes">{selectedMember.notes || "Заметок нет."}</p>
                     </div>
-
-                    {canManage ? (
-                      <div className="profile-detail-block duty-member-profile-section duty-member-management-section">
-                        <div className="block-heading-row">
-                          <div>
-                            <span>Служебные действия</span>
-                            <h2>Управление профилем</h2>
-                          </div>
-                        </div>
-                        <div className="toolbar-row duty-member-actions">
-                          <button className="command-row interactive-button duty-member-action-button" onClick={() => startEdit(selectedMember)} type="button">
-                            Изменить профиль
-                          </button>
-                          {selectedMember.access?.isActive ? (
-                            <button className="command-row interactive-button duty-member-action-button" disabled={!canManageTarget(selectedMember)} onClick={() => requestAccessChange(selectedMember, false)} type="button">
-                              Временно заблокировать доступ
-                            </button>
-                          ) : selectedMember.access ? (
-                            <button className="command-row interactive-button duty-member-action-button" disabled={!canManageTarget(selectedMember)} onClick={() => requestAccessChange(selectedMember, true)} type="button">
-                              Восстановить доступ
-                            </button>
-                          ) : (
-                            <span className="registry-status-badge-muted">Доступ не назначен</span>
-                          )}
-                          <button className="command-row interactive-button duty-member-action-button" disabled={!canManageTarget(selectedMember)} onClick={() => openResetPassword(selectedMember)} type="button">
-                            Сбросить пароль
-                          </button>
-                          <button className="primary-command interactive-button duty-member-action-button duty-member-danger-action" disabled={!canManageTarget(selectedMember)} onClick={() => requestExclude(selectedMember)} type="button">
-                            Исключить из состава
-                          </button>
-                        </div>
-                      </div>
-                    ) : null}
 
                     {isOwnProfile ? (
                       <form className="profile-detail-block duty-member-profile-section duty-password-form" onSubmit={handlePasswordSubmit}>
