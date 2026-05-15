@@ -6,7 +6,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { apiFetchJson } from "@/lib/api-client";
-import { getRoleLabel, type UserRole } from "@/lib/auth-roles";
+import type { UserRole } from "@/lib/auth-roles";
 import { cachePolicy, dutyDataKeys, scheduleClientStateSync, TWO_HOURS, useCurrentUserCacheKey, useDutyQueryClient } from "@/lib/data-cache";
 
 type DutyServiceStatus = "active" | "leave" | "wounded" | "missing" | "discharged";
@@ -140,17 +140,31 @@ function getAccessBadgeClass(member: DutyMember) {
 
 function getMemberPositionSummary(member: DutyMember) {
   if (member.positions.length === 0) {
-    return "Должность не назначена.";
+    return "Должность не назначена";
   }
 
   const [firstPosition, ...remainingPositions] = member.positions;
-  return remainingPositions.length > 0 ? `${firstPosition.title} · + ещё ${remainingPositions.length}` : firstPosition.title;
+  return remainingPositions.length > 0 ? `${firstPosition.title} + ещё ${remainingPositions.length}` : firstPosition.title;
 }
 
-function getMemberMetaLine(member: DutyMember) {
-  return [member.rank, member.callsign ? `Позывной: ${member.callsign}` : null, serviceStatusLabels[member.serviceStatus]]
-    .filter(Boolean)
-    .join(" · ");
+function getMemberAssignmentCount(member: DutyMember) {
+  return `Назначений: ${member.positions.length}`;
+}
+
+function DutyMemberPhoto({ alt, className = "", src }: { alt: string; className?: string; src: string | null }) {
+  const normalizedSrc = src?.trim() ?? "";
+  const [failedSrc, setFailedSrc] = useState("");
+
+  if (normalizedSrc && failedSrc !== normalizedSrc) {
+    return <img alt={alt} onError={() => setFailedSrc(normalizedSrc)} src={normalizedSrc} />;
+  }
+
+  return (
+    <span aria-label="Фотография отсутствует" className={`duty-member-photo-placeholder ${className}`} role="img">
+      <span className="duty-member-photo-silhouette" aria-hidden="true" />
+      <span>ФОТО ОТСУТСТВУЕТ</span>
+    </span>
+  );
 }
 
 function createDraft(member?: DutyMember): DutyMemberDraft {
@@ -723,11 +737,7 @@ export default function DutyMembersPage() {
               <div className="profile-photo-preview duty-member-photo-preview">
                 <span className="profile-photo-title">Фото профиля</span>
                 <div className="profile-photo-frame">
-                  {normalizedPhotoUrl ? (
-                    <img alt="Фотография профиля состава" src={normalizedPhotoUrl} />
-                  ) : (
-                    <img alt="Фотография не указана" className="profile-photo-placeholder" src="/no-data-person.png" />
-                  )}
+                  <DutyMemberPhoto alt="Фотография профиля состава" src={normalizedPhotoUrl} />
                 </div>
               </div>
               <label className="filter-field duty-member-form-wide">
@@ -800,25 +810,19 @@ export default function DutyMembersPage() {
                         type="button"
                       >
                         <span className="duty-member-list-photo">
-                          <img
-                            alt="Фотография профиля состава"
-                            className={!member.photoUrl ? "profile-photo-placeholder" : undefined}
-                            src={member.photoUrl || "/no-data-person.png"}
-                          />
+                          <DutyMemberPhoto alt="Фотография профиля состава" src={member.photoUrl} />
                         </span>
                         <span className="duty-member-list-copy">
-                          <span className="profile-list-item-head">
-                            <strong className="profile-list-name">{getMemberPrimaryName(member)}</strong>
+                          <span className="duty-member-list-head">
+                            <strong className="duty-member-list-name">{getMemberPrimaryName(member)}</strong>
                             <span className={`profile-state-badge badge-chip ${selectedMemberId === member.id ? "badge-service-group" : ""}`}>
                               {serviceStatusLabels[member.serviceStatus]}
                             </span>
                           </span>
-                          <span className="profile-list-info-row">
-                            {getMemberSecondaryName(member) ? <span className="profile-list-meta">Позывной: {getMemberSecondaryName(member)}</span> : null}
-                            {member.rank ? <span className="profile-list-meta">{member.rank}</span> : null}
-                          </span>
-                          <span className="profile-list-meta duty-member-position-preview">{getMemberPositionSummary(member)}</span>
-                          <span className="profile-list-badges">
+                          {getMemberSecondaryName(member) ? <span className="duty-member-list-line">Позывной: {getMemberSecondaryName(member)}</span> : null}
+                          {member.rank ? <span className="duty-member-list-line">Звание: {member.rank}</span> : null}
+                          <span className="duty-member-list-line duty-member-position-preview">{getMemberPositionSummary(member)}</span>
+                          <span className="duty-member-list-badges">
                             <span className={`profile-state-badge badge-chip ${getAccessBadgeClass(member)}`}>{getAccessStatus(member)}</span>
                           </span>
                         </span>
@@ -836,11 +840,7 @@ export default function DutyMembersPage() {
                     <div className="profile-detail duty-member-detail-card">
                       <div className="profile-hero duty-member-hero">
                         <div className="profile-hero-photo duty-member-hero-photo">
-                          <img
-                            alt="Фотография профиля состава"
-                            className={!selectedMember.photoUrl ? "profile-photo-placeholder" : undefined}
-                            src={selectedMember.photoUrl || "/no-data-person.png"}
-                          />
+                          <DutyMemberPhoto alt="Фотография профиля состава" src={selectedMember.photoUrl} />
                         </div>
 
                         <div className="profile-hero-main">
@@ -851,35 +851,42 @@ export default function DutyMembersPage() {
                             </div>
                             <div className="profile-hero-identity">
                               <h1 className="profile-hero-title">{getMemberPrimaryName(selectedMember)}</h1>
-                              <p className="profile-hero-subtitle">{getMemberMetaLine(selectedMember) || "Служебные сведения не указаны."}</p>
+                              <div className="duty-member-hero-lines">
+                                {selectedMember.callsign ? <p>Позывной: {selectedMember.callsign}</p> : null}
+                                <p>{selectedMember.rank ? `Звание: ${selectedMember.rank}` : "Звание не указано"}</p>
+                              </div>
                             </div>
                           </div>
 
-                          <div className="profile-hero-notes">
-                            <section className="profile-hero-note">
-                              <span>Должность</span>
-                              <p>{getMemberPositionSummary(selectedMember)}</p>
-                            </section>
-                            <section className="profile-hero-note">
-                              <span>Заметки</span>
-                              <p>{selectedMember.notes || "Заметок нет."}</p>
-                            </section>
+                          <div className="duty-member-hero-summary">
+                            <div>
+                              <span>Основная должность</span>
+                              <strong>{getMemberPositionSummary(selectedMember)}</strong>
+                            </div>
+                            <div>
+                              <span>Штатный список</span>
+                              <strong>{getMemberAssignmentCount(selectedMember)}</strong>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="profile-detail-block">
+                    <div className="profile-detail-block duty-member-profile-section">
                       <div className="block-heading-row">
                         <div>
                           <span>Сведения</span>
-                          <h2>Основные данные</h2>
+                          <h2>Основные сведения</h2>
                         </div>
                       </div>
                       <dl className="registry-info-grid">
                         <div className="registry-info-field">
                           <dt>ФИО</dt>
                           <dd>{selectedMember.fullName || "Не указано"}</dd>
+                        </div>
+                        <div className="registry-info-field">
+                          <dt>Позывной</dt>
+                          <dd>{selectedMember.callsign || "Не указан"}</dd>
                         </div>
                         <div className="registry-info-field">
                           <dt>Звание</dt>
@@ -889,15 +896,10 @@ export default function DutyMembersPage() {
                           <dt>Статус состава</dt>
                           <dd>{serviceStatusLabels[selectedMember.serviceStatus]}</dd>
                         </div>
-                        <div className="registry-info-field">
-                          <dt>Роль доступа</dt>
-                          <dd>{selectedMember.access ? getRoleLabel(selectedMember.access.role) : "Не назначена"}</dd>
-                        </div>
                       </dl>
-                      {selectedMember.notes ? <p className="duty-member-notes">{selectedMember.notes}</p> : null}
                     </div>
 
-                    <div className="profile-detail-block">
+                    <div className="profile-detail-block duty-member-profile-section">
                       <div className="block-heading-row">
                         <div>
                           <span>Должности</span>
@@ -914,15 +916,15 @@ export default function DutyMembersPage() {
                           ))}
                         </div>
                       ) : (
-                        <p className="empty-state">Должность не назначена.</p>
+                        <p className="empty-state">Назначения отсутствуют.</p>
                       )}
                     </div>
 
-                    <div className="profile-detail-block">
+                    <div className="profile-detail-block duty-member-profile-section">
                       <div className="block-heading-row">
                         <div>
                           <span>Служебный доступ</span>
-                          <h2>{getAccessStatus(selectedMember)}</h2>
+                          <h2>Служебный доступ</h2>
                         </div>
                       </div>
                       {selectedMember.access ? (
@@ -945,12 +947,22 @@ export default function DutyMembersPage() {
                           </div>
                         </dl>
                       ) : (
-                        <p className="empty-state">Доступ не назначен</p>
+                        <p className="empty-state">Доступ не назначен.</p>
                       )}
                     </div>
 
+                    <div className="profile-detail-block duty-member-profile-section">
+                      <div className="block-heading-row">
+                        <div>
+                          <span>Служебные пометки</span>
+                          <h2>Заметки</h2>
+                        </div>
+                      </div>
+                      <p className="duty-member-notes">{selectedMember.notes || "Заметок нет."}</p>
+                    </div>
+
                     {canManage ? (
-                      <div className="profile-detail-block">
+                      <div className="profile-detail-block duty-member-profile-section duty-member-management-section">
                         <div className="block-heading-row">
                           <div>
                             <span>Служебные действия</span>
@@ -958,24 +970,24 @@ export default function DutyMembersPage() {
                           </div>
                         </div>
                         <div className="toolbar-row duty-member-actions">
-                          <button className="command-row interactive-button" onClick={() => startEdit(selectedMember)} type="button">
+                          <button className="command-row interactive-button duty-member-action-button" onClick={() => startEdit(selectedMember)} type="button">
                             Изменить профиль
                           </button>
                           {selectedMember.access?.isActive ? (
-                            <button className="command-row interactive-button" disabled={!canManageTarget(selectedMember)} onClick={() => requestAccessChange(selectedMember, false)} type="button">
+                            <button className="command-row interactive-button duty-member-action-button" disabled={!canManageTarget(selectedMember)} onClick={() => requestAccessChange(selectedMember, false)} type="button">
                               Временно заблокировать доступ
                             </button>
                           ) : selectedMember.access ? (
-                            <button className="command-row interactive-button" disabled={!canManageTarget(selectedMember)} onClick={() => requestAccessChange(selectedMember, true)} type="button">
+                            <button className="command-row interactive-button duty-member-action-button" disabled={!canManageTarget(selectedMember)} onClick={() => requestAccessChange(selectedMember, true)} type="button">
                               Восстановить доступ
                             </button>
                           ) : (
                             <span className="registry-status-badge-muted">Доступ не назначен</span>
                           )}
-                          <button className="command-row interactive-button" disabled={!canManageTarget(selectedMember)} onClick={() => openResetPassword(selectedMember)} type="button">
+                          <button className="command-row interactive-button duty-member-action-button" disabled={!canManageTarget(selectedMember)} onClick={() => openResetPassword(selectedMember)} type="button">
                             Сбросить пароль
                           </button>
-                          <button className="primary-command interactive-button" disabled={!canManageTarget(selectedMember)} onClick={() => requestExclude(selectedMember)} type="button">
+                          <button className="primary-command interactive-button duty-member-action-button duty-member-danger-action" disabled={!canManageTarget(selectedMember)} onClick={() => requestExclude(selectedMember)} type="button">
                             Исключить из состава
                           </button>
                         </div>
@@ -983,7 +995,7 @@ export default function DutyMembersPage() {
                     ) : null}
 
                     {isOwnProfile ? (
-                      <form className="profile-detail-block duty-password-form" onSubmit={handlePasswordSubmit}>
+                      <form className="profile-detail-block duty-member-profile-section duty-password-form" onSubmit={handlePasswordSubmit}>
                         <div className="block-heading-row">
                           <div>
                             <span>Служебный доступ</span>
