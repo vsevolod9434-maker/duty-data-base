@@ -1,15 +1,16 @@
 ﻿"use client";
 
 /* eslint-disable @next/next/no-img-element */
+import { useQuery } from "@tanstack/react-query";
 import type { FormEvent, KeyboardEvent, MouseEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
 import { ActionAuthorLine } from "@/components/ui/ActionAuthorLine";
 import { addActivityLogEntry } from "@/lib/activity-log";
 import { apiFetchJson } from "@/lib/api-client";
-import { fetchCurrentUserLabel } from "@/lib/current-user-label";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Pagination } from "@/components/ui/Pagination";
+import { cachePolicy, dutyDataKeys, scheduleClientStateSync, useCurrentUserCacheKey, useDutyQueryClient } from "@/lib/data-cache";
 import {
   apartmentPaymentStatusLabels,
   apartmentStatusLabels,
@@ -243,9 +244,17 @@ async function saveApartmentRequest(apartment: Apartment) {
 }
 
 export default function ApartmentsPage() {
-  const [apartments, setApartments] = useState<Apartment[]>([]);
-  const [profiles, setProfiles] = useState<StalkerProfile[]>([]);
-  const [groups, setGroups] = useState<StalkerGroup[]>([]);
+  const queryClient = useDutyQueryClient();
+  const { currentUser, currentUserKey, isCurrentUserLoading } = useCurrentUserCacheKey();
+  const [apartments, setApartments] = useState<Apartment[]>(() =>
+    currentUserKey ? (queryClient.getQueryData<Apartment[]>(dutyDataKeys.apartments(currentUserKey)) ?? []) : [],
+  );
+  const [profiles, setProfiles] = useState<StalkerProfile[]>(() =>
+    currentUserKey ? (queryClient.getQueryData<StalkerProfile[]>(dutyDataKeys.stalkers(currentUserKey)) ?? []) : [],
+  );
+  const [groups, setGroups] = useState<StalkerGroup[]>(() =>
+    currentUserKey ? (queryClient.getQueryData<StalkerGroup[]>(dutyDataKeys.stalkerGroups(currentUserKey)) ?? []) : [],
+  );
   const [isStorageReady, setIsStorageReady] = useState(false);
   const [isApartmentLoading, setIsApartmentLoading] = useState(true);
   const [isApartmentSaving, setIsApartmentSaving] = useState(false);
@@ -280,77 +289,98 @@ export default function ApartmentsPage() {
   const [tenantPage, setTenantPage] = useState(1);
   const [paymentPage, setPaymentPage] = useState(1);
 
-  useEffect(() => {
-    let isCancelled = false;
+  const profilesQuery = useQuery({
+    queryKey: dutyDataKeys.stalkers(currentUserKey ?? "pending"),
+    queryFn: fetchStalkerProfiles,
+    enabled: Boolean(currentUserKey),
+  });
+  const groupsQuery = useQuery({
+    queryKey: dutyDataKeys.stalkerGroups(currentUserKey ?? "pending"),
+    queryFn: fetchStalkerGroups,
+    enabled: Boolean(currentUserKey),
+  });
+  const apartmentsQuery = useQuery({
+    queryKey: dutyDataKeys.apartments(currentUserKey ?? "pending"),
+    queryFn: fetchApartments,
+    enabled: Boolean(currentUserKey),
+    gcTime: 30 * 60_000,
+    staleTime: cachePolicy.apartments,
+  });
 
+  useEffect(() => {
     const storageReadHandle = window.setTimeout(() => {
       const localApartments = readStoredCollection<Apartment>(APARTMENTS_STORAGE_KEY, []);
+      const cachedProfiles = currentUserKey ? queryClient.getQueryData<StalkerProfile[]>(dutyDataKeys.stalkers(currentUserKey)) : null;
+      const cachedGroups = currentUserKey ? queryClient.getQueryData<StalkerGroup[]>(dutyDataKeys.stalkerGroups(currentUserKey)) : null;
+      const cachedApartments = currentUserKey ? queryClient.getQueryData<Apartment[]>(dutyDataKeys.apartments(currentUserKey)) : null;
 
-      async function loadServerData() {
-        setIsApartmentLoading(true);
-        setApartmentLoadMessage("");
+      setProfiles(cachedProfiles ?? readStoredCollection<StalkerProfile>(STALKER_PROFILES_STORAGE_KEY, []));
+      setGroups(cachedGroups ?? readStoredCollection<StalkerGroup>(STALKER_GROUPS_STORAGE_KEY, []));
+      setApartments(cachedApartments ?? normalizeApartments(localApartments));
+      setIsStorageReady(true);
+      setIsApartmentLoading(!cachedApartments && !apartmentsQuery.data);
 
-        try {
-          const [serverProfiles, serverGroups, serverApartments] = await Promise.all([
-            fetchStalkerProfiles().catch(() => readStoredCollection<StalkerProfile>(STALKER_PROFILES_STORAGE_KEY, [])),
-            fetchStalkerGroups().catch(() => readStoredCollection<StalkerGroup>(STALKER_GROUPS_STORAGE_KEY, [])),
-            fetchApartments(),
-          ]);
-
-          if (isCancelled) {
-            return;
-          }
-
-          setProfiles(serverProfiles);
-          setGroups(serverGroups);
-          setApartments(serverApartments);
-          writeStoredCollection(APARTMENTS_STORAGE_KEY, serverApartments);
-
-          if (serverApartments.length === 0 && localApartments.length > 0) {
-            setLocalImportApartments(normalizeApartments(localApartments));
-          } else {
-            setLocalImportApartments([]);
-          }
-
-          setSelectedApartmentId("");
-          setNotesDraft("");
-        } catch {
-          if (isCancelled) {
-            return;
-          }
-
-          setProfiles(readStoredCollection<StalkerProfile>(STALKER_PROFILES_STORAGE_KEY, []));
-          setGroups(readStoredCollection<StalkerGroup>(STALKER_GROUPS_STORAGE_KEY, []));
-          setApartmentLoadMessage(
-            "Не удалось загрузить квартиры.",
-          );
-
-          if (localApartments.length > 0) {
-            setLocalImportApartments(normalizeApartments(localApartments));
-          }
-        } finally {
-          if (!isCancelled) {
-            setIsStorageReady(true);
-            setIsApartmentLoading(false);
-          }
-        }
+      if (!cachedApartments && localApartments.length > 0) {
+        setLocalImportApartments(normalizeApartments(localApartments));
       }
-
-      void loadServerData();
-      void fetchCurrentUserLabel()
-        .then((label) => {
-          if (!isCancelled) {
-            setCurrentUserLabel(label);
-          }
-        })
-        .catch(() => undefined);
     }, 0);
 
     return () => {
-      isCancelled = true;
       window.clearTimeout(storageReadHandle);
     };
-  }, []);
+  }, [apartmentsQuery.data, currentUserKey, queryClient]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      setCurrentUserLabel(currentUser?.displayName?.trim() || currentUser?.login?.trim() || "текущий пользователь");
+    });
+  }, [currentUser]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      if (profilesQuery.data) {
+        setProfiles(profilesQuery.data);
+      }
+    });
+  }, [profilesQuery.data]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      if (groupsQuery.data) {
+        setGroups(groupsQuery.data);
+      }
+    });
+  }, [groupsQuery.data]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      if (apartmentsQuery.data) {
+        setApartments(apartmentsQuery.data);
+        setLocalImportApartments((currentLocalApartments) => (apartmentsQuery.data.length > 0 ? [] : currentLocalApartments));
+        setSelectedApartmentId("");
+        setNotesDraft("");
+      }
+    });
+  }, [apartmentsQuery.data]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      const hasLoadError = profilesQuery.isError || groupsQuery.isError || apartmentsQuery.isError;
+      setApartmentLoadMessage(hasLoadError ? "Не удалось загрузить квартиры." : "");
+      setIsApartmentLoading(
+        isCurrentUserLoading || ((profilesQuery.isPending || groupsQuery.isPending || apartmentsQuery.isPending) && apartments.length === 0),
+      );
+    });
+  }, [
+    apartments.length,
+    apartmentsQuery.isError,
+    apartmentsQuery.isPending,
+    groupsQuery.isError,
+    groupsQuery.isPending,
+    isCurrentUserLoading,
+    profilesQuery.isError,
+    profilesQuery.isPending,
+  ]);
 
   useEffect(() => {
     if (!isStorageReady) {
@@ -362,7 +392,10 @@ export default function ApartmentsPage() {
     }
 
     writeStoredCollection(APARTMENTS_STORAGE_KEY, apartments);
-  }, [apartments, isStorageReady, localImportApartments.length]);
+    if (currentUserKey) {
+      queryClient.setQueryData(dutyDataKeys.apartments(currentUserKey), apartments);
+    }
+  }, [apartments, currentUserKey, isStorageReady, localImportApartments.length, queryClient]);
 
   const profileById = useMemo(() => {
     return new Map(profiles.map((profile) => [profile.id, profile]));

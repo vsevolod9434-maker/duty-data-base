@@ -204,16 +204,19 @@ async function main() {
     .findMany({
       include: {
         dutyMember: {
-          select: { id: true },
+          select: { fullName: true, id: true, rank: true },
         },
       },
     })
     .catch(() => []);
 
-  async function findOrCreateMember(assignee: string) {
+  async function findAssignableMember(assignee: string) {
     const { fullName, rank } = parseAssignee(assignee);
     const existingMember = await prisma.dutyMember.findFirst({
-      where: { fullName },
+      where: {
+        accessUserId: { not: null },
+        fullName,
+      },
     });
 
     if (existingMember) {
@@ -230,34 +233,19 @@ async function main() {
     const surname = fullName.split(/\s+/)[0] ?? fullName;
     const normalizedSurname = normalizeForMatch(surname);
     const matchingAccessUsers = accessUsers.filter((user) => {
-      const searchable = normalizeForMatch(`${user.displayName ?? ""} ${user.login}`);
-      return searchable.includes(normalizedSurname) && !user.dutyMember;
+      const searchable = normalizeForMatch(`${user.displayName ?? ""} ${user.login} ${user.dutyMember?.fullName ?? ""}`);
+      return searchable.includes(normalizedSurname) && user.dutyMember;
     });
     const accessUser = matchingAccessUsers.length === 1 ? matchingAccessUsers[0] : null;
 
-    const member = await prisma.dutyMember.create({
-      data: {
-        id: crypto.randomUUID(),
-        fullName,
-        callSign: null,
-        callsign: null,
-        rank: rank || null,
-        position: null,
-        unit: null,
-        serviceStatus: "active",
-        profileStatus: "active",
-        notes: null,
-        accessUserId: accessUser?.id ?? null,
-        createdAt: now,
-        updatedAt: now,
-      },
-    });
-
-    if (accessUser) {
-      accessUser.dutyMember = { id: member.id };
+    if (accessUser?.dutyMember && !accessUser.dutyMember.rank && rank) {
+      return prisma.dutyMember.update({
+        data: { rank, updatedAt: now },
+        where: { id: accessUser.dutyMember.id },
+      });
     }
 
-    return member;
+    return accessUser?.dutyMember ?? null;
   }
 
   for (const [sectionIndex, section] of staffSections.entries()) {
@@ -275,7 +263,7 @@ async function main() {
     });
 
     for (const [positionIndex, position] of section.positions.entries()) {
-      const member = position.assignee ? await findOrCreateMember(position.assignee) : null;
+      const member = position.assignee ? await findAssignableMember(position.assignee) : null;
 
       await prisma.dutyStaffPosition.upsert({
         create: {

@@ -24,6 +24,9 @@ export async function GET() {
   try {
     const members = await prisma.dutyMember.findMany({
       include: dutyMemberInclude,
+      where: {
+        accessUserId: { not: null },
+      },
       orderBy: [{ profileStatus: "asc" }, { fullName: "asc" }],
     });
 
@@ -58,11 +61,18 @@ export async function POST(request: Request) {
 
   const prisma = getPrismaClient();
   const normalizedAccessLogin = normalizeAccessLogin(payload.accessLogin);
+
+  if (!normalizedAccessLogin) {
+    return createDutyMemberErrorResponse("Выберите учётную запись доступа.");
+  }
+
   const accessUser = normalizedAccessLogin
     ? await prisma.accessUser
         .findUnique({
           select: {
+            displayName: true,
             id: true,
+            login: true,
             role: true,
           },
           where: { normalizedLogin: normalizedAccessLogin },
@@ -70,7 +80,7 @@ export async function POST(request: Request) {
         .catch(() => null)
     : null;
 
-  if (normalizedAccessLogin && !accessUser) {
+  if (!accessUser) {
     return createDutyMemberErrorResponse("Профиль доступа не найден.");
   }
 
@@ -92,12 +102,19 @@ export async function POST(request: Request) {
   }
 
   const now = new Date();
+  const linkedAccessUser = accessUser;
+  const memberData = {
+    ...data.value,
+    fullName: data.value.fullName || linkedAccessUser.displayName || linkedAccessUser.login,
+    callSign: data.value.callsign || linkedAccessUser.login,
+    callsign: data.value.callsign || linkedAccessUser.login,
+  };
   const member = await prisma.dutyMember
     .create({
       data: {
         id: crypto.randomUUID(),
-        ...data.value,
-        accessUserId: accessUser?.id ?? null,
+        ...memberData,
+        accessUserId: linkedAccessUser.id,
         createdAt: now,
         updatedAt: now,
       },

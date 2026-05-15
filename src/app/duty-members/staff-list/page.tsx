@@ -1,10 +1,12 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { apiFetchJson } from "@/lib/api-client";
 import type { UserRole } from "@/lib/auth-roles";
+import { cachePolicy, dutyDataKeys, scheduleClientStateSync, TWO_HOURS, useCurrentUserCacheKey, useDutyQueryClient } from "@/lib/data-cache";
 
 type DutyMember = {
   id: string;
@@ -59,8 +61,14 @@ function matchesMemberSearch(member: DutyMember, query: string) {
 }
 
 export default function DutyStaffListPage() {
-  const [sections, setSections] = useState<StaffSection[]>([]);
-  const [members, setMembers] = useState<DutyMember[]>([]);
+  const queryClient = useDutyQueryClient();
+  const { currentUser: cachedCurrentUser, currentUserKey, isCurrentUserLoading } = useCurrentUserCacheKey();
+  const [sections, setSections] = useState<StaffSection[]>(() =>
+    currentUserKey ? (queryClient.getQueryData<StaffSection[]>(dutyDataKeys.staffList(currentUserKey)) ?? []) : [],
+  );
+  const [members, setMembers] = useState<DutyMember[]>(() =>
+    currentUserKey ? (queryClient.getQueryData<DutyMember[]>(dutyDataKeys.dutyMembers(currentUserKey)) ?? []) : [],
+  );
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -79,10 +87,40 @@ export default function DutyStaffListPage() {
     [memberSearchQuery, members],
   );
 
+  const sectionsQuery = useQuery({
+    queryKey: dutyDataKeys.staffList(currentUserKey ?? "pending"),
+    queryFn: () =>
+      apiFetchJson<StaffSection[]>("/api/duty-members/staff-list", undefined, "Не удалось загрузить штатный список. Повторите попытку позже."),
+    enabled: Boolean(currentUserKey),
+    gcTime: TWO_HOURS,
+    staleTime: cachePolicy.staffList,
+  });
+  const membersQuery = useQuery({
+    queryKey: dutyDataKeys.dutyMembers(currentUserKey ?? "pending"),
+    queryFn: () => apiFetchJson<DutyMember[]>("/api/duty-members"),
+    enabled: Boolean(currentUserKey),
+    gcTime: TWO_HOURS,
+    staleTime: cachePolicy.dutyMembers,
+  });
+
   useEffect(() => {
     let isCancelled = false;
 
     const loadHandle = window.setTimeout(() => {
+      const cachedSections = currentUserKey ? queryClient.getQueryData<StaffSection[]>(dutyDataKeys.staffList(currentUserKey)) : null;
+      const cachedMembers = currentUserKey ? queryClient.getQueryData<DutyMember[]>(dutyDataKeys.dutyMembers(currentUserKey)) : null;
+
+      if (cachedCurrentUser) {
+        setCurrentUser(cachedCurrentUser as CurrentUser);
+      }
+
+      if (cachedSections) {
+        setSections(cachedSections);
+        setMembers(cachedMembers ?? []);
+        setIsLoading(false);
+        return;
+      }
+
       async function loadData() {
         setIsLoading(true);
         setMessage("");
@@ -120,7 +158,52 @@ export default function DutyStaffListPage() {
       isCancelled = true;
       window.clearTimeout(loadHandle);
     };
-  }, []);
+  }, [cachedCurrentUser, currentUserKey, queryClient]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      if (cachedCurrentUser) {
+        setCurrentUser(cachedCurrentUser as CurrentUser);
+      }
+    });
+  }, [cachedCurrentUser]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      if (sectionsQuery.data) {
+        setSections(sectionsQuery.data);
+      }
+    });
+  }, [sectionsQuery.data]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      if (membersQuery.data) {
+        setMembers(membersQuery.data);
+      }
+    });
+  }, [membersQuery.data]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      if (sectionsQuery.isError) {
+        setMessage("Не удалось загрузить штатный список. Повторите попытку позже.");
+      }
+      setIsLoading(isCurrentUserLoading || (sectionsQuery.isPending && sections.length === 0));
+    });
+  }, [isCurrentUserLoading, sections.length, sectionsQuery.isError, sectionsQuery.isPending]);
+
+  useEffect(() => {
+    if (currentUserKey) {
+      queryClient.setQueryData(dutyDataKeys.staffList(currentUserKey), sections);
+    }
+  }, [currentUserKey, queryClient, sections]);
+
+  useEffect(() => {
+    if (currentUserKey) {
+      queryClient.setQueryData(dutyDataKeys.dutyMembers(currentUserKey), members);
+    }
+  }, [currentUserKey, members, queryClient]);
 
   function openAssignDialog(position: StaffPosition) {
     setAssigningPosition(position);

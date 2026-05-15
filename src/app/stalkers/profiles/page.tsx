@@ -1,6 +1,7 @@
 ﻿"use client";
 
 /* eslint-disable @next/next/no-img-element */
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
 import { ActionAuthorLine } from "@/components/ui/ActionAuthorLine";
@@ -11,7 +12,7 @@ import { TradeRecordCard } from "@/components/ui/TradeRecordCard";
 import { ViolationRecordCard } from "@/components/ui/ViolationRecordCard";
 import { addActivityLogEntry } from "@/lib/activity-log";
 import { apiFetch, apiFetchJson } from "@/lib/api-client";
-import { fetchCurrentUserLabel } from "@/lib/current-user-label";
+import { dutyDataKeys, scheduleClientStateSync, useCurrentUserCacheKey, useDutyQueryClient } from "@/lib/data-cache";
 import {
   createTask,
   createTradeOperation,
@@ -449,11 +450,23 @@ function getProfileServiceBadges({
 }
 
 export default function StalkerProfilesPage() {
-  const [profiles, setProfiles] = useState<StalkerProfile[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [groups, setGroups] = useState<StalkerGroup[]>([]);
-  const [tradeOperations, setTradeOperations] = useState<TradeOperation[]>([]);
-  const [violations, setViolations] = useState<Violation[]>([]);
+  const queryClient = useDutyQueryClient();
+  const { currentUser, currentUserKey, isCurrentUserLoading } = useCurrentUserCacheKey();
+  const [profiles, setProfiles] = useState<StalkerProfile[]>(() =>
+    currentUserKey ? (queryClient.getQueryData<StalkerProfile[]>(dutyDataKeys.stalkers(currentUserKey)) ?? []) : [],
+  );
+  const [tasks, setTasks] = useState<Task[]>(() =>
+    currentUserKey ? (queryClient.getQueryData<Task[]>(dutyDataKeys.tasks(currentUserKey)) ?? []) : [],
+  );
+  const [groups, setGroups] = useState<StalkerGroup[]>(() =>
+    currentUserKey ? (queryClient.getQueryData<StalkerGroup[]>(dutyDataKeys.stalkerGroups(currentUserKey)) ?? []) : [],
+  );
+  const [tradeOperations, setTradeOperations] = useState<TradeOperation[]>(() =>
+    currentUserKey ? (queryClient.getQueryData<TradeOperation[]>(dutyDataKeys.tradeOperations(currentUserKey)) ?? []) : [],
+  );
+  const [violations, setViolations] = useState<Violation[]>(() =>
+    currentUserKey ? (queryClient.getQueryData<Violation[]>(dutyDataKeys.violations(currentUserKey)) ?? []) : [],
+  );
   const [isStorageReady, setIsStorageReady] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [isProfileSaving, setIsProfileSaving] = useState(false);
@@ -511,102 +524,132 @@ export default function StalkerProfilesPage() {
   const [appliedGroupSearchQuery, setAppliedGroupSearchQuery] = useState<string | null>(null);
   const [profilePage, setProfilePage] = useState(1);
 
-  useEffect(() => {
-    let isCancelled = false;
+  const profilesQuery = useQuery({
+    queryKey: dutyDataKeys.stalkers(currentUserKey ?? "pending"),
+    queryFn: fetchStalkerProfiles,
+    enabled: Boolean(currentUserKey),
+  });
+  const groupsQuery = useQuery({
+    queryKey: dutyDataKeys.stalkerGroups(currentUserKey ?? "pending"),
+    queryFn: fetchStalkerGroups,
+    enabled: Boolean(currentUserKey),
+  });
+  const tasksQuery = useQuery({
+    queryKey: dutyDataKeys.tasks(currentUserKey ?? "pending"),
+    queryFn: fetchTasks,
+    enabled: Boolean(currentUserKey),
+  });
+  const tradeOperationsQuery = useQuery({
+    queryKey: dutyDataKeys.tradeOperations(currentUserKey ?? "pending"),
+    queryFn: fetchTradeOperations,
+    enabled: Boolean(currentUserKey),
+  });
+  const violationsQuery = useQuery({
+    queryKey: dutyDataKeys.violations(currentUserKey ?? "pending"),
+    queryFn: fetchViolations,
+    enabled: Boolean(currentUserKey),
+  });
 
+  useEffect(() => {
     const storageReadHandle = window.setTimeout(() => {
       const localProfiles = readStoredCollection<StalkerProfile>(STALKER_PROFILES_STORAGE_KEY, initialStalkerProfiles);
-      const queryProfileId = new URLSearchParams(window.location.search).get("profileId");
       const localTasks = readStoredCollection<Task>(STALKER_TASKS_STORAGE_KEY, initialTasks);
       const localGroups = readStoredCollection<StalkerGroup>(STALKER_GROUPS_STORAGE_KEY, initialStalkerGroups);
       const localTradeOperations = readStoredCollection<TradeOperation>(TRADE_OPERATIONS_STORAGE_KEY, initialTradeOperations);
       const localViolations = readStoredCollection<Violation>(VIOLATIONS_STORAGE_KEY, []);
+      const cachedProfiles = currentUserKey ? queryClient.getQueryData<StalkerProfile[]>(dutyDataKeys.stalkers(currentUserKey)) : null;
+      const cachedGroups = currentUserKey ? queryClient.getQueryData<StalkerGroup[]>(dutyDataKeys.stalkerGroups(currentUserKey)) : null;
+      const cachedTasks = currentUserKey ? queryClient.getQueryData<Task[]>(dutyDataKeys.tasks(currentUserKey)) : null;
+      const cachedTradeOperations = currentUserKey
+        ? queryClient.getQueryData<TradeOperation[]>(dutyDataKeys.tradeOperations(currentUserKey))
+        : null;
+      const cachedViolations = currentUserKey ? queryClient.getQueryData<Violation[]>(dutyDataKeys.violations(currentUserKey)) : null;
 
-      setTasks(localTasks);
-      setGroups(localGroups);
-      setTradeOperations(localTradeOperations);
-      setViolations(localViolations);
+      setProfiles(cachedProfiles ?? localProfiles);
+      setGroups(cachedGroups ?? localGroups);
+      setTasks(cachedTasks ?? localTasks);
+      setTradeOperations(cachedTradeOperations ?? localTradeOperations);
+      setViolations(cachedViolations ?? localViolations);
+      setIsStorageReady(true);
+      setIsProfileLoading(!cachedProfiles && !profilesQuery.data);
 
-      async function loadProfiles() {
-        setIsProfileLoading(true);
-        setProfileLoadMessage("");
-
-        try {
-          const [serverProfiles, serverGroups, serverTasks, serverTradeOperations, serverViolations] = await Promise.all([
-            fetchStalkerProfiles(),
-            fetchStalkerGroups().catch(() => localGroups),
-            fetchTasks().catch(() => localTasks),
-            fetchTradeOperations().catch(() => localTradeOperations),
-            fetchViolations().catch(() => localViolations),
-          ]);
-
-          if (isCancelled) {
-            return;
-          }
-
-          setProfiles(serverProfiles);
-          setGroups(serverGroups);
-          setTasks(serverTasks);
-          setTradeOperations(serverTradeOperations);
-          setViolations(serverViolations);
-
-          if (serverProfiles.length > 0) {
-            writeStoredCollection(STALKER_PROFILES_STORAGE_KEY, serverProfiles);
-            setLocalImportProfiles([]);
-          } else if (localProfiles.length > 0) {
-            setLocalImportProfiles(localProfiles);
-          }
-
-          writeStoredCollection(STALKER_GROUPS_STORAGE_KEY, serverGroups);
-          writeStoredCollection(STALKER_TASKS_STORAGE_KEY, serverTasks);
-          writeStoredCollection(TRADE_OPERATIONS_STORAGE_KEY, serverTradeOperations);
-          writeStoredCollection(VIOLATIONS_STORAGE_KEY, serverViolations);
-
-          const profileFromQuery = queryProfileId
-            ? serverProfiles.find((profile) => profile.id === queryProfileId)
-            : null;
-
-          if (profileFromQuery) {
-            setSelectedProfileId(profileFromQuery.id);
-            setProfileListTab(profileFromQuery.status);
-            setActiveProfileTab("");
-            setProfilePhotoLoadFailed(false);
-          }
-        } catch {
-          if (isCancelled) {
-            return;
-          }
-
-          setProfileLoadMessage(
-            "Не удалось загрузить профили.",
-          );
-
-          if (localProfiles.length > 0) {
-            setLocalImportProfiles(localProfiles);
-          }
-        } finally {
-          if (!isCancelled) {
-            setIsStorageReady(true);
-            setIsProfileLoading(false);
-          }
-        }
+      if (!cachedProfiles && localProfiles.length > 0) {
+        setLocalImportProfiles(localProfiles);
       }
-
-      void loadProfiles();
-      void fetchCurrentUserLabel()
-        .then((label) => {
-          if (!isCancelled) {
-            setCurrentUserLabel(label);
-          }
-        })
-        .catch(() => undefined);
     }, 0);
 
     return () => {
-      isCancelled = true;
       window.clearTimeout(storageReadHandle);
     };
-  }, []);
+  }, [currentUserKey, profilesQuery.data, queryClient]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      setCurrentUserLabel(currentUser?.displayName?.trim() || currentUser?.login?.trim() || "текущий пользователь");
+    });
+  }, [currentUser]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      if (profilesQuery.data) {
+        const queryProfileId = new URLSearchParams(window.location.search).get("profileId");
+        setProfiles(profilesQuery.data);
+        setLocalImportProfiles((currentLocalProfiles) => (profilesQuery.data.length > 0 ? [] : currentLocalProfiles));
+
+        const profileFromQuery = queryProfileId ? profilesQuery.data.find((profile) => profile.id === queryProfileId) : null;
+
+        if (profileFromQuery) {
+          setSelectedProfileId(profileFromQuery.id);
+          setProfileListTab(profileFromQuery.status);
+          setActiveProfileTab("");
+          setProfilePhotoLoadFailed(false);
+        }
+      }
+    });
+  }, [profilesQuery.data]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      if (groupsQuery.data) {
+        setGroups(groupsQuery.data);
+      }
+    });
+  }, [groupsQuery.data]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      if (tasksQuery.data) {
+        setTasks(tasksQuery.data);
+      }
+    });
+  }, [tasksQuery.data]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      if (tradeOperationsQuery.data) {
+        setTradeOperations(tradeOperationsQuery.data);
+      }
+    });
+  }, [tradeOperationsQuery.data]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      if (violationsQuery.data) {
+        setViolations(violationsQuery.data);
+      }
+    });
+  }, [violationsQuery.data]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      const hasLoadError = [profilesQuery, groupsQuery, tasksQuery, tradeOperationsQuery, violationsQuery].some((query) => query.isError);
+      setProfileLoadMessage(hasLoadError ? "Не удалось загрузить профили." : "");
+      setIsProfileLoading(
+        isCurrentUserLoading ||
+          ([profilesQuery, groupsQuery, tasksQuery, tradeOperationsQuery, violationsQuery].some((query) => query.isPending) && profiles.length === 0),
+      );
+    });
+  }, [groupsQuery, isCurrentUserLoading, profiles.length, profilesQuery, tasksQuery, tradeOperationsQuery, violationsQuery]);
 
   useEffect(() => {
     if (!isStorageReady) {
@@ -618,7 +661,10 @@ export default function StalkerProfilesPage() {
     }
 
     writeStoredCollection(STALKER_PROFILES_STORAGE_KEY, profiles);
-  }, [isStorageReady, localImportProfiles.length, profiles]);
+    if (currentUserKey) {
+      queryClient.setQueryData(dutyDataKeys.stalkers(currentUserKey), profiles);
+    }
+  }, [currentUserKey, isStorageReady, localImportProfiles.length, profiles, queryClient]);
 
   useEffect(() => {
     if (!isStorageReady) {
@@ -626,7 +672,10 @@ export default function StalkerProfilesPage() {
     }
 
     writeStoredCollection(STALKER_TASKS_STORAGE_KEY, tasks);
-  }, [isStorageReady, tasks]);
+    if (currentUserKey) {
+      queryClient.setQueryData(dutyDataKeys.tasks(currentUserKey), tasks);
+    }
+  }, [currentUserKey, isStorageReady, queryClient, tasks]);
 
   useEffect(() => {
     if (!isStorageReady) {
@@ -634,7 +683,10 @@ export default function StalkerProfilesPage() {
     }
 
     writeStoredCollection(STALKER_GROUPS_STORAGE_KEY, groups);
-  }, [groups, isStorageReady]);
+    if (currentUserKey) {
+      queryClient.setQueryData(dutyDataKeys.stalkerGroups(currentUserKey), groups);
+    }
+  }, [currentUserKey, groups, isStorageReady, queryClient]);
 
   useEffect(() => {
     if (!isStorageReady) {
@@ -642,7 +694,10 @@ export default function StalkerProfilesPage() {
     }
 
     writeStoredCollection(TRADE_OPERATIONS_STORAGE_KEY, tradeOperations);
-  }, [isStorageReady, tradeOperations]);
+    if (currentUserKey) {
+      queryClient.setQueryData(dutyDataKeys.tradeOperations(currentUserKey), tradeOperations);
+    }
+  }, [currentUserKey, isStorageReady, queryClient, tradeOperations]);
 
   useEffect(() => {
     if (!isStorageReady) {
@@ -650,7 +705,10 @@ export default function StalkerProfilesPage() {
     }
 
     writeStoredCollection(VIOLATIONS_STORAGE_KEY, violations);
-  }, [isStorageReady, violations]);
+    if (currentUserKey) {
+      queryClient.setQueryData(dutyDataKeys.violations(currentUserKey), violations);
+    }
+  }, [currentUserKey, isStorageReady, queryClient, violations]);
 
   const selectedProfile = useMemo(
     () => profiles.find((profile) => profile.id === selectedProfileId),

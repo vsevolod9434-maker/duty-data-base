@@ -64,7 +64,7 @@ export function mapStaffSectionToResponse(section: StaffSectionRecord) {
       assignedAt: position.assignedAt?.toISOString() ?? null,
       assignedBy: position.assignedBy,
       updatedBy: position.updatedBy,
-      member: position.dutyMember
+      member: position.dutyMember?.accessUser
         ? {
             id: position.dutyMember.id,
             fullName: position.dutyMember.fullName,
@@ -85,4 +85,3 @@ export function mapStaffSectionToResponse(section: StaffSectionRecord) {
     })),
   };
 }
-

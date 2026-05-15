@@ -33,7 +33,7 @@ export async function GET(_request: Request, context: DutyMemberContext) {
     })
     .catch(() => null);
 
-  if (!member) {
+  if (!member || !member.accessUserId) {
     return createDutyMemberErrorResponse("Профиль не найден.", 404);
   }
 
@@ -72,7 +72,7 @@ export async function PATCH(request: Request, context: DutyMemberContext) {
     })
     .catch(() => null);
 
-  if (!currentMember) {
+  if (!currentMember || !currentMember.accessUserId) {
     return createDutyMemberErrorResponse("Профиль не найден.", 404);
   }
 
@@ -81,11 +81,18 @@ export async function PATCH(request: Request, context: DutyMemberContext) {
   }
 
   const normalizedAccessLogin = normalizeAccessLogin(payload.accessLogin);
+
+  if (!normalizedAccessLogin) {
+    return createDutyMemberErrorResponse("Выберите учётную запись доступа.");
+  }
+
   const accessUser = normalizedAccessLogin
     ? await prisma.accessUser
         .findUnique({
           select: {
+            displayName: true,
             id: true,
+            login: true,
             role: true,
           },
           where: { normalizedLogin: normalizedAccessLogin },
@@ -93,7 +100,7 @@ export async function PATCH(request: Request, context: DutyMemberContext) {
         .catch(() => null)
     : null;
 
-  if (normalizedAccessLogin && !accessUser) {
+  if (!accessUser) {
     return createDutyMemberErrorResponse("Профиль доступа не найден.");
   }
 
@@ -121,7 +128,10 @@ export async function PATCH(request: Request, context: DutyMemberContext) {
     .update({
       data: {
         ...data.value,
-        accessUserId: accessUser?.id ?? null,
+        fullName: data.value.fullName || accessUser!.displayName || accessUser!.login,
+        callSign: data.value.callsign || accessUser!.login,
+        callsign: data.value.callsign || accessUser!.login,
+        accessUserId: accessUser!.id,
         updatedAt: new Date(),
       },
       include: dutyMemberInclude,
@@ -152,7 +162,7 @@ export async function DELETE(_request: Request, context: DutyMemberContext) {
     })
     .catch(() => null);
 
-  if (!member) {
+  if (!member || !member.accessUserId) {
     return createDutyMemberErrorResponse("Профиль не найден.", 404);
   }
 

@@ -1,9 +1,18 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { FormEvent, KeyboardEvent as ReactKeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
 import { MapMarkerIcon, TileMapViewer } from "@/components/map/TileMapViewer";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import {
+  dutyDataKeys,
+  removeCachedRecord,
+  replaceCachedRecord,
+  scheduleClientStateSync,
+  useCurrentUserCacheKey,
+  useDutyQueryClient,
+} from "@/lib/data-cache";
 import { createMapLayer, deleteMapLayer, fetchMapLayers, updateMapLayer } from "@/lib/map-layer-api";
 import { DEFAULT_MAP_LAYER, normalizeMapLayerName, type MapLayerDto } from "@/lib/map-layers";
 import { createMapMarker, deleteMapMarker, fetchMapMarkers, updateMapMarker } from "@/lib/map-marker-api";
@@ -605,14 +614,24 @@ function getZoneBounds(zone: MapZoneDto) {
 }
 
 export default function MapPage() {
+  const queryClient = useDutyQueryClient();
+  const { currentUserKey, isCurrentUserLoading } = useCurrentUserCacheKey();
   const initialMarkerDraftRef = useRef<MarkerFormDraft | null>(null);
   const initialZoneDraftRef = useRef<ZoneFormDraft | null>(null);
   const initialRouteDraftRef = useRef<RouteFormDraft | null>(null);
   const [activePanel, setActivePanel] = useState<ActivePanel>("markers");
-  const [markers, setMarkers] = useState<MapMarkerDto[]>([]);
-  const [zones, setZones] = useState<MapZoneDto[]>([]);
-  const [routes, setRoutes] = useState<MapRouteDto[]>([]);
-  const [mapLayers, setMapLayers] = useState<MapLayerDto[]>([]);
+  const [markers, setMarkers] = useState<MapMarkerDto[]>(() =>
+    currentUserKey ? (queryClient.getQueryData<MapMarkerDto[]>(dutyDataKeys.mapMarkers(currentUserKey)) ?? []) : [],
+  );
+  const [zones, setZones] = useState<MapZoneDto[]>(() =>
+    currentUserKey ? (queryClient.getQueryData<MapZoneDto[]>(dutyDataKeys.mapZones(currentUserKey)) ?? []) : [],
+  );
+  const [routes, setRoutes] = useState<MapRouteDto[]>(() =>
+    currentUserKey ? (queryClient.getQueryData<MapRouteDto[]>(dutyDataKeys.mapRoutes(currentUserKey)) ?? []) : [],
+  );
+  const [mapLayers, setMapLayers] = useState<MapLayerDto[]>(() =>
+    currentUserKey ? (queryClient.getQueryData<MapLayerDto[]>(dutyDataKeys.mapLayers(currentUserKey)) ?? []) : [],
+  );
   const [visibleLayerState, setVisibleLayerState] = useState<Record<string, boolean>>({});
   const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
@@ -627,7 +646,6 @@ export default function MapPage() {
   const [editingLayerName, setEditingLayerName] = useState("");
   const [layerMessage, setLayerMessage] = useState("");
   const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
-  const [isLoadingObjects, setIsLoadingObjects] = useState(true);
   const [objectError, setObjectError] = useState("");
   const [markerDraft, setMarkerDraft] = useState<MarkerFormDraft | null>(null);
   const [zoneDraft, setZoneDraft] = useState<ZoneFormDraft | null>(null);
@@ -636,44 +654,116 @@ export default function MapPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
 
+  const markerQuery = useQuery({
+    queryKey: dutyDataKeys.mapMarkers(currentUserKey ?? "pending"),
+    queryFn: fetchMapMarkers,
+    enabled: Boolean(currentUserKey),
+  });
+  const zoneQuery = useQuery({
+    queryKey: dutyDataKeys.mapZones(currentUserKey ?? "pending"),
+    queryFn: fetchMapZones,
+    enabled: Boolean(currentUserKey),
+  });
+  const routeQuery = useQuery({
+    queryKey: dutyDataKeys.mapRoutes(currentUserKey ?? "pending"),
+    queryFn: fetchMapRoutes,
+    enabled: Boolean(currentUserKey),
+  });
+  const layerQuery = useQuery({
+    queryKey: dutyDataKeys.mapLayers(currentUserKey ?? "pending"),
+    queryFn: fetchMapLayers,
+    enabled: Boolean(currentUserKey),
+  });
+  const isLoadingObjects =
+    isCurrentUserLoading ||
+    ([markerQuery, zoneQuery, routeQuery, layerQuery].some((query) => query.isPending) &&
+      markers.length === 0 &&
+      zones.length === 0 &&
+      routes.length === 0 &&
+      mapLayers.length === 0);
+  const objectLoadError = [markerQuery, zoneQuery, routeQuery, layerQuery].some((query) => query.isError)
+    ? "Не удалось загрузить объекты карты."
+    : "";
+
   useEffect(() => {
-    let isCancelled = false;
-
-    async function loadMapObjects() {
-      setIsLoadingObjects(true);
-      setObjectError("");
-
-      try {
-        const [nextMarkers, nextZones, nextRoutes, nextLayers] = await Promise.all([
-          fetchMapMarkers(),
-          fetchMapZones(),
-          fetchMapRoutes(),
-          fetchMapLayers(),
-        ]);
-
-        if (!isCancelled) {
-          setMarkers(nextMarkers);
-          setZones(nextZones);
-          setRoutes(nextRoutes);
-          setMapLayers(nextLayers);
-        }
-      } catch {
-        if (!isCancelled) {
-          setObjectError("Не удалось загрузить объекты карты.");
-        }
-      } finally {
-        if (!isCancelled) {
-          setIsLoadingObjects(false);
-        }
+    return scheduleClientStateSync(() => {
+      if (markerQuery.data) {
+        setMarkers(markerQuery.data);
       }
-    }
+    });
+  }, [markerQuery.data]);
 
-    void loadMapObjects();
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      if (zoneQuery.data) {
+        setZones(zoneQuery.data);
+      }
+    });
+  }, [zoneQuery.data]);
 
-    return () => {
-      isCancelled = true;
-    };
-  }, []);
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      if (routeQuery.data) {
+        setRoutes(routeQuery.data);
+      }
+    });
+  }, [routeQuery.data]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      if (layerQuery.data) {
+        setMapLayers(layerQuery.data);
+      }
+    });
+  }, [layerQuery.data]);
+
+  function updateMarkersCache(updater: (currentMarkers: MapMarkerDto[]) => MapMarkerDto[]) {
+    setMarkers((currentMarkers) => {
+      const nextMarkers = updater(currentMarkers);
+
+      if (currentUserKey) {
+        queryClient.setQueryData(dutyDataKeys.mapMarkers(currentUserKey), nextMarkers);
+      }
+
+      return nextMarkers;
+    });
+  }
+
+  function updateZonesCache(updater: (currentZones: MapZoneDto[]) => MapZoneDto[]) {
+    setZones((currentZones) => {
+      const nextZones = updater(currentZones);
+
+      if (currentUserKey) {
+        queryClient.setQueryData(dutyDataKeys.mapZones(currentUserKey), nextZones);
+      }
+
+      return nextZones;
+    });
+  }
+
+  function updateRoutesCache(updater: (currentRoutes: MapRouteDto[]) => MapRouteDto[]) {
+    setRoutes((currentRoutes) => {
+      const nextRoutes = updater(currentRoutes);
+
+      if (currentUserKey) {
+        queryClient.setQueryData(dutyDataKeys.mapRoutes(currentUserKey), nextRoutes);
+      }
+
+      return nextRoutes;
+    });
+  }
+
+  function updateLayersCache(updater: (currentLayers: MapLayerDto[]) => MapLayerDto[]) {
+    setMapLayers((currentLayers) => {
+      const nextLayers = updater(currentLayers);
+
+      if (currentUserKey) {
+        queryClient.setQueryData(dutyDataKeys.mapLayers(currentUserKey), nextLayers);
+      }
+
+      return nextLayers;
+    });
+  }
 
   const layers = useMemo(() => {
     return getLayerOptions(mapLayers, markers, zones, routes);
@@ -1210,11 +1300,11 @@ export default function MapPage() {
     try {
       if (markerDraft.id) {
         const updatedMarker = await updateMapMarker(markerDraft.id, payload);
-        setMarkers((currentMarkers) => currentMarkers.map((marker) => (marker.id === updatedMarker.id ? updatedMarker : marker)));
+        updateMarkersCache((currentMarkers) => replaceCachedRecord(currentMarkers, updatedMarker));
         setSelectedMarkerId(updatedMarker.id);
       } else {
         const createdMarker = await createMapMarker(payload);
-        setMarkers((currentMarkers) => [...currentMarkers, createdMarker]);
+        updateMarkersCache((currentMarkers) => replaceCachedRecord(currentMarkers, createdMarker));
         setSelectedMarkerId(createdMarker.id);
       }
 
@@ -1253,11 +1343,11 @@ export default function MapPage() {
     try {
       if (zoneDraft.id) {
         const updatedZone = await updateMapZone(zoneDraft.id, payload);
-        setZones((currentZones) => currentZones.map((zone) => (zone.id === updatedZone.id ? updatedZone : zone)));
+        updateZonesCache((currentZones) => replaceCachedRecord(currentZones, updatedZone));
         setSelectedZoneId(updatedZone.id);
       } else {
         const createdZone = await createMapZone(payload);
-        setZones((currentZones) => [...currentZones, createdZone]);
+        updateZonesCache((currentZones) => replaceCachedRecord(currentZones, createdZone));
         setSelectedZoneId(createdZone.id);
       }
 
@@ -1297,11 +1387,11 @@ export default function MapPage() {
     try {
       if (routeDraft.id) {
         const updatedRoute = await updateMapRoute(routeDraft.id, payload);
-        setRoutes((currentRoutes) => currentRoutes.map((route) => (route.id === updatedRoute.id ? updatedRoute : route)));
+        updateRoutesCache((currentRoutes) => replaceCachedRecord(currentRoutes, updatedRoute));
         setSelectedRouteId(updatedRoute.id);
       } else {
         const createdRoute = await createMapRoute(payload);
-        setRoutes((currentRoutes) => [...currentRoutes, createdRoute]);
+        updateRoutesCache((currentRoutes) => replaceCachedRecord(currentRoutes, createdRoute));
         setSelectedRouteId(createdRoute.id);
       }
 
@@ -1326,7 +1416,7 @@ export default function MapPage() {
 
         try {
           const deletedMarker = await deleteMapMarker(marker.id);
-          setMarkers((currentMarkers) => currentMarkers.filter((currentMarker) => currentMarker.id !== deletedMarker.id));
+          updateMarkersCache((currentMarkers) => removeCachedRecord(currentMarkers, deletedMarker.id));
           setSelectedMarkerId((currentId) => (currentId === deletedMarker.id ? null : currentId));
           setConfirmDialog(null);
         } catch {
@@ -1349,7 +1439,7 @@ export default function MapPage() {
 
         try {
           await deleteMapZone(zone.id);
-          setZones((currentZones) => currentZones.filter((currentZone) => currentZone.id !== zone.id));
+          updateZonesCache((currentZones) => removeCachedRecord(currentZones, zone.id));
           setSelectedZoneId((currentId) => (currentId === zone.id ? null : currentId));
           setConfirmDialog(null);
         } catch {
@@ -1372,7 +1462,7 @@ export default function MapPage() {
 
         try {
           await deleteMapRoute(route.id);
-          setRoutes((currentRoutes) => currentRoutes.filter((currentRoute) => currentRoute.id !== route.id));
+          updateRoutesCache((currentRoutes) => removeCachedRecord(currentRoutes, route.id));
           setSelectedRouteId((currentId) => (currentId === route.id ? null : currentId));
           setConfirmDialog(null);
         } catch {
@@ -1419,7 +1509,7 @@ export default function MapPage() {
 
     try {
       const createdLayer = await createMapLayer(nextName);
-      setMapLayers((currentLayers) => [...currentLayers.filter((layer) => layer.id !== createdLayer.id), createdLayer]);
+      updateLayersCache((currentLayers) => replaceCachedRecord(currentLayers, createdLayer));
       setVisibleLayerState((currentState) => ({ ...currentState, [createdLayer.name]: true }));
       setNewLayerName("");
     } catch (error) {
@@ -1444,10 +1534,10 @@ export default function MapPage() {
       const previousName = layer.name;
       const updatedLayer = await updateMapLayer(layer.id, nextName);
 
-      setMapLayers((currentLayers) => currentLayers.map((currentLayer) => (currentLayer.id === updatedLayer.id ? updatedLayer : currentLayer)));
-      setMarkers((currentMarkers) => currentMarkers.map((marker) => (marker.layer === previousName ? { ...marker, layer: updatedLayer.name } : marker)));
-      setZones((currentZones) => currentZones.map((zone) => (zone.layer === previousName ? { ...zone, layer: updatedLayer.name } : zone)));
-      setRoutes((currentRoutes) => currentRoutes.map((route) => (route.layer === previousName ? { ...route, layer: updatedLayer.name } : route)));
+      updateLayersCache((currentLayers) => replaceCachedRecord(currentLayers, updatedLayer));
+      updateMarkersCache((currentMarkers) => currentMarkers.map((marker) => (marker.layer === previousName ? { ...marker, layer: updatedLayer.name } : marker)));
+      updateZonesCache((currentZones) => currentZones.map((zone) => (zone.layer === previousName ? { ...zone, layer: updatedLayer.name } : zone)));
+      updateRoutesCache((currentRoutes) => currentRoutes.map((route) => (route.layer === previousName ? { ...route, layer: updatedLayer.name } : route)));
       setMarkerDraft((currentDraft) => (currentDraft?.layer === previousName ? { ...currentDraft, layer: updatedLayer.name } : currentDraft));
       setZoneDraft((currentDraft) => (currentDraft?.layer === previousName ? { ...currentDraft, layer: updatedLayer.name } : currentDraft));
       setRouteDraft((currentDraft) => (currentDraft?.layer === previousName ? { ...currentDraft, layer: updatedLayer.name } : currentDraft));
@@ -1477,7 +1567,7 @@ export default function MapPage() {
 
         try {
           await deleteMapLayer(layer.id);
-          setMapLayers((currentLayers) => currentLayers.filter((currentLayer) => currentLayer.id !== layer.id));
+          updateLayersCache((currentLayers) => removeCachedRecord(currentLayers, layer.id));
           setVisibleLayerState((currentState) => {
             const nextState = { ...currentState };
             delete nextState[layer.name];
@@ -1886,7 +1976,9 @@ export default function MapPage() {
                 </div>
 
                 {isLoadingObjects ? <p className="map-panel-message">Загрузка объектов карты...</p> : null}
-                {!isLoadingObjects && objectError ? <p className="map-panel-message map-panel-message-danger">{objectError}</p> : null}
+                {!isLoadingObjects && (objectError || objectLoadError) ? (
+                  <p className="map-panel-message map-panel-message-danger">{objectError || objectLoadError}</p>
+                ) : null}
 
                 {activePanel === "markers" ? (
                   <section className="map-panel-section map-panel-section-last">

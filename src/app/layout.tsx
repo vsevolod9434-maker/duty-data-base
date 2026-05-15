@@ -1,5 +1,6 @@
 ﻿import type { Metadata } from "next";
 import { Khand } from "next/font/google";
+import { DutyQueryProvider } from "@/components/providers/DutyQueryProvider";
 import "./globals.css";
 
 const khand = Khand({
@@ -20,7 +21,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru" className={khand.variable}>
-      <body>{children}</body>
+      <body>
+        <DutyQueryProvider>{children}</DutyQueryProvider>
+      </body>
     </html>
   );
 }

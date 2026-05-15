@@ -145,8 +145,8 @@ export function buildDutyMemberData(payload: DutyMemberPayload) {
   const serviceStatus = isDutyServiceStatus(payload.serviceStatus) ? payload.serviceStatus : "active";
   const profileStatus = isDutyMemberProfileStatus(payload.profileStatus) ? payload.profileStatus : "active";
 
-  if (!fullName) {
-    return { ok: false as const, error: "Укажите ФИО." };
+  if (!fullName && !normalizeAccessLogin(payload.accessLogin)) {
+    return { ok: false as const, error: "Выберите учётную запись доступа." };
   }
 
   return {

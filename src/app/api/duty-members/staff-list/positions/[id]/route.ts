@@ -51,12 +51,12 @@ export async function PATCH(request: Request, context: PositionContext) {
   if (nextDutyMemberId) {
     const member = await prisma.dutyMember
       .findUnique({
-        select: { id: true },
+        select: { accessUserId: true, id: true },
         where: { id: nextDutyMemberId },
       })
       .catch(() => null);
 
-    if (!member) {
+    if (!member || !member.accessUserId) {
       return createStaffListErrorResponse("Профиль не найден.", 404);
     }
   }
@@ -90,4 +90,3 @@ export async function PATCH(request: Request, context: PositionContext) {
     return createStaffListErrorResponse("Не удалось выполнить операцию.", 500);
   }
 }
-

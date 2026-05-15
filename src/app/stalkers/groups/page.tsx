@@ -1,6 +1,7 @@
 ﻿"use client";
 
 /* eslint-disable @next/next/no-img-element */
+import { useQuery } from "@tanstack/react-query";
 import type { FormEvent, MouseEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
@@ -9,7 +10,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { getTaskActionVisibility, TaskRecordCard } from "@/components/ui/TaskRecordCard";
 import { addActivityLogEntry } from "@/lib/activity-log";
 import { apiFetch, apiFetchJson } from "@/lib/api-client";
-import { fetchCurrentUserLabel } from "@/lib/current-user-label";
+import { dutyDataKeys, scheduleClientStateSync, useCurrentUserCacheKey, useDutyQueryClient } from "@/lib/data-cache";
 import { createTask, deleteTaskRecord, fetchTasks, updateTask } from "@/lib/journal-api";
 import {
   stalkerGroups as initialStalkerGroups,
@@ -249,9 +250,17 @@ function isDirtyValue(currentValue: unknown, initialValue: unknown) {
 }
 
 export default function StalkerGroupsPage() {
-  const [profiles, setProfiles] = useState<StalkerProfile[]>([]);
-  const [groups, setGroups] = useState<StalkerGroup[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const queryClient = useDutyQueryClient();
+  const { currentUser, currentUserKey, isCurrentUserLoading } = useCurrentUserCacheKey();
+  const [profiles, setProfiles] = useState<StalkerProfile[]>(() =>
+    currentUserKey ? (queryClient.getQueryData<StalkerProfile[]>(dutyDataKeys.stalkers(currentUserKey)) ?? []) : [],
+  );
+  const [groups, setGroups] = useState<StalkerGroup[]>(() =>
+    currentUserKey ? (queryClient.getQueryData<StalkerGroup[]>(dutyDataKeys.stalkerGroups(currentUserKey)) ?? []) : [],
+  );
+  const [tasks, setTasks] = useState<Task[]>(() =>
+    currentUserKey ? (queryClient.getQueryData<Task[]>(dutyDataKeys.tasks(currentUserKey)) ?? []) : [],
+  );
   const [isStorageReady, setIsStorageReady] = useState(false);
   const [isGroupLoading, setIsGroupLoading] = useState(true);
   const [isGroupSaving, setIsGroupSaving] = useState(false);
@@ -294,82 +303,98 @@ export default function StalkerGroupsPage() {
   const [completeGroupTaskMessage, setCompleteGroupTaskMessage] = useState("");
   const [currentUserLabel, setCurrentUserLabel] = useState("текущий пользователь");
 
+  const profilesQuery = useQuery({
+    queryKey: dutyDataKeys.stalkers(currentUserKey ?? "pending"),
+    queryFn: fetchStalkerProfiles,
+    enabled: Boolean(currentUserKey),
+  });
+  const groupsQuery = useQuery({
+    queryKey: dutyDataKeys.stalkerGroups(currentUserKey ?? "pending"),
+    queryFn: fetchStalkerGroups,
+    enabled: Boolean(currentUserKey),
+  });
+  const tasksQuery = useQuery({
+    queryKey: dutyDataKeys.tasks(currentUserKey ?? "pending"),
+    queryFn: fetchTasks,
+    enabled: Boolean(currentUserKey),
+  });
+
   const profileById = useMemo(() => {
     return new Map(profiles.map((profile) => [profile.id, profile]));
   }, [profiles]);
 
   useEffect(() => {
-    let isCancelled = false;
-
     const storageReadHandle = window.setTimeout(() => {
       const localProfiles = readStoredCollection<StalkerProfile>(STALKER_PROFILES_STORAGE_KEY, initialStalkerProfiles);
       const localGroups = readStoredCollection<StalkerGroup>(STALKER_GROUPS_STORAGE_KEY, initialStalkerGroups);
       const localTasks = readStoredCollection<Task>(STALKER_TASKS_STORAGE_KEY, initialTasks);
-      setTasks(localTasks);
+      const cachedProfiles = currentUserKey ? queryClient.getQueryData<StalkerProfile[]>(dutyDataKeys.stalkers(currentUserKey)) : null;
+      const cachedGroups = currentUserKey ? queryClient.getQueryData<StalkerGroup[]>(dutyDataKeys.stalkerGroups(currentUserKey)) : null;
+      const cachedTasks = currentUserKey ? queryClient.getQueryData<Task[]>(dutyDataKeys.tasks(currentUserKey)) : null;
 
-      async function loadServerData() {
-        setIsGroupLoading(true);
-        setGroupLoadMessage("");
+      setProfiles(cachedProfiles ?? localProfiles);
+      setGroups(cachedGroups ?? localGroups);
+      setTasks(cachedTasks ?? localTasks);
+      setIsStorageReady(true);
+      setIsGroupLoading(!cachedGroups && !groupsQuery.data);
 
-        try {
-          const [serverProfiles, serverGroups, serverTasks] = await Promise.all([
-            fetchStalkerProfiles().catch(() => localProfiles),
-            fetchStalkerGroups(),
-            fetchTasks().catch(() => localTasks),
-          ]);
-
-          if (isCancelled) {
-            return;
-          }
-
-          setProfiles(serverProfiles);
-          setGroups(serverGroups);
-          setTasks(serverTasks);
-
-          if (serverGroups.length > 0) {
-            writeStoredCollection(STALKER_GROUPS_STORAGE_KEY, serverGroups);
-            setLocalImportGroups([]);
-          } else if (localGroups.length > 0) {
-            setLocalImportGroups(localGroups);
-          }
-
-          writeStoredCollection(STALKER_TASKS_STORAGE_KEY, serverTasks);
-        } catch {
-          if (isCancelled) {
-            return;
-          }
-
-          setProfiles(localProfiles);
-          setGroupLoadMessage(
-            "Не удалось загрузить группы.",
-          );
-
-          if (localGroups.length > 0) {
-            setLocalImportGroups(localGroups);
-          }
-        } finally {
-          if (!isCancelled) {
-            setIsStorageReady(true);
-            setIsGroupLoading(false);
-          }
-        }
+      if (!cachedGroups && localGroups.length > 0) {
+        setLocalImportGroups(localGroups);
       }
-
-      void loadServerData();
-      void fetchCurrentUserLabel()
-        .then((label) => {
-          if (!isCancelled) {
-            setCurrentUserLabel(label);
-          }
-        })
-        .catch(() => undefined);
     }, 0);
 
     return () => {
-      isCancelled = true;
       window.clearTimeout(storageReadHandle);
     };
-  }, []);
+  }, [currentUserKey, groupsQuery.data, queryClient]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      setCurrentUserLabel(currentUser?.displayName?.trim() || currentUser?.login?.trim() || "текущий пользователь");
+    });
+  }, [currentUser]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      if (profilesQuery.data) {
+        setProfiles(profilesQuery.data);
+      }
+    });
+  }, [profilesQuery.data]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      if (groupsQuery.data) {
+        setGroups(groupsQuery.data);
+        setLocalImportGroups((currentLocalGroups) => (groupsQuery.data.length > 0 ? [] : currentLocalGroups));
+      }
+    });
+  }, [groupsQuery.data]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      if (tasksQuery.data) {
+        setTasks(tasksQuery.data);
+      }
+    });
+  }, [tasksQuery.data]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      const hasLoadError = profilesQuery.isError || groupsQuery.isError || tasksQuery.isError;
+      setGroupLoadMessage(hasLoadError ? "Не удалось загрузить группы." : "");
+      setIsGroupLoading(isCurrentUserLoading || ((profilesQuery.isPending || groupsQuery.isPending || tasksQuery.isPending) && groups.length === 0));
+    });
+  }, [
+    groups.length,
+    groupsQuery.isError,
+    groupsQuery.isPending,
+    isCurrentUserLoading,
+    profilesQuery.isError,
+    profilesQuery.isPending,
+    tasksQuery.isError,
+    tasksQuery.isPending,
+  ]);
 
   useEffect(() => {
     if (!isStorageReady) {
@@ -381,7 +406,10 @@ export default function StalkerGroupsPage() {
     }
 
     writeStoredCollection(STALKER_GROUPS_STORAGE_KEY, groups);
-  }, [groups, isStorageReady, localImportGroups.length]);
+    if (currentUserKey) {
+      queryClient.setQueryData(dutyDataKeys.stalkerGroups(currentUserKey), groups);
+    }
+  }, [currentUserKey, groups, isStorageReady, localImportGroups.length, queryClient]);
 
   useEffect(() => {
     if (!isStorageReady) {
@@ -389,7 +417,10 @@ export default function StalkerGroupsPage() {
     }
 
     writeStoredCollection(STALKER_TASKS_STORAGE_KEY, tasks);
-  }, [isStorageReady, tasks]);
+    if (currentUserKey) {
+      queryClient.setQueryData(dutyDataKeys.tasks(currentUserKey), tasks);
+    }
+  }, [currentUserKey, isStorageReady, queryClient, tasks]);
 
   const visibleGroups = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();

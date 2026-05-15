@@ -1,11 +1,13 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
+import { useQuery } from "@tanstack/react-query";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { apiFetchJson } from "@/lib/api-client";
 import { getRoleLabel, type UserRole } from "@/lib/auth-roles";
+import { cachePolicy, dutyDataKeys, scheduleClientStateSync, TWO_HOURS, useCurrentUserCacheKey, useDutyQueryClient } from "@/lib/data-cache";
 
 type DutyServiceStatus = "active" | "leave" | "wounded" | "missing" | "discharged";
 type DutyMemberProfileStatus = "active" | "archived";
@@ -75,6 +77,12 @@ type ConfirmState = {
   onConfirm: () => Promise<void>;
 };
 
+type ResetPasswordState = {
+  member: DutyMember;
+  newPassword: string;
+  repeatPassword: string;
+};
+
 const emptyDraft: DutyMemberDraft = {
   accessLogin: "",
   callsign: "",
@@ -103,7 +111,6 @@ const serviceStatusOptions: Array<{ label: string; value: DutyServiceStatus }> =
 const accessFilters: Array<{ label: string; value: DutyAccessFilter }> = [
   { label: "Все", value: "all" },
   { label: "С доступом", value: "with_access" },
-  { label: "Без доступа", value: "without_access" },
   { label: "Заблокированы", value: "blocked" },
 ];
 
@@ -199,6 +206,10 @@ function matchesAccessFilter(member: DutyMember, filter: DutyAccessFilter) {
   return true;
 }
 
+function isAccessBackedMember(member: DutyMember) {
+  return Boolean(member.access);
+}
+
 function buildMemberPayload(draft: DutyMemberDraft) {
   const isExcluded = draft.serviceStatus === "discharged";
 
@@ -215,10 +226,16 @@ function buildMemberPayload(draft: DutyMemberDraft) {
 }
 
 export default function DutyMembersPage() {
-  const [members, setMembers] = useState<DutyMember[]>([]);
+  const queryClient = useDutyQueryClient();
+  const { currentUser: cachedCurrentUser, currentUserKey, isCurrentUserLoading } = useCurrentUserCacheKey();
+  const [members, setMembers] = useState<DutyMember[]>(() =>
+    currentUserKey ? (queryClient.getQueryData<DutyMember[]>(dutyDataKeys.dutyMembers(currentUserKey)) ?? []) : [],
+  );
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
-  const [accessUsers, setAccessUsers] = useState<AccessUserOption[]>([]);
+  const [accessUsers, setAccessUsers] = useState<AccessUserOption[]>(() =>
+    currentUserKey ? (queryClient.getQueryData<AccessUserOption[]>(dutyDataKeys.dutyAccessUsers(currentUserKey)) ?? []) : [],
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [accessFilter, setAccessFilter] = useState<DutyAccessFilter>("all");
   const [draft, setDraft] = useState<DutyMemberDraft>(emptyDraft);
@@ -229,6 +246,9 @@ export default function DutyMembersPage() {
   const [actionMessage, setActionMessage] = useState("");
   const [loadError, setLoadError] = useState("");
   const [confirmDialog, setConfirmDialog] = useState<ConfirmState | null>(null);
+  const [resetPasswordState, setResetPasswordState] = useState<ResetPasswordState | null>(null);
+  const [resetPasswordMessage, setResetPasswordMessage] = useState("");
+  const [isResetPasswordSaving, setIsResetPasswordSaving] = useState(false);
   const [passwordDraft, setPasswordDraft] = useState({
     currentPassword: "",
     newPassword: "",
@@ -242,7 +262,11 @@ export default function DutyMembersPage() {
     [members, selectedMemberId],
   );
   const filteredMembers = useMemo(
-    () => members.filter((member) => matchesAccessFilter(member, accessFilter)).filter((member) => matchesMemberSearch(member, searchQuery)),
+    () =>
+      members
+        .filter(isAccessBackedMember)
+        .filter((member) => matchesAccessFilter(member, accessFilter))
+        .filter((member) => matchesMemberSearch(member, searchQuery)),
     [accessFilter, members, searchQuery],
   );
   const canManage = currentUser?.role === "system_admin" || currentUser?.role === "officer";
@@ -253,10 +277,44 @@ export default function DutyMembersPage() {
     [accessUsers, editingId],
   );
 
+  const membersQuery = useQuery({
+    queryKey: dutyDataKeys.dutyMembers(currentUserKey ?? "pending"),
+    queryFn: () => apiFetchJson<DutyMember[]>("/api/duty-members", undefined, "Не удалось загрузить состав. Повторите попытку позже."),
+    enabled: Boolean(currentUserKey),
+    gcTime: TWO_HOURS,
+    staleTime: cachePolicy.dutyMembers,
+  });
+  const accessUsersQuery = useQuery({
+    queryKey: dutyDataKeys.dutyAccessUsers(currentUserKey ?? "pending"),
+    queryFn: () => apiFetchJson<AccessUserOption[]>("/api/duty-members/access-users"),
+    enabled: Boolean(currentUserKey) && (cachedCurrentUser?.role === "system_admin" || cachedCurrentUser?.role === "officer"),
+    gcTime: TWO_HOURS,
+    staleTime: cachePolicy.dutyAccessUsers,
+  });
+
   useEffect(() => {
     let isCancelled = false;
 
     const loadHandle = window.setTimeout(() => {
+      const cachedMembers = currentUserKey ? queryClient.getQueryData<DutyMember[]>(dutyDataKeys.dutyMembers(currentUserKey)) : null;
+      const cachedAccessUsers = currentUserKey ? queryClient.getQueryData<AccessUserOption[]>(dutyDataKeys.dutyAccessUsers(currentUserKey)) : null;
+
+      if (cachedCurrentUser) {
+        setCurrentUser(cachedCurrentUser as CurrentUser);
+      }
+
+      if (cachedMembers) {
+        setMembers(cachedMembers.filter(isAccessBackedMember));
+        setSelectedMemberId((currentId) => currentId ?? cachedMembers[0]?.id ?? null);
+        setIsLoading(false);
+
+        if (cachedAccessUsers) {
+          setAccessUsers(cachedAccessUsers);
+        }
+
+        return;
+      }
+
       async function loadInitialData() {
         setIsLoading(true);
         setLoadError("");
@@ -281,6 +339,9 @@ export default function DutyMembersPage() {
 
         if (!isCancelled && loadedMembers) {
           setMembers(loadedMembers);
+          if (currentUserKey) {
+            queryClient.setQueryData(dutyDataKeys.dutyMembers(currentUserKey), loadedMembers);
+          }
           setSelectedMemberId((currentId) => currentId ?? loadedMembers[0]?.id ?? null);
         }
 
@@ -289,6 +350,9 @@ export default function DutyMembersPage() {
 
           if (!isCancelled) {
             setAccessUsers(loadedAccessUsers);
+            if (currentUserKey) {
+              queryClient.setQueryData(dutyDataKeys.dutyAccessUsers(currentUserKey), loadedAccessUsers);
+            }
           }
         }
 
@@ -304,17 +368,85 @@ export default function DutyMembersPage() {
       isCancelled = true;
       window.clearTimeout(loadHandle);
     };
-  }, []);
+  }, [cachedCurrentUser, currentUserKey, queryClient]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      if (cachedCurrentUser) {
+        setCurrentUser(cachedCurrentUser as CurrentUser);
+      }
+    });
+  }, [cachedCurrentUser]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      if (membersQuery.data) {
+        setMembers(membersQuery.data.filter(isAccessBackedMember));
+        setSelectedMemberId((currentId) => currentId ?? membersQuery.data[0]?.id ?? null);
+      }
+    });
+  }, [membersQuery.data]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      if (accessUsersQuery.data) {
+        setAccessUsers(accessUsersQuery.data);
+      }
+    });
+  }, [accessUsersQuery.data]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      setLoadError(membersQuery.isError ? "Не удалось загрузить состав. Повторите попытку позже." : "");
+      setIsLoading(isCurrentUserLoading || (membersQuery.isPending && members.length === 0));
+    });
+  }, [isCurrentUserLoading, members.length, membersQuery.isError, membersQuery.isPending]);
+
+  useEffect(() => {
+    if (currentUserKey) {
+      queryClient.setQueryData(dutyDataKeys.dutyMembers(currentUserKey), members);
+    }
+  }, [currentUserKey, members, queryClient]);
+
+  useEffect(() => {
+    if (currentUserKey) {
+      queryClient.setQueryData(dutyDataKeys.dutyAccessUsers(currentUserKey), accessUsers);
+    }
+  }, [accessUsers, currentUserKey, queryClient]);
 
   function updateDraft(field: keyof DutyMemberDraft, value: string) {
     setDraft((currentDraft) => ({ ...currentDraft, [field]: value }));
     setActionMessage("");
   }
 
+  function updateAccessDraft(accessLogin: string) {
+    const accessUser = accessUsers.find((user) => user.login === accessLogin);
+
+    setDraft((currentDraft) => ({
+      ...currentDraft,
+      accessLogin,
+      callsign: isCreating && accessUser && !currentDraft.callsign.trim() ? accessUser.login : currentDraft.callsign,
+      fullName: isCreating && accessUser && !currentDraft.fullName.trim() ? accessUser.displayName || accessUser.login : currentDraft.fullName,
+    }));
+    setActionMessage("");
+  }
+
   function startCreate() {
+    const firstAvailableAccessUser = availableAccessUsers[0];
+
+    if (!firstAvailableAccessUser) {
+      setActionMessage("Все пользователи доступа уже добавлены в состав.");
+      return;
+    }
+
     setIsCreating(true);
     setEditingId(null);
-    setDraft(emptyDraft);
+    setDraft({
+      ...emptyDraft,
+      accessLogin: firstAvailableAccessUser.login,
+      callsign: firstAvailableAccessUser.login,
+      fullName: firstAvailableAccessUser.displayName || firstAvailableAccessUser.login,
+    });
     setActionMessage("");
   }
 
@@ -337,6 +469,11 @@ export default function DutyMembersPage() {
 
     if (!canManage) {
       setActionMessage("Доступ к операции запрещён.");
+      return;
+    }
+
+    if (!draft.accessLogin.trim()) {
+      setActionMessage("Выберите учётную запись доступа.");
       return;
     }
 
@@ -483,6 +620,49 @@ export default function DutyMembersPage() {
     }
   }
 
+  function openResetPassword(member: DutyMember) {
+    setResetPasswordState({
+      member,
+      newPassword: "",
+      repeatPassword: "",
+    });
+    setResetPasswordMessage("");
+  }
+
+  function closeResetPassword() {
+    setResetPasswordState(null);
+    setResetPasswordMessage("");
+  }
+
+  async function handleResetPasswordSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!resetPasswordState) {
+      return;
+    }
+
+    setIsResetPasswordSaving(true);
+    setResetPasswordMessage("");
+
+    try {
+      const response = await apiFetchJson<{ message: string }>(`/api/duty-members/${resetPasswordState.member.id}/password`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          newPassword: resetPasswordState.newPassword,
+          repeatPassword: resetPasswordState.repeatPassword,
+        }),
+      });
+
+      setActionMessage(response.message);
+      closeResetPassword();
+    } catch (error) {
+      setResetPasswordMessage(error instanceof Error ? error.message : "Пароль не изменён. Проверьте введённые данные.");
+    } finally {
+      setIsResetPasswordSaving(false);
+    }
+  }
+
   function renderMemberForm() {
     if (!isEditing) {
       return null;
@@ -524,9 +704,11 @@ export default function DutyMembersPage() {
                 </select>
               </label>
               <label className="filter-field">
-                <span>Связанный пользователь доступа</span>
-                <select disabled={isSaving} onChange={(event) => updateDraft("accessLogin", event.target.value)} value={draft.accessLogin}>
-                  <option value="">Не назначать доступ</option>
+                <span>Учётная запись доступа</span>
+                <select disabled={isSaving} onChange={(event) => updateAccessDraft(event.target.value)} value={draft.accessLogin}>
+                  <option disabled value="">
+                    Выберите учётную запись доступа
+                  </option>
                   {availableAccessUsers.map((user) => (
                     <option key={user.login} value={user.login}>
                       {user.displayName || user.login} · {user.roleLabel}
@@ -790,6 +972,9 @@ export default function DutyMembersPage() {
                           ) : (
                             <span className="registry-status-badge-muted">Доступ не назначен</span>
                           )}
+                          <button className="command-row interactive-button" disabled={!canManageTarget(selectedMember)} onClick={() => openResetPassword(selectedMember)} type="button">
+                            Сбросить пароль
+                          </button>
                           <button className="primary-command interactive-button" disabled={!canManageTarget(selectedMember)} onClick={() => requestExclude(selectedMember)} type="button">
                             Исключить из состава
                           </button>
@@ -842,6 +1027,53 @@ export default function DutyMembersPage() {
       </section>
 
       {renderMemberForm()}
+
+      {resetPasswordState ? (
+        <div className="pda-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && closeResetPassword()}>
+          <form className="pda-modal duty-member-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleResetPasswordSubmit}>
+            <div className="section-header modal-header">
+              <div className="min-w-0">
+                <span className="eyebrow-text">Служебный доступ</span>
+                <h1>Сбросить пароль</h1>
+              </div>
+            </div>
+            <div className="modal-body duty-member-modal-body">
+              <p className="draft-message">Новый пароль будет установлен для выбранной учётной записи доступа.</p>
+              <div className="duty-member-form-grid">
+                <label className="filter-field">
+                  <span>Новый пароль</span>
+                  <input
+                    autoComplete="new-password"
+                    disabled={isResetPasswordSaving}
+                    onChange={(event) => setResetPasswordState((current) => (current ? { ...current, newPassword: event.target.value } : current))}
+                    type="password"
+                    value={resetPasswordState.newPassword}
+                  />
+                </label>
+                <label className="filter-field">
+                  <span>Повтор нового пароля</span>
+                  <input
+                    autoComplete="new-password"
+                    disabled={isResetPasswordSaving}
+                    onChange={(event) => setResetPasswordState((current) => (current ? { ...current, repeatPassword: event.target.value } : current))}
+                    type="password"
+                    value={resetPasswordState.repeatPassword}
+                  />
+                </label>
+              </div>
+              {resetPasswordMessage ? <p className="draft-message">{resetPasswordMessage}</p> : null}
+            </div>
+            <div className="modal-actions duty-member-form-actions">
+              <button className="command-row interactive-button" disabled={isResetPasswordSaving} onClick={closeResetPassword} type="button">
+                Отмена
+              </button>
+              <button className="primary-command interactive-button" disabled={isResetPasswordSaving} type="submit">
+                {isResetPasswordSaving ? "Сохранение..." : "Сбросить пароль"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
 
       {confirmDialog ? (
         <ConfirmDialog

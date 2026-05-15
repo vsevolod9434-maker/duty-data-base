@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
+import { useCurrentUserQuery, useDutyQueryClient } from "@/lib/data-cache";
 import { navigation } from "@/lib/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -22,11 +23,14 @@ type PdaTopbarProps = {
 export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaTopbarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useDutyQueryClient();
+  const currentUserQuery = useCurrentUserQuery();
   const navMenuRef = useRef<HTMLElement | null>(null);
   const [moscowTime, setMoscowTime] = useState<string | null>(null);
   const [openDropdownLabel, setOpenDropdownLabel] = useState<string | null>(null);
-  const [userLabel, setUserLabel] = useState("");
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const user = currentUserQuery.data as AccessUserResponse | undefined;
+  const userLabel = user?.displayName || user?.login || "";
 
   const tabFromPath =
     navigation.find((tab) => tab.href === pathname || tab.subtabs.some((subtab) => subtab.href === pathname)) ??
@@ -39,41 +43,17 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
     null;
 
   useEffect(() => {
-    let isCancelled = false;
-
-    async function loadUser() {
-      try {
-        const response = await fetch("/api/auth/me");
-
-        if (!response.ok) {
-          if (response.status === 401 || response.status === 403) {
-            const supabase = createSupabaseBrowserClient();
-            await supabase.auth.signOut();
-            router.replace("/login");
-            router.refresh();
-          }
-
-          return;
-        }
-
-        const user = (await response.json()) as AccessUserResponse;
-
-        if (!isCancelled) {
-          setUserLabel(user.displayName || user.login || "");
-        }
-      } catch {
-        if (!isCancelled) {
-          setUserLabel("");
-        }
-      }
+    if (!currentUserQuery.error) {
+      return;
     }
 
-    void loadUser();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [router]);
+    const supabase = createSupabaseBrowserClient();
+    queryClient.clear();
+    void supabase.auth.signOut().finally(() => {
+      router.replace("/login");
+      router.refresh();
+    });
+  }, [currentUserQuery.error, queryClient, router]);
 
   async function signOut() {
     setIsSigningOut(true);
@@ -82,6 +62,7 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
       const supabase = createSupabaseBrowserClient();
       await supabase.auth.signOut();
     } finally {
+      queryClient.clear();
       router.replace("/login");
       router.refresh();
     }
