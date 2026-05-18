@@ -12238,6 +12238,113 @@ body::after,
   font-weight: 800;
 }
 
+.profiles-page .stalker-notes-block {
+  display: grid;
+  gap: 0.52rem;
+  min-width: 0;
+  border: 1px solid rgba(190, 204, 209, 0.12);
+  border-top: 2px solid rgba(168, 50, 58, 0.58);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.024), transparent 4rem),
+    #090d0f;
+  padding: 0.62rem;
+}
+
+.profiles-page .stalker-notes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  min-width: 0;
+  border-bottom: 1px solid rgba(190, 204, 209, 0.12);
+  padding-bottom: 0.48rem;
+}
+
+.profiles-page .stalker-notes-header h2 {
+  color: var(--profiles-text);
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.profiles-page .stalker-notes-header span,
+.profiles-page .stalker-note-form > span,
+.profiles-page .stalker-note-meta span {
+  color: var(--profiles-muted);
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.profiles-page .stalker-note-form {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+  border: 1px solid rgba(190, 204, 209, 0.12);
+  background: rgba(4, 5, 6, 0.36);
+  padding: 0.58rem;
+}
+
+.profiles-page .stalker-note-form textarea {
+  min-height: 5.5rem;
+  resize: vertical;
+}
+
+.profiles-page .stalker-note-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.42rem;
+}
+
+.profiles-page .stalker-note-actions .command-row,
+.profiles-page .stalker-note-actions .primary-command {
+  width: fit-content;
+  min-height: 1.82rem;
+  padding: 0.26rem 0.72rem;
+  font-size: 0.78rem;
+}
+
+.profiles-page .stalker-note-message {
+  margin: 0;
+}
+
+.profiles-page .stalker-notes-list {
+  display: grid;
+  gap: 0.46rem;
+  min-width: 0;
+}
+
+.profiles-page .stalker-note-card {
+  display: grid;
+  gap: 0.48rem;
+  min-width: 0;
+  border: 1px solid rgba(190, 204, 209, 0.12);
+  background: rgba(4, 5, 6, 0.3);
+  padding: 0.62rem;
+}
+
+.profiles-page .stalker-note-text {
+  color: #dce4e5;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.profiles-page .stalker-note-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.22rem 0.78rem;
+  border-top: 1px solid rgba(190, 204, 209, 0.1);
+  padding-top: 0.42rem;
+}
+
+.profiles-page .stalker-note-edit-form {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
 .profiles-page .dossier-records-area {
   display: grid;
   gap: 0.34rem;
@@ -12249,6 +12356,321 @@ body::after,
     linear-gradient(180deg, rgba(255, 255, 255, 0.024), transparent 4rem),
     #090d0f;
   padding: 0.46rem;
+}
+
+.calculator-page {
+  --calculator-panel: #090d0f;
+  --calculator-section: #0b1012;
+  --calculator-row: #0a0e10;
+  --calculator-line: rgba(190, 204, 209, 0.12);
+  --calculator-line-strong: rgba(218, 229, 232, 0.2);
+  --calculator-red: #a8323a;
+  --calculator-text: #e9eff0;
+  --calculator-muted: #a9b4b7;
+  --calculator-dim: #7f8a8e;
+}
+
+.calculator-page .calculator-content {
+  min-height: 0;
+}
+
+.calculator-page .calculator-shell {
+  display: grid;
+  gap: 0.9rem;
+  min-height: 0;
+  overflow: visible;
+}
+
+.calculator-page .calculator-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 0.38fr);
+  align-items: start;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.calculator-page .calculator-catalog-panel,
+.calculator-page .calculator-cart-panel {
+  display: grid;
+  gap: 0.72rem;
+  min-width: 0;
+  border: 1px solid var(--calculator-line);
+  border-top: 2px solid rgba(168, 50, 58, 0.58);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.024), transparent 4rem),
+    var(--calculator-panel);
+  padding: 0.72rem;
+}
+
+.calculator-page .calculator-cart-panel {
+  position: sticky;
+  top: 0.8rem;
+}
+
+.calculator-page .calculator-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.72rem;
+  min-width: 0;
+  border-bottom: 1px solid var(--calculator-line);
+  padding-bottom: 0.58rem;
+}
+
+.calculator-page .calculator-panel-header h2,
+.calculator-page .calculator-total-block h2 {
+  color: var(--calculator-text);
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1.14;
+  text-transform: uppercase;
+}
+
+.calculator-page .calculator-panel-header span {
+  display: block;
+  margin-top: 0.16rem;
+  color: var(--calculator-muted);
+  font-size: 0.8rem;
+}
+
+.calculator-page .calculator-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.34fr);
+  gap: 0.62rem;
+  min-width: 0;
+}
+
+.calculator-page .calculator-catalog-list,
+.calculator-page .calculator-cart-list {
+  display: grid;
+  gap: 0.62rem;
+  min-width: 0;
+}
+
+.calculator-page .calculator-catalog-card,
+.calculator-page .calculator-cart-card {
+  display: grid;
+  gap: 0.58rem;
+  min-width: 0;
+  border: 1px solid var(--calculator-line);
+  background: rgba(4, 5, 6, 0.28);
+  padding: 0.72rem;
+}
+
+.calculator-page .calculator-catalog-card:hover {
+  border-color: rgba(190, 204, 209, 0.18);
+  background: rgba(12, 16, 18, 0.76);
+}
+
+.calculator-page .calculator-card-head,
+.calculator-page .calculator-cart-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.72rem;
+  min-width: 0;
+}
+
+.calculator-page .calculator-card-head div {
+  min-width: 0;
+}
+
+.calculator-page .calculator-card-head span,
+.calculator-page .calculator-base-price span,
+.calculator-page .calculator-card-text span,
+.calculator-page .calculator-price-grid span,
+.calculator-page .calculator-cart-sums span,
+.calculator-page .calculator-total-block span {
+  color: var(--calculator-dim);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.045em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.calculator-page .calculator-card-head h3 {
+  margin-top: 0.12rem;
+  color: var(--calculator-text);
+  font-size: 1.02rem;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.calculator-page .calculator-card-head strong {
+  flex: 0 0 auto;
+  border: 1px solid rgba(168, 50, 58, 0.36);
+  background: rgba(168, 50, 58, 0.14);
+  color: #f0d2d5;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  padding: 0.22rem 0.42rem;
+  text-transform: uppercase;
+}
+
+.calculator-page .calculator-base-price,
+.calculator-page .calculator-card-text {
+  border-left: 3px solid rgba(168, 50, 58, 0.58);
+  background: rgba(5, 7, 8, 0.38);
+  padding: 0.44rem 0.54rem;
+}
+
+.calculator-page .calculator-base-price p {
+  margin-top: 0.12rem;
+  color: var(--calculator-text);
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.calculator-page .calculator-card-text p {
+  margin-top: 0.14rem;
+  color: #dce4e5;
+  font-size: 0.88rem;
+  line-height: 1.42;
+  white-space: pre-wrap;
+}
+
+.calculator-page .calculator-price-grid,
+.calculator-page .calculator-cart-sums {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.42rem;
+}
+
+.calculator-page .calculator-price-grid div,
+.calculator-page .calculator-cart-sums div,
+.calculator-page .calculator-total-block div {
+  min-width: 0;
+  border: 1px solid rgba(190, 204, 209, 0.1);
+  background: rgba(4, 5, 6, 0.36);
+  padding: 0.42rem 0.5rem;
+}
+
+.calculator-page .calculator-price-grid p,
+.calculator-page .calculator-cart-sums p,
+.calculator-page .calculator-total-block p {
+  margin-top: 0.16rem;
+  color: var(--calculator-text);
+  font-size: 0.92rem;
+  font-weight: 900;
+  line-height: 1.16;
+}
+
+.calculator-page .calculator-add-button {
+  justify-self: end;
+  width: fit-content;
+  min-height: 2rem;
+  padding: 0.32rem 0.9rem;
+}
+
+.calculator-page .calculator-clear-button,
+.calculator-page .calculator-remove-button {
+  width: fit-content;
+  min-height: 1.82rem;
+  padding: 0.24rem 0.62rem;
+  font-size: 0.76rem;
+}
+
+.calculator-page .calculator-cart-card-head strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--calculator-text);
+  font-size: 0.95rem;
+  font-weight: 900;
+  line-height: 1.24;
+}
+
+.calculator-page .calculator-quantity-control {
+  display: grid;
+  grid-template-columns: 2rem minmax(3.2rem, 4.5rem) 2rem;
+  gap: 0.32rem;
+  align-items: center;
+}
+
+.calculator-page .calculator-quantity-control .command-row {
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 0;
+  font-size: 1.05rem;
+}
+
+.calculator-page .calculator-quantity-control input {
+  height: 2rem;
+  text-align: center;
+}
+
+.calculator-page .calculator-total-block {
+  display: grid;
+  gap: 0.46rem;
+  border: 1px solid rgba(168, 50, 58, 0.24);
+  background:
+    linear-gradient(180deg, rgba(168, 50, 58, 0.1), transparent 4.8rem),
+    rgba(4, 5, 6, 0.4);
+  padding: 0.68rem;
+}
+
+.calculator-page .calculator-total-block h2 {
+  padding-bottom: 0.32rem;
+}
+
+.calculator-page .calculator-total-block div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.calculator-page .calculator-total-block p {
+  flex: 0 0 auto;
+  margin-top: 0;
+  font-size: 1rem;
+}
+
+.calculator-page .calculator-empty-state {
+  min-height: 7rem;
+}
+
+@media (max-width: 1180px) {
+  .calculator-page .calculator-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 0.42fr);
+  }
+
+  .calculator-page .calculator-price-grid,
+  .calculator-page .calculator-cart-sums {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .calculator-page .calculator-layout,
+  .calculator-page .calculator-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .calculator-page .calculator-cart-panel {
+    position: static;
+  }
+
+  .calculator-page .calculator-panel-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 560px) {
+  .calculator-page .calculator-catalog-panel,
+  .calculator-page .calculator-cart-panel,
+  .calculator-page .calculator-catalog-card,
+  .calculator-page .calculator-cart-card {
+    padding: 0.58rem;
+  }
+
+  .calculator-page .calculator-total-block div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.24rem;
+  }
 }
 
 .profiles-page .dossier-records-toolbar {
@@ -12502,6 +12924,15 @@ body::after,
 
   .profiles-page .dossier-records-actions {
     justify-content: flex-start;
+  }
+
+  .profiles-page .stalker-notes-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .profiles-page .stalker-notes-header .task-action-button {
+    width: fit-content;
   }
 }
 

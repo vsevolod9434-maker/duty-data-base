@@ -44,6 +44,11 @@ export const navigation: NavigationItem[] = [
     subtabs: [],
   },
   {
+    label: "Калькулятор",
+    href: "/calculator",
+    subtabs: [],
+  },
+  {
     label: "Состав",
     href: "/duty-members",
     subtabs: [

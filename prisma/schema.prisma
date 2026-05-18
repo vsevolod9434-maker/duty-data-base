@@ -22,11 +22,62 @@ model Stalker {
   updatedAt          DateTime
   createdBy          String?
   updatedBy          String?
+  notesList          StalkerNote[]
   groupMemberships   StalkerGroupMember[]
   apartmentTenants   ApartmentTenant[]
   tasks              Task[]                 @relation("TaskStalker")
   tradeOperations    TradeOperation[]       @relation("TradeOperationStalker")
   violations         Violation[]            @relation("ViolationProfile")
+}
+
+model StalkerNote {
+  id        String   @id @default(cuid())
+  stalkerId String
+  text      String
+  createdBy String
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  stalker   Stalker  @relation(fields: [stalkerId], references: [id], onDelete: Cascade)
+
+  @@index([stalkerId])
+  @@index([createdAt])
+}
+
+model SupplyCatalogCategory {
+  id        String              @id @default(cuid())
+  name      String              @unique
+  sortOrder Int                 @default(0)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  items     SupplyCatalogItem[]
+
+  @@index([sortOrder])
+}
+
+model SupplyCatalogItem {
+  id           String                @id @default(cuid())
+  categoryId   String
+  kind         String
+  name         String
+  contents     String?
+  traderPrice  Decimal?              @db.Decimal(12, 2)
+  basePrice    Decimal?              @db.Decimal(12, 2)
+  generalPrice Decimal               @db.Decimal(12, 2)
+  partnerPrice Decimal               @db.Decimal(12, 2)
+  tenantPrice  Decimal               @db.Decimal(12, 2)
+  note         String?
+  isActive     Boolean               @default(true)
+  sortOrder    Int                   @default(0)
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  category     SupplyCatalogCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, name, kind])
+  @@index([categoryId])
+  @@index([kind])
+  @@index([isActive])
+  @@index([sortOrder])
 }
 
 model StalkerGroup {

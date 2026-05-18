@@ -88,6 +88,16 @@ export interface StalkerProfile {
   updatedBy?: string;
 }
 
+export interface StalkerNote {
+  id: string;
+  stalkerId: string;
+  text: string;
+  createdBy: string;
+  updatedBy?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface StalkerGroup {
   id: string;
   name: string;

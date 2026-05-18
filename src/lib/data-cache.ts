@@ -21,6 +21,7 @@ export const cachePolicy = {
   dutyMembers: ONE_HOUR,
   dutyAccessUsers: ONE_HOUR,
   staffList: ONE_HOUR,
+  calculatorCatalog: ONE_HOUR,
   currentUser: 5 * ONE_MINUTE,
 } as const;
 
@@ -31,7 +32,9 @@ export const dutyDataKeys = {
   mapZones: (userKey: string) => ["duty-data", userKey, "map", "zones"] as const,
   mapRoutes: (userKey: string) => ["duty-data", userKey, "map", "routes"] as const,
   mapLayers: (userKey: string) => ["duty-data", userKey, "map", "layers"] as const,
+  calculatorCatalog: (userKey: string) => ["duty-data", userKey, "calculator", "catalog"] as const,
   stalkers: (userKey: string) => ["duty-data", userKey, "stalkers"] as const,
+  stalkerNotes: (userKey: string, profileId: string) => ["duty-data", userKey, "stalkers", profileId, "notes"] as const,
   stalkerGroups: (userKey: string) => ["duty-data", userKey, "stalker-groups"] as const,
   apartments: (userKey: string) => ["duty-data", userKey, "apartments"] as const,
   tasks: (userKey: string) => ["duty-data", userKey, "journals", "tasks"] as const,

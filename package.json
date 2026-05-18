@@ -9,6 +9,7 @@
     "lint": "eslint",
     "postinstall": "prisma generate",
     "access-user:create": "tsx scripts/create-access-user.ts",
+    "calculator-catalog:seed": "tsx scripts/seed-calculator-catalog.ts",
     "duty-members:sync-access": "tsx scripts/sync-duty-members-access.ts",
     "duty-staff:seed": "tsx scripts/seed-duty-staff.ts",
     "check:encoding": "node scripts/check-text-encoding.mjs",

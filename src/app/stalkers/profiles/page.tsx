@@ -37,6 +37,7 @@ import type {
   StalkerAffiliation,
   StalkerGroup,
   StalkerGroupRoleType,
+  StalkerNote,
   StalkerProfile,
   Task,
   TradeOperation,
@@ -120,7 +121,6 @@ const emptyDraft = {
   affiliation: "",
   photoUrl: "",
   appearance: "",
-  notes: "",
   status: "active" as StalkerProfile["status"],
 };
 
@@ -132,6 +132,15 @@ const emptyGroupMemberDraft = {
 
 function formatDate(value: string) {
   return value ? new Date(value).toLocaleDateString("ru-RU") : "Не указана";
+}
+
+function formatDateTime(value: string) {
+  return value
+    ? new Date(value).toLocaleString("ru-RU", {
+        dateStyle: "short",
+        timeStyle: "short",
+      })
+    : "Не указано";
 }
 
 function normalizeApiProfile(profile: StalkerProfileApiResponse): StalkerProfile {
@@ -181,6 +190,10 @@ async function fetchStalkerGroups() {
   return payload.map(normalizeApiGroup);
 }
 
+async function fetchStalkerNotes(profileId: string) {
+  return apiFetchJson<StalkerNote[]>(`/api/stalkers/${encodeURIComponent(profileId)}/notes`, { cache: "no-store" });
+}
+
 async function saveStalkerProfileRequest(
   method: "POST" | "PATCH",
   url: string,
@@ -195,6 +208,42 @@ async function saveStalkerProfileRequest(
   });
 
   return normalizeApiProfile(responsePayload);
+}
+
+async function createStalkerNote(profileId: string, text: string) {
+  return apiFetchJson<StalkerNote>(
+    `/api/stalkers/${encodeURIComponent(profileId)}/notes`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ text }),
+    },
+    "Не удалось сохранить заметку.",
+  );
+}
+
+async function updateStalkerNote(profileId: string, noteId: string, text: string) {
+  return apiFetchJson<StalkerNote>(
+    `/api/stalkers/${encodeURIComponent(profileId)}/notes/${encodeURIComponent(noteId)}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ text }),
+    },
+    "Не удалось сохранить заметку.",
+  );
+}
+
+async function deleteStalkerNote(profileId: string, noteId: string) {
+  await apiFetch(
+    `/api/stalkers/${encodeURIComponent(profileId)}/notes/${encodeURIComponent(noteId)}`,
+    { method: "DELETE" },
+    "Не удалось удалить заметку.",
+  );
 }
 
 async function saveStalkerGroupRequest(
@@ -506,6 +555,13 @@ export default function StalkerProfilesPage() {
   const [violationClosureMessage, setViolationClosureMessage] = useState("");
   const [currentUserLabel, setCurrentUserLabel] = useState("текущий пользователь");
   const [profileGroupMessage, setProfileGroupMessage] = useState("");
+  const [isNoteFormOpen, setIsNoteFormOpen] = useState(false);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [editingNoteId, setEditingNoteId] = useState("");
+  const [editNoteDraft, setEditNoteDraft] = useState("");
+  const [isNoteSaving, setIsNoteSaving] = useState(false);
+  const [isNoteDeleting, setIsNoteDeleting] = useState(false);
+  const [noteMessage, setNoteMessage] = useState("");
   const [tableMessage, setTableMessage] = useState("");
   const [taskMessage, setTaskMessage] = useState("");
   const [tradeMessage, setTradeMessage] = useState("");
@@ -548,6 +604,12 @@ export default function StalkerProfilesPage() {
     queryKey: dutyDataKeys.violations(currentUserKey ?? "pending"),
     queryFn: fetchViolations,
     enabled: Boolean(currentUserKey),
+  });
+  const stalkerNotesQuery = useQuery({
+    queryKey: dutyDataKeys.stalkerNotes(currentUserKey ?? "pending", selectedProfileId || "none"),
+    queryFn: () => fetchStalkerNotes(selectedProfileId),
+    enabled: Boolean(currentUserKey && selectedProfileId),
+    staleTime: 60_000,
   });
 
   useEffect(() => {
@@ -642,6 +704,16 @@ export default function StalkerProfilesPage() {
 
   useEffect(() => {
     return scheduleClientStateSync(() => {
+      setIsNoteFormOpen(false);
+      setNoteDraft("");
+      setEditingNoteId("");
+      setEditNoteDraft("");
+      setNoteMessage("");
+    });
+  }, [selectedProfileId]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
       const hasLoadError = [profilesQuery, groupsQuery, tasksQuery, tradeOperationsQuery, violationsQuery].some((query) => query.isError);
       setProfileLoadMessage(hasLoadError ? "Не удалось загрузить профили." : "");
       setIsProfileLoading(
@@ -714,6 +786,7 @@ export default function StalkerProfilesPage() {
     () => profiles.find((profile) => profile.id === selectedProfileId),
     [profiles, selectedProfileId],
   );
+  const selectedProfileNotes = stalkerNotesQuery.data ?? [];
 
   const selectedProfileTasks = useMemo(() => {
     if (!selectedProfile) {
@@ -986,7 +1059,6 @@ export default function StalkerProfilesPage() {
       affiliation: profile.affiliation ?? "",
       photoUrl: profile.photoUrl ?? "",
       appearance: profile.appearance,
-      notes: profile.notes,
       status: profile.status,
     };
   }
@@ -1093,7 +1165,6 @@ export default function StalkerProfilesPage() {
       affiliation: profile.affiliation ?? "",
       photoUrl: profile.photoUrl ?? "",
       appearance: profile.appearance,
-      notes: profile.notes,
       status: profile.status,
     });
     setEditingProfileId(profile.id);
@@ -1211,7 +1282,6 @@ export default function StalkerProfilesPage() {
       affiliation: draft.affiliation || null,
       photoUrl: normalizedPhotoUrl || null,
       appearance: draft.appearance.trim() || null,
-      notes: draft.notes.trim() || null,
       status: draft.status,
     };
 
@@ -1869,6 +1939,115 @@ export default function StalkerProfilesPage() {
     });
   }
 
+  async function submitNewNote(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!selectedProfile || !currentUserKey) {
+      return;
+    }
+
+    const text = noteDraft.trim();
+
+    if (!text) {
+      setNoteMessage("Введите текст заметки.");
+      return;
+    }
+
+    const notesKey = dutyDataKeys.stalkerNotes(currentUserKey, selectedProfile.id);
+    setIsNoteSaving(true);
+    setNoteMessage("");
+
+    try {
+      const note = await createStalkerNote(selectedProfile.id, text);
+      queryClient.setQueryData<StalkerNote[]>(notesKey, (currentNotes = []) => [note, ...currentNotes]);
+      setNoteDraft("");
+      setIsNoteFormOpen(false);
+      setNoteMessage("Заметка сохранена.");
+    } catch (error) {
+      setNoteMessage(error instanceof Error ? error.message : "Не удалось сохранить заметку.");
+    } finally {
+      setIsNoteSaving(false);
+    }
+  }
+
+  function openEditNote(note: StalkerNote) {
+    setEditingNoteId(note.id);
+    setEditNoteDraft(note.text);
+    setNoteMessage("");
+  }
+
+  function cancelEditNote() {
+    setEditingNoteId("");
+    setEditNoteDraft("");
+  }
+
+  async function submitNoteEdit(noteId: string) {
+    if (!selectedProfile || !currentUserKey) {
+      return;
+    }
+
+    const text = editNoteDraft.trim();
+
+    if (!text) {
+      setNoteMessage("Введите текст заметки.");
+      return;
+    }
+
+    const notesKey = dutyDataKeys.stalkerNotes(currentUserKey, selectedProfile.id);
+    setIsNoteSaving(true);
+    setNoteMessage("");
+
+    try {
+      const note = await updateStalkerNote(selectedProfile.id, noteId, text);
+      queryClient.setQueryData<StalkerNote[]>(notesKey, (currentNotes = []) =>
+        currentNotes.map((currentNote) => (currentNote.id === note.id ? note : currentNote)),
+      );
+      cancelEditNote();
+      setNoteMessage("Заметка изменена.");
+    } catch (error) {
+      setNoteMessage(error instanceof Error ? error.message : "Не удалось сохранить заметку.");
+    } finally {
+      setIsNoteSaving(false);
+    }
+  }
+
+  function requestDeleteNote(note: StalkerNote) {
+    if (!selectedProfile || !currentUserKey) {
+      return;
+    }
+
+    setConfirmDialog({
+      title: "Удалить заметку?",
+      message: "Заметка будет удалена из профиля сталкера.",
+      confirmLabel: "Удалить",
+      cancelLabel: "Отмена",
+      variant: "danger",
+      loading: isNoteDeleting,
+      onConfirm: async () => {
+        if (!selectedProfile || !currentUserKey) {
+          return;
+        }
+
+        const notesKey = dutyDataKeys.stalkerNotes(currentUserKey, selectedProfile.id);
+        setIsNoteDeleting(true);
+        setNoteMessage("");
+
+        try {
+          await deleteStalkerNote(selectedProfile.id, note.id);
+          queryClient.setQueryData<StalkerNote[]>(notesKey, (currentNotes = []) =>
+            currentNotes.filter((currentNote) => currentNote.id !== note.id),
+          );
+          setConfirmDialog(null);
+          setNoteMessage("Заметка удалена.");
+        } catch (error) {
+          setNoteMessage(error instanceof Error ? error.message : "Не удалось удалить заметку.");
+        } finally {
+          setIsNoteDeleting(false);
+        }
+      },
+    });
+  }
+
   function changeListTab(tab: StalkerProfile["status"]) {
     setProfileListTab(tab);
     setProfilePage(1);
@@ -2214,10 +2393,6 @@ export default function StalkerProfilesPage() {
                             <span>Особенности внешности</span>
                             <p>{selectedProfile.appearance || "Не указаны."}</p>
                           </section>
-                          <section className="profile-hero-note">
-                            <span>Заметки</span>
-                            <p>{selectedProfile.notes || "Заметок нет."}</p>
-                          </section>
                         </div>
                       </div>
 
@@ -2322,6 +2497,119 @@ export default function StalkerProfilesPage() {
                           </div>
                         </section>
                     </div>
+
+                    <section className="stalker-notes-block">
+                      <div className="stalker-notes-header">
+                        <div>
+                          <h2>Заметки</h2>
+                          <span>Отдельные служебные записи по профилю</span>
+                        </div>
+                        <button
+                          className="command-row task-action-button"
+                          disabled={isNoteSaving}
+                          onClick={() => {
+                            setIsNoteFormOpen(true);
+                            setEditingNoteId("");
+                            setNoteMessage("");
+                          }}
+                          type="button"
+                        >
+                          Добавить заметку
+                        </button>
+                      </div>
+
+                      {isNoteFormOpen ? (
+                        <form className="stalker-note-form" onSubmit={submitNewNote}>
+                          <span>Добавляет: {currentUserLabel}</span>
+                          <textarea
+                            onChange={(event) => setNoteDraft(event.target.value)}
+                            placeholder="Введите текст заметки"
+                            value={noteDraft}
+                          />
+                          <div className="stalker-note-actions">
+                            <button className="primary-command" disabled={isNoteSaving} type="submit">
+                              {isNoteSaving ? "Сохранение..." : "Сохранить"}
+                            </button>
+                            <button
+                              className="command-row"
+                              disabled={isNoteSaving}
+                              onClick={() => {
+                                setIsNoteFormOpen(false);
+                                setNoteDraft("");
+                                setNoteMessage("");
+                              }}
+                              type="button"
+                            >
+                              Отмена
+                            </button>
+                          </div>
+                        </form>
+                      ) : null}
+
+                      {noteMessage ? <p className="table-message stalker-note-message">{noteMessage}</p> : null}
+                      {stalkerNotesQuery.isError ? <p className="table-message stalker-note-message">Не удалось загрузить заметки.</p> : null}
+
+                      <div className="stalker-notes-list">
+                        {stalkerNotesQuery.isPending && selectedProfileNotes.length === 0 ? (
+                          <div className="empty-state compact-empty-state">
+                            <p>Загрузка заметок...</p>
+                          </div>
+                        ) : selectedProfileNotes.length > 0 ? (
+                          selectedProfileNotes.map((note) => {
+                            const isEditingNote = editingNoteId === note.id;
+                            const wasEdited = Boolean(note.updatedBy && note.updatedAt !== note.createdAt);
+
+                            return (
+                              <article className="stalker-note-card" key={note.id}>
+                                {isEditingNote ? (
+                                  <div className="stalker-note-form stalker-note-edit-form">
+                                    <textarea
+                                      onChange={(event) => setEditNoteDraft(event.target.value)}
+                                      value={editNoteDraft}
+                                    />
+                                    <div className="stalker-note-actions">
+                                      <button
+                                        className="primary-command"
+                                        disabled={isNoteSaving}
+                                        onClick={() => submitNoteEdit(note.id)}
+                                        type="button"
+                                      >
+                                        {isNoteSaving ? "Сохранение..." : "Сохранить"}
+                                      </button>
+                                      <button className="command-row" disabled={isNoteSaving} onClick={cancelEditNote} type="button">
+                                        Отмена
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <p className="stalker-note-text">{note.text}</p>
+                                    <div className="stalker-note-meta">
+                                      <span>Добавил: {note.createdBy}</span>
+                                      <span>Добавлено: {formatDateTime(note.createdAt)}</span>
+                                      {wasEdited ? <span>Изменил: {note.updatedBy}</span> : null}
+                                      {wasEdited ? <span>Изменено: {formatDateTime(note.updatedAt)}</span> : null}
+                                    </div>
+                                    <div className="stalker-note-actions">
+                                      <button className="command-row task-action-button" onClick={() => openEditNote(note)} type="button">
+                                        Изменить
+                                      </button>
+                                      <button className="command-row task-action-button" onClick={() => requestDeleteNote(note)} type="button">
+                                        Удалить
+                                      </button>
+                                    </div>
+                                  </>
+                                )}
+                              </article>
+                            );
+                          })
+                        ) : (
+                          <div className="empty-state compact-empty-state">
+                            <p>Заметки пока не добавлены.</p>
+                          </div>
+                        )}
+                      </div>
+                    </section>
 
                     <section className="dossier-records-area">
                         <div className="dossier-records-toolbar">
@@ -2500,17 +2788,13 @@ export default function StalkerProfilesPage() {
 
               <section className="form-section">
                 <div className="form-section-heading">
-                  <h2>Описание и заметки</h2>
-                  <span>Внешность, признаки и рабочие комментарии</span>
+                  <h2>Описание</h2>
+                  <span>Внешность и отличительные признаки</span>
                 </div>
                 <div className="profile-create-grid">
                   <label className="filter-field profile-create-wide">
                     <span>Особенности внешности</span>
                     <textarea onChange={(event) => updateDraft("appearance", event.target.value)} placeholder="Рост, телосложение, шрамы, экипировка, заметные особенности" value={draft.appearance} />
-                  </label>
-                  <label className="filter-field profile-create-wide">
-                    <span>Заметки</span>
-                    <textarea onChange={(event) => updateDraft("notes", event.target.value)} placeholder="Дополнительные сведения, история взаимодействий, предупреждения" value={draft.notes} />
                   </label>
                 </div>
               </section>
