@@ -12440,14 +12440,53 @@ body::after,
   min-width: 0;
 }
 
-.calculator-page .calculator-catalog-list,
+.calculator-page .calculator-catalog-table,
 .calculator-page .calculator-cart-list {
   display: grid;
-  gap: 0.54rem;
+  gap: 0.42rem;
   min-width: 0;
 }
 
-.calculator-page .calculator-catalog-card,
+.calculator-page .calculator-catalog-list {
+  display: grid;
+  gap: 0.42rem;
+  min-width: 0;
+}
+
+.calculator-page .calculator-catalog-heading,
+.calculator-page .calculator-catalog-card {
+  display: grid;
+  grid-template-columns: minmax(18rem, 1fr) minmax(6.8rem, 0.28fr) minmax(8.4rem, 0.32fr) minmax(6.8rem, 0.28fr) minmax(6.2rem, auto);
+  align-items: center;
+  column-gap: 0.62rem;
+  min-width: 0;
+}
+
+.calculator-page .calculator-catalog-heading {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  border: 1px solid rgba(190, 204, 209, 0.1);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent),
+    #080c0e;
+  color: var(--calculator-dim);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+  padding: 0.38rem 0.68rem;
+  text-transform: uppercase;
+}
+
+.calculator-page .calculator-catalog-heading span:nth-child(n + 2) {
+  text-align: right;
+}
+
+.calculator-page .calculator-catalog-heading span:last-child {
+  text-align: center;
+}
+
 .calculator-page .calculator-cart-card {
   display: grid;
   gap: 0.58rem;
@@ -12458,12 +12497,12 @@ body::after,
 }
 
 .calculator-page .calculator-catalog-card {
-  gap: 0;
   border-color: rgba(190, 204, 209, 0.11);
   background:
     linear-gradient(90deg, rgba(168, 50, 58, 0.12), transparent 5.2rem),
     rgba(4, 5, 6, 0.3);
-  padding: 0.62rem 0.68rem;
+  border: 1px solid rgba(190, 204, 209, 0.11);
+  padding: 0.54rem 0.68rem;
 }
 
 .calculator-page .calculator-catalog-card:hover {
@@ -12471,7 +12510,6 @@ body::after,
   background: rgba(12, 16, 18, 0.76);
 }
 
-.calculator-page .calculator-card-head,
 .calculator-page .calculator-cart-card-head {
   display: flex;
   align-items: flex-start;
@@ -12481,9 +12519,6 @@ body::after,
 }
 
 .calculator-page .calculator-card-main {
-  display: grid;
-  gap: 0.46rem;
-  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -12495,7 +12530,6 @@ body::after,
   min-width: 0;
 }
 
-.calculator-page .calculator-price-grid span,
 .calculator-page .calculator-cart-sums span,
 .calculator-page .calculator-total-block span {
   color: var(--calculator-dim);
@@ -12506,9 +12540,9 @@ body::after,
   text-transform: uppercase;
 }
 
-.calculator-page .calculator-card-head h3 {
+.calculator-page .calculator-card-main h3 {
   color: var(--calculator-text);
-  font-size: 1.02rem;
+  font-size: 0.98rem;
   font-weight: 900;
   line-height: 1.16;
 }
@@ -12598,13 +12632,6 @@ body::after,
   transform: translateX(-50%) translateY(0);
 }
 
-.calculator-page .calculator-price-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(7.2rem, 1fr));
-  gap: 0.42rem;
-  min-width: 0;
-}
-
 .calculator-page .calculator-cart-sums {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -12628,35 +12655,39 @@ body::after,
   line-height: 1.16;
 }
 
-.calculator-page .calculator-price-grid div {
-  display: grid;
-  gap: 0.08rem;
+.calculator-page .calculator-price-value {
   min-width: 0;
-  border-left: 2px solid rgba(168, 50, 58, 0.34);
-  background: rgba(190, 204, 209, 0.045);
-  padding: 0.34rem 0.46rem;
-}
-
-.calculator-page .calculator-price-grid span {
-  letter-spacing: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-transform: none;
-  white-space: nowrap;
-}
-
-.calculator-page .calculator-price-grid strong {
+  border-left: 2px solid rgba(190, 204, 209, 0.16);
+  background: rgba(190, 204, 209, 0.035);
   color: var(--calculator-text);
-  font-size: 0.94rem;
+  font-size: 0.92rem;
   font-weight: 900;
   line-height: 1.12;
+  padding: 0.3rem 0.44rem;
+  text-align: right;
   white-space: nowrap;
+}
+
+.calculator-page .calculator-price-value-partner {
+  border-left-color: rgba(94, 145, 176, 0.5);
+  background: rgba(94, 145, 176, 0.07);
+  color: #b8d1df;
+}
+
+.calculator-page .calculator-price-value-tenant {
+  border-left-color: rgba(112, 158, 128, 0.5);
+  background: rgba(112, 158, 128, 0.07);
+  color: #bdd8c6;
+}
+
+.calculator-page .calculator-catalog-action {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
 }
 
 .calculator-page .calculator-add-button {
-  flex: 0 0 auto;
-  align-self: flex-start;
-  width: fit-content;
+  width: 6.2rem;
   min-height: 1.82rem;
   padding: 0.24rem 0.74rem;
   font-size: 0.78rem;
@@ -12755,6 +12786,12 @@ body::after,
     grid-template-columns: minmax(0, 1fr) minmax(320px, 0.42fr);
   }
 
+  .calculator-page .calculator-catalog-heading,
+  .calculator-page .calculator-catalog-card {
+    grid-template-columns: minmax(14rem, 1fr) repeat(3, minmax(5.7rem, 0.28fr)) minmax(5.7rem, auto);
+    column-gap: 0.46rem;
+  }
+
   .calculator-page .calculator-cart-sums {
     grid-template-columns: 1fr;
   }
@@ -12775,8 +12812,33 @@ body::after,
     flex-direction: column;
   }
 
-  .calculator-page .calculator-price-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .calculator-page .calculator-catalog-heading {
+    display: none;
+  }
+
+  .calculator-page .calculator-catalog-card {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 0.52rem;
+  }
+
+  .calculator-page .calculator-card-main {
+    grid-column: 1 / 2;
+  }
+
+  .calculator-page .calculator-catalog-action {
+    grid-column: 2 / 3;
+    grid-row: 1 / 2;
+    justify-content: flex-end;
+  }
+
+  .calculator-page .calculator-price-value {
+    text-align: left;
+  }
+
+  .calculator-page .calculator-price-value-general,
+  .calculator-page .calculator-price-value-partner,
+  .calculator-page .calculator-price-value-tenant {
+    grid-row: 2 / 3;
   }
 }
 
@@ -12794,17 +12856,21 @@ body::after,
     gap: 0.24rem;
   }
 
-  .calculator-page .calculator-card-head {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .calculator-page .calculator-add-button {
-    align-self: flex-end;
-  }
-
-  .calculator-page .calculator-price-grid {
+  .calculator-page .calculator-catalog-card {
     grid-template-columns: 1fr;
+  }
+
+  .calculator-page .calculator-card-main,
+  .calculator-page .calculator-catalog-action,
+  .calculator-page .calculator-price-value-general,
+  .calculator-page .calculator-price-value-partner,
+  .calculator-page .calculator-price-value-tenant {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+
+  .calculator-page .calculator-catalog-action {
+    justify-content: flex-end;
   }
 }
 

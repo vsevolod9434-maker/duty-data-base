@@ -222,10 +222,17 @@ export default function CalculatorPage() {
                     <p>Загрузка каталога...</p>
                   </div>
                 ) : filteredItems.length > 0 ? (
-                  <div className="calculator-catalog-list">
-                    {filteredItems.map((item) => (
-                      <article className="calculator-catalog-card" key={item.id}>
-                        <div className="calculator-card-head">
+                  <div className="calculator-catalog-table">
+                    <div className="calculator-catalog-heading" aria-hidden="true">
+                      <span>Наименование</span>
+                      <span>Общая цена</span>
+                      <span>Для сотрудничающих</span>
+                      <span>Для жильцов</span>
+                      <span>Действие</span>
+                    </div>
+                    <div className="calculator-catalog-list">
+                      {filteredItems.map((item) => (
+                        <article className="calculator-catalog-card" key={item.id}>
                           <div className="calculator-card-main">
                             <div className="calculator-card-title-line">
                               <h3>{item.name}</h3>
@@ -245,29 +252,26 @@ export default function CalculatorPage() {
                                 </span>
                               ) : null}
                             </div>
-
-                            <div className="calculator-price-grid">
-                              <div>
-                                <span>Общая</span>
-                                <strong>{formatMoney(parsePrice(item.generalPrice))} ₽</strong>
-                              </div>
-                              <div>
-                                <span>Сотрудничающие</span>
-                                <strong>{formatMoney(parsePrice(item.partnerPrice))} ₽</strong>
-                              </div>
-                              <div>
-                                <span>Жильцы</span>
-                                <strong>{formatMoney(parsePrice(item.tenantPrice))} ₽</strong>
-                              </div>
-                            </div>
                           </div>
 
-                          <button className="primary-command calculator-add-button" onClick={() => addToCart(item)} type="button">
-                            Добавить
-                          </button>
-                        </div>
-                      </article>
-                    ))}
+                          <div className="calculator-price-value calculator-price-value-general">
+                            {formatMoney(parsePrice(item.generalPrice))} ₽
+                          </div>
+                          <div className="calculator-price-value calculator-price-value-partner">
+                            {formatMoney(parsePrice(item.partnerPrice))} ₽
+                          </div>
+                          <div className="calculator-price-value calculator-price-value-tenant">
+                            {formatMoney(parsePrice(item.tenantPrice))} ₽
+                          </div>
+
+                          <div className="calculator-catalog-action">
+                            <button className="primary-command calculator-add-button" onClick={() => addToCart(item)} type="button">
+                              Добавить
+                            </button>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
                   </div>
                 ) : (
                   <div className="empty-state calculator-empty-state">
