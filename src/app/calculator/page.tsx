@@ -223,61 +223,48 @@ export default function CalculatorPage() {
                   </div>
                 ) : filteredItems.length > 0 ? (
                   <div className="calculator-catalog-list">
-                    {filteredItems.map((item) => {
-                      const isBundle = item.kind === "bundle";
-
-                      return (
-                        <article className="calculator-catalog-card" key={item.id}>
-                          <div className="calculator-card-head">
-                            <div>
-                              <span>{item.categoryName}</span>
+                    {filteredItems.map((item) => (
+                      <article className="calculator-catalog-card" key={item.id}>
+                        <div className="calculator-card-head">
+                          <div className="calculator-card-main">
+                            <div className="calculator-card-title-line">
                               <h3>{item.name}</h3>
+                              <span className="calculator-category-label">{item.categoryName}</span>
+                              {item.basePrice ? (
+                                <span className="calculator-info-tooltip">
+                                  <button
+                                    aria-label={`Наша цена: ${formatMoney(parsePrice(item.basePrice))} ₽`}
+                                    className="calculator-info-button"
+                                    type="button"
+                                  >
+                                    i
+                                  </button>
+                                  <span className="calculator-tooltip-content" role="tooltip">
+                                    Наша цена: {formatMoney(parsePrice(item.basePrice))} ₽
+                                  </span>
+                                </span>
+                              ) : null}
                             </div>
-                            {isBundle ? <strong>Сборка</strong> : null}
-                          </div>
 
-                          {item.basePrice ? (
-                            <div className="calculator-base-price">
-                              <span>{isBundle ? "Себестоимость" : "Наша цена"}</span>
-                              <p>{formatMoney(parsePrice(item.basePrice))} ₽</p>
-                            </div>
-                          ) : null}
-
-                          {isBundle && item.contents ? (
-                            <div className="calculator-card-text">
-                              <span>Состав</span>
-                              <p>{item.contents}</p>
-                            </div>
-                          ) : null}
-
-                          <div className="calculator-price-grid">
-                            <div>
-                              <span>Общая</span>
-                              <p>{formatMoney(parsePrice(item.generalPrice))} ₽</p>
-                            </div>
-                            <div>
-                              <span>Для сотрудничающих</span>
-                              <p>{formatMoney(parsePrice(item.partnerPrice))} ₽</p>
-                            </div>
-                            <div>
-                              <span>Для жильцов</span>
-                              <p>{formatMoney(parsePrice(item.tenantPrice))} ₽</p>
+                            <div className="calculator-price-grid">
+                              <span>
+                                Общая: <strong>{formatMoney(parsePrice(item.generalPrice))} ₽</strong>
+                              </span>
+                              <span>
+                                Сотрудничающие: <strong>{formatMoney(parsePrice(item.partnerPrice))} ₽</strong>
+                              </span>
+                              <span>
+                                Жильцы: <strong>{formatMoney(parsePrice(item.tenantPrice))} ₽</strong>
+                              </span>
                             </div>
                           </div>
-
-                          {item.note ? (
-                            <div className="calculator-card-text">
-                              <span>Примечание</span>
-                              <p>{item.note}</p>
-                            </div>
-                          ) : null}
 
                           <button className="primary-command calculator-add-button" onClick={() => addToCart(item)} type="button">
                             Добавить
                           </button>
-                        </article>
-                      );
-                    })}
+                        </div>
+                      </article>
+                    ))}
                   </div>
                 ) : (
                   <div className="empty-state calculator-empty-state">
@@ -314,7 +301,7 @@ export default function CalculatorPage() {
                           </div>
 
                           <div className="calculator-quantity-control">
-                            <button className="command-row" onClick={() => stepQuantity(cartItem.item.id, -1)} type="button">
+                            <button className="calculator-quantity-button" onClick={() => stepQuantity(cartItem.item.id, -1)} type="button">
                               −
                             </button>
                             <input
@@ -326,7 +313,7 @@ export default function CalculatorPage() {
                               type="text"
                               value={cartItem.quantityInput}
                             />
-                            <button className="command-row" onClick={() => stepQuantity(cartItem.item.id, 1)} type="button">
+                            <button className="calculator-quantity-button" onClick={() => stepQuantity(cartItem.item.id, 1)} type="button">
                               +
                             </button>
                           </div>
