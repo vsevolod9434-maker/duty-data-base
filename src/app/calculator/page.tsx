@@ -302,39 +302,40 @@ export default function CalculatorPage() {
                         <article className="calculator-cart-card" key={cartItem.item.id}>
                           <div className="calculator-cart-card-head">
                             <strong>{cartItem.item.name}</strong>
-                            <button className="command-row calculator-remove-button" onClick={() => removeFromCart(cartItem.item.id)} type="button">
-                              Удалить
-                            </button>
-                          </div>
-
-                          <div className="calculator-quantity-control">
-                            <button className="calculator-quantity-button" onClick={() => stepQuantity(cartItem.item.id, -1)} type="button">
-                              −
-                            </button>
-                            <input
-                              aria-label={`Количество: ${cartItem.item.name}`}
-                              inputMode="numeric"
-                              min={1}
-                              onBlur={() => normalizeQuantityInput(cartItem.item.id)}
-                              onChange={(event) => changeQuantity(cartItem.item.id, event.target.value)}
-                              type="text"
-                              value={cartItem.quantityInput}
-                            />
-                            <button className="calculator-quantity-button" onClick={() => stepQuantity(cartItem.item.id, 1)} type="button">
-                              +
-                            </button>
+                            <div className="calculator-cart-controls">
+                              <div className="calculator-quantity-control">
+                                <button className="calculator-quantity-button" onClick={() => stepQuantity(cartItem.item.id, -1)} type="button">
+                                  −
+                                </button>
+                                <input
+                                  aria-label={`Количество: ${cartItem.item.name}`}
+                                  inputMode="numeric"
+                                  min={1}
+                                  onBlur={() => normalizeQuantityInput(cartItem.item.id)}
+                                  onChange={(event) => changeQuantity(cartItem.item.id, event.target.value)}
+                                  type="text"
+                                  value={cartItem.quantityInput}
+                                />
+                                <button className="calculator-quantity-button" onClick={() => stepQuantity(cartItem.item.id, 1)} type="button">
+                                  +
+                                </button>
+                              </div>
+                              <button className="command-row calculator-remove-button" onClick={() => removeFromCart(cartItem.item.id)} type="button">
+                                Удалить
+                              </button>
+                            </div>
                           </div>
 
                           <div className="calculator-cart-sums">
-                            <div>
+                            <div className="calculator-cart-sum-general">
                               <span>Общая</span>
                               <p>{formatMoney(parsePrice(cartItem.item.generalPrice) * quantity)} ₽</p>
                             </div>
-                            <div>
+                            <div className="calculator-cart-sum-partner">
                               <span>Для сотрудничающих</span>
                               <p>{formatMoney(parsePrice(cartItem.item.partnerPrice) * quantity)} ₽</p>
                             </div>
-                            <div>
+                            <div className="calculator-cart-sum-tenant">
                               <span>Для жильцов</span>
                               <p>{formatMoney(parsePrice(cartItem.item.tenantPrice) * quantity)} ₽</p>
                             </div>
