@@ -118,10 +118,6 @@ function getMemberPrimaryName(member: DutyMember) {
   return member.fullName || member.callsign || "Без имени";
 }
 
-function getMemberSecondaryName(member: DutyMember) {
-  return member.callsign ? member.callsign : "";
-}
-
 function getAccessStatus(member: DutyMember) {
   if (!member.access) {
     return "Доступ не назначен";
@@ -147,23 +143,13 @@ function getMemberPositionSummary(member: DutyMember) {
   return remainingPositions.length > 0 ? `${firstPosition.title} + ещё ${remainingPositions.length}` : firstPosition.title;
 }
 
-function getMemberAssignmentCount(member: DutyMember) {
-  return `Назначений: ${member.positions.length}`;
-}
-
 function DutyMemberPhoto({ alt, className = "", src }: { alt: string; className?: string; src: string | null }) {
   const normalizedSrc = src?.trim() ?? "";
   const [failedSrc, setFailedSrc] = useState("");
+  const resolvedSrc = normalizedSrc && failedSrc !== normalizedSrc ? normalizedSrc : "/no-data-person.png";
+  const isPlaceholder = resolvedSrc === "/no-data-person.png";
 
-  if (normalizedSrc && failedSrc !== normalizedSrc) {
-    return <img alt={alt} onError={() => setFailedSrc(normalizedSrc)} src={normalizedSrc} />;
-  }
-
-  return (
-    <span aria-label="Фотография отсутствует" className={`duty-member-photo-placeholder ${className}`} role="img">
-      <span>NO DATA</span>
-    </span>
-  );
+  return <img alt={alt} className={isPlaceholder ? `profile-photo-placeholder ${className}`.trim() : className || undefined} onError={() => normalizedSrc && setFailedSrc(normalizedSrc)} src={resolvedSrc} />;
 }
 
 function createDraft(member?: DutyMember): DutyMemberDraft {
@@ -223,6 +209,18 @@ function isAccessBackedMember(member: DutyMember) {
   return Boolean(member.access);
 }
 
+function getVisibleMembers(members: DutyMember[]) {
+  return members.filter(isAccessBackedMember);
+}
+
+function resolveSelectedMemberId(members: DutyMember[], currentId: string | null) {
+  if (currentId && members.some((member) => member.id === currentId)) {
+    return currentId;
+  }
+
+  return members[0]?.id ?? null;
+}
+
 function buildMemberPayload(draft: DutyMemberDraft) {
   const isExcluded = draft.serviceStatus === "discharged";
 
@@ -242,7 +240,7 @@ export default function DutyMembersPage() {
   const queryClient = useDutyQueryClient();
   const { currentUser: cachedCurrentUser, currentUserKey, isCurrentUserLoading } = useCurrentUserCacheKey();
   const [members, setMembers] = useState<DutyMember[]>(() =>
-    currentUserKey ? (queryClient.getQueryData<DutyMember[]>(dutyDataKeys.dutyMembers(currentUserKey)) ?? []) : [],
+    currentUserKey ? getVisibleMembers(queryClient.getQueryData<DutyMember[]>(dutyDataKeys.dutyMembers(currentUserKey)) ?? []) : [],
   );
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
@@ -277,7 +275,6 @@ export default function DutyMembersPage() {
   const filteredMembers = useMemo(
     () =>
       members
-        .filter(isAccessBackedMember)
         .filter((member) => matchesAccessFilter(member, accessFilter))
         .filter((member) => matchesMemberSearch(member, searchQuery)),
     [accessFilter, members, searchQuery],
@@ -317,8 +314,9 @@ export default function DutyMembersPage() {
       }
 
       if (cachedMembers) {
-        setMembers(cachedMembers.filter(isAccessBackedMember));
-        setSelectedMemberId((currentId) => currentId ?? cachedMembers[0]?.id ?? null);
+        const visibleMembers = getVisibleMembers(cachedMembers);
+        setMembers(visibleMembers);
+        setSelectedMemberId((currentId) => resolveSelectedMemberId(visibleMembers, currentId));
         setIsLoading(false);
 
         if (cachedAccessUsers) {
@@ -351,11 +349,12 @@ export default function DutyMembersPage() {
         });
 
         if (!isCancelled && loadedMembers) {
-          setMembers(loadedMembers);
+          const visibleMembers = getVisibleMembers(loadedMembers);
+          setMembers(visibleMembers);
           if (currentUserKey) {
             queryClient.setQueryData(dutyDataKeys.dutyMembers(currentUserKey), loadedMembers);
           }
-          setSelectedMemberId((currentId) => currentId ?? loadedMembers[0]?.id ?? null);
+          setSelectedMemberId((currentId) => resolveSelectedMemberId(visibleMembers, currentId));
         }
 
         if (loadedUser?.role === "system_admin" || loadedUser?.role === "officer") {
@@ -394,8 +393,9 @@ export default function DutyMembersPage() {
   useEffect(() => {
     return scheduleClientStateSync(() => {
       if (membersQuery.data) {
-        setMembers(membersQuery.data.filter(isAccessBackedMember));
-        setSelectedMemberId((currentId) => currentId ?? membersQuery.data[0]?.id ?? null);
+        const visibleMembers = getVisibleMembers(membersQuery.data);
+        setMembers(visibleMembers);
+        setSelectedMemberId((currentId) => resolveSelectedMemberId(visibleMembers, currentId));
       }
     });
   }, [membersQuery.data]);
@@ -772,7 +772,7 @@ export default function DutyMembersPage() {
                   <div className="duty-member-search-filter-row">
                     <label className="filter-field">
                       <span>Поиск по составу</span>
-                      <input onChange={(event) => setSearchQuery(event.target.value)} placeholder="ФИО, позывной, звание или доступ" type="search" value={searchQuery} />
+                      <input onChange={(event) => setSearchQuery(event.target.value)} placeholder="ФИО, звание, должность или доступ" type="search" value={searchQuery} />
                     </label>
                     <label className="filter-field duty-member-access-filter">
                       <span>Фильтр доступа</span>
@@ -800,6 +800,7 @@ export default function DutyMembersPage() {
                   <div className="duty-member-list">
                     {filteredMembers.map((member) => (
                       <button
+                        aria-pressed={selectedMemberId === member.id}
                         className={selectedMemberId === member.id ? "duty-member-list-row duty-member-list-row-active" : "duty-member-list-row"}
                         key={member.id}
                         onClick={() => {
@@ -814,16 +815,9 @@ export default function DutyMembersPage() {
                         <span className="duty-member-list-copy">
                           <span className="duty-member-list-head">
                             <strong className="duty-member-list-name">{getMemberPrimaryName(member)}</strong>
-                            <span className={`profile-state-badge badge-chip ${selectedMemberId === member.id ? "badge-service-group" : ""}`}>
-                              {serviceStatusLabels[member.serviceStatus]}
-                            </span>
                           </span>
-                          {getMemberSecondaryName(member) ? <span className="duty-member-list-line">Позывной: {getMemberSecondaryName(member)}</span> : null}
                           {member.rank ? <span className="duty-member-list-line">Звание: {member.rank}</span> : null}
                           <span className="duty-member-list-line duty-member-position-preview">{getMemberPositionSummary(member)}</span>
-                          <span className="duty-member-list-badges">
-                            <span className={`profile-state-badge badge-chip ${getAccessBadgeClass(member)}`}>{getAccessStatus(member)}</span>
-                          </span>
                         </span>
                       </button>
                     ))}
@@ -851,20 +845,8 @@ export default function DutyMembersPage() {
                             <div className="profile-hero-identity">
                               <h1 className="profile-hero-title">{getMemberPrimaryName(selectedMember)}</h1>
                               <div className="duty-member-hero-lines">
-                                {selectedMember.callsign ? <p>Позывной: {selectedMember.callsign}</p> : null}
                                 <p>{selectedMember.rank ? `Звание: ${selectedMember.rank}` : "Звание не указано"}</p>
                               </div>
-                            </div>
-                          </div>
-
-                          <div className="duty-member-hero-summary">
-                            <div>
-                              <span>Основная должность</span>
-                              <strong>{getMemberPositionSummary(selectedMember)}</strong>
-                            </div>
-                            <div>
-                              <span>Штатный список</span>
-                              <strong>{getMemberAssignmentCount(selectedMember)}</strong>
                             </div>
                           </div>
                         </div>
@@ -898,10 +880,27 @@ export default function DutyMembersPage() {
 
                     <div className="profile-detail-block duty-member-profile-section">
                       <div className="block-heading-row">
-                        <div>
-                          <span>Должности</span>
-                          <h2>Назначения в штатном списке</h2>
+                        <h2>Основные сведения</h2>
+                      </div>
+                      <dl className="registry-info-grid">
+                        <div className="registry-info-field">
+                          <dt>ФИО</dt>
+                          <dd>{selectedMember.fullName || "Не указано"}</dd>
                         </div>
+                        <div className="registry-info-field">
+                          <dt>Звание</dt>
+                          <dd>{selectedMember.rank || "Не указано"}</dd>
+                        </div>
+                        <div className="registry-info-field">
+                          <dt>Статус состава</dt>
+                          <dd>{serviceStatusLabels[selectedMember.serviceStatus]}</dd>
+                        </div>
+                      </dl>
+                    </div>
+
+                    <div className="profile-detail-block duty-member-profile-section">
+                      <div className="block-heading-row">
+                        <h2>Должности</h2>
                       </div>
                       {selectedMember.positions.length > 0 ? (
                         <div className="duty-position-list">
@@ -919,33 +918,7 @@ export default function DutyMembersPage() {
 
                     <div className="profile-detail-block duty-member-profile-section">
                       <div className="block-heading-row">
-                        <div>
-                          <span>Служебный доступ</span>
-                          <h2>Служебный доступ</h2>
-                        </div>
-                      </div>
-                      {selectedMember.access ? (
-                        <dl className="registry-info-grid">
-                          <div className="registry-info-field">
-                            <dt>Логин</dt>
-                            <dd>{selectedMember.access.login}</dd>
-                          </div>
-                          <div className="registry-info-field">
-                            <dt>Роль доступа</dt>
-                            <dd>{selectedMember.access.roleLabel}</dd>
-                          </div>
-                        </dl>
-                      ) : (
-                        <p className="empty-state">Доступ не назначен.</p>
-                      )}
-                    </div>
-
-                    <div className="profile-detail-block duty-member-profile-section">
-                      <div className="block-heading-row">
-                        <div>
-                          <span>Служебные пометки</span>
-                          <h2>Заметки</h2>
-                        </div>
+                        <h2>Заметки</h2>
                       </div>
                       <p className="duty-member-notes">{selectedMember.notes || "Заметок нет."}</p>
                     </div>
@@ -953,10 +926,7 @@ export default function DutyMembersPage() {
                     {isOwnProfile ? (
                       <form className="profile-detail-block duty-member-profile-section duty-password-form" onSubmit={handlePasswordSubmit}>
                         <div className="block-heading-row">
-                          <div>
-                            <span>Служебный доступ</span>
-                            <h2>Смена пароля</h2>
-                          </div>
+                          <h2>Смена пароля</h2>
                         </div>
                         <div className="duty-member-form-grid">
                           <label className="filter-field">
