@@ -1,6 +1,7 @@
 import { getAccessUserDisplayName } from "@/lib/auth/access-user-display";
 import { requireApiAuth } from "@/lib/auth/require-api-auth";
 import { getPrismaClient } from "@/lib/prisma";
+import { isDutyMemberExcluded } from "../../../duty-member-route-utils";
 import {
   createStaffListErrorResponse,
   mapStaffSectionToResponse,
@@ -51,13 +52,17 @@ export async function PATCH(request: Request, context: PositionContext) {
   if (nextDutyMemberId) {
     const member = await prisma.dutyMember
       .findUnique({
-        select: { accessUserId: true, id: true },
+        select: { accessUserId: true, id: true, serviceStatus: true },
         where: { id: nextDutyMemberId },
       })
       .catch(() => null);
 
     if (!member || !member.accessUserId) {
       return createStaffListErrorResponse("Профиль не найден.", 404);
+    }
+
+    if (isDutyMemberExcluded(member.serviceStatus)) {
+      return createStaffListErrorResponse("Доступ к операции запрещён.", 403);
     }
   }
 

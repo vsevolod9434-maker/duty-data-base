@@ -8845,11 +8845,34 @@ body::after,
   gap: 0.5rem;
 }
 
+.duty-members-page .duty-member-list-section {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.duty-members-page .duty-member-list-section-archived {
+  margin-top: 0.7rem;
+  padding-top: 0.78rem;
+  border-top: 1px solid rgba(190, 204, 209, 0.12);
+}
+
+.duty-members-page .duty-member-list-section-heading {
+  margin-bottom: 0;
+}
+
+.duty-members-page .duty-member-list-section-heading h2 {
+  margin: 0;
+  color: rgba(226, 231, 231, 0.92);
+  font-size: 0.88rem;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
 .duty-members-page .duty-member-list-row {
-  grid-template-columns: 4.8rem minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
-  gap: 0.76rem;
-  min-height: 7.25rem;
+  gap: 0.42rem;
+  min-height: 5.5rem;
   border-color: rgba(118, 127, 132, 0.16);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 52%),
@@ -8862,23 +8885,8 @@ body::after,
     box-shadow 140ms ease;
 }
 
-.duty-members-page .duty-member-list-photo {
-  width: 4.8rem;
-  height: 5.95rem;
-  align-self: start;
-  border-color: rgba(120, 129, 134, 0.16);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.028), transparent 55%),
-    #070a0b;
-}
-
-.duty-members-page .duty-member-list-photo img.profile-photo-placeholder {
-  object-fit: contain;
-  padding: 0.3rem;
-  filter: none;
-}
-
 .duty-members-page .duty-member-list-copy {
+  display: grid;
   align-content: start;
   gap: 0.28rem;
   overflow: hidden;
@@ -8961,10 +8969,6 @@ body::after,
 
 .duty-members-page .duty-member-list-row.duty-member-list-row-active .duty-member-list-name {
   color: #f7e8e9;
-}
-
-.duty-members-page .duty-member-list-row.duty-member-list-row-active .duty-member-list-photo {
-  border-color: rgba(177, 63, 70, 0.36);
 }
 
 .duty-members-page .duty-member-detail-panel {
@@ -9539,12 +9543,7 @@ body::after,
   }
 
   .duty-members-page .duty-member-list-row {
-    grid-template-columns: 4.5rem minmax(0, 1fr);
-  }
-
-  .duty-members-page .duty-member-list-photo {
-    width: 4.5rem;
-    height: 5.6rem;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .duty-members-page .duty-member-hero,

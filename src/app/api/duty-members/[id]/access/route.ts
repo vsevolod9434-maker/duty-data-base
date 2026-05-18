@@ -4,6 +4,7 @@ import {
   canManageDutyAccess,
   createDutyMemberErrorResponse,
   dutyMemberInclude,
+  isDutyMemberExcluded,
   mapDutyMemberToResponse,
 } from "../../duty-member-route-utils";
 
@@ -51,6 +52,10 @@ export async function PATCH(request: Request, context: DutyMemberAccessContext) 
 
   if (!permission.ok) {
     return createDutyMemberErrorResponse(permission.message, 403);
+  }
+
+  if (isDutyMemberExcluded(member.serviceStatus) && payload.isActive) {
+    return createDutyMemberErrorResponse("Доступ к операции запрещён.", 403);
   }
 
   const accessUpdated = await prisma.accessUser

@@ -1,7 +1,7 @@
 import { requireApiAuth } from "@/lib/auth/require-api-auth";
 import { getPrismaClient } from "@/lib/prisma";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createDutyMemberErrorResponse } from "../duty-member-route-utils";
+import { createDutyMemberErrorResponse, isDutyMemberExcluded } from "../duty-member-route-utils";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,7 +48,7 @@ export async function PATCH(request: Request) {
     select: {
       authEmail: true,
       dutyMember: {
-        select: { id: true },
+        select: { id: true, serviceStatus: true },
       },
       id: true,
     },
@@ -56,6 +56,10 @@ export async function PATCH(request: Request) {
   });
 
   if (!accessUser?.dutyMember) {
+    return createDutyMemberErrorResponse("Доступ к операции запрещён.", 403);
+  }
+
+  if (isDutyMemberExcluded(accessUser.dutyMember.serviceStatus)) {
     return createDutyMemberErrorResponse("Доступ к операции запрещён.", 403);
   }
 

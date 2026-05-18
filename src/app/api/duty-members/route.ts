@@ -4,6 +4,7 @@ import {
   buildDutyMemberData,
   createDutyMemberErrorResponse,
   dutyMemberInclude,
+  isDutyMemberExcluded,
   mapDutyMemberToResponse,
   normalizeAccessLogin,
   type DutyMemberPayload,
@@ -109,16 +110,30 @@ export async function POST(request: Request) {
     callSign: data.value.callsign || linkedAccessUser.login,
     callsign: data.value.callsign || linkedAccessUser.login,
   };
-  const member = await prisma.dutyMember
-    .create({
-      data: {
-        id: crypto.randomUUID(),
-        ...memberData,
-        accessUserId: linkedAccessUser.id,
-        createdAt: now,
-        updatedAt: now,
-      },
-      include: dutyMemberInclude,
+  const createdMemberId = crypto.randomUUID();
+  const member = await prisma
+    .$transaction(async (transaction) => {
+      await transaction.dutyMember.create({
+        data: {
+          id: createdMemberId,
+          ...memberData,
+          accessUserId: linkedAccessUser.id,
+          createdAt: now,
+          updatedAt: now,
+        },
+      });
+
+      if (isDutyMemberExcluded(memberData.serviceStatus)) {
+        await transaction.accessUser.update({
+          data: { isActive: false },
+          where: { id: linkedAccessUser.id },
+        });
+      }
+
+      return transaction.dutyMember.findUnique({
+        include: dutyMemberInclude,
+        where: { id: createdMemberId },
+      });
     })
     .catch(() => null);
 

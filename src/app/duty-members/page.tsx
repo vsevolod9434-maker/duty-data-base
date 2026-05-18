@@ -114,11 +114,21 @@ const accessFilters: Array<{ label: string; value: DutyAccessFilter }> = [
   { label: "Заблокированы", value: "blocked" },
 ];
 
+const activeDutyServiceStatuses: DutyServiceStatus[] = ["active", "leave", "wounded", "missing"];
+
+function isExcludedMember(member: DutyMember) {
+  return member.serviceStatus === "discharged";
+}
+
 function getMemberPrimaryName(member: DutyMember) {
   return member.fullName || member.callsign || "Без имени";
 }
 
 function getAccessStatus(member: DutyMember) {
+  if (isExcludedMember(member)) {
+    return "Доступ заблокирован";
+  }
+
   if (!member.access) {
     return "Доступ не назначен";
   }
@@ -127,6 +137,10 @@ function getAccessStatus(member: DutyMember) {
 }
 
 function getAccessBadgeClass(member: DutyMember) {
+  if (isExcludedMember(member)) {
+    return "registry-status-badge-danger";
+  }
+
   if (!member.access) {
     return "registry-status-badge-muted";
   }
@@ -191,7 +205,7 @@ function matchesMemberSearch(member: DutyMember, query: string) {
 
 function matchesAccessFilter(member: DutyMember, filter: DutyAccessFilter) {
   if (filter === "with_access") {
-    return Boolean(member.access?.isActive);
+    return !isExcludedMember(member) && Boolean(member.access?.isActive);
   }
 
   if (filter === "without_access") {
@@ -199,7 +213,7 @@ function matchesAccessFilter(member: DutyMember, filter: DutyAccessFilter) {
   }
 
   if (filter === "blocked") {
-    return Boolean(member.access && !member.access.isActive);
+    return isExcludedMember(member) || Boolean(member.access && !member.access.isActive);
   }
 
   return true;
@@ -279,8 +293,15 @@ export default function DutyMembersPage() {
         .filter((member) => matchesMemberSearch(member, searchQuery)),
     [accessFilter, members, searchQuery],
   );
+  const activeMembers = useMemo(
+    () => filteredMembers.filter((member) => activeDutyServiceStatuses.includes(member.serviceStatus)),
+    [filteredMembers],
+  );
+  const excludedMembers = useMemo(() => filteredMembers.filter(isExcludedMember), [filteredMembers]);
   const canManage = currentUser?.role === "system_admin" || currentUser?.role === "officer";
   const isOwnProfile = Boolean(selectedMember?.access && selectedMember.access.login === currentUser?.login);
+  const isSelectedMemberExcluded = Boolean(selectedMember && isExcludedMember(selectedMember));
+  const hasSearchOrFilter = Boolean(searchQuery.trim()) || accessFilter !== "all";
   const isEditing = isCreating || Boolean(editingId);
   const availableAccessUsers = useMemo(
     () => accessUsers.filter((user) => !user.dutyMemberId || user.dutyMemberId === editingId),
@@ -518,6 +539,7 @@ export default function DutyMembersPage() {
       setAccessUsers((currentUsers) =>
         currentUsers.map((user) => ({
           ...user,
+          isActive: user.login === savedMember.access?.login ? (savedMember.access?.isActive ?? false) : user.isActive,
           dutyMemberId: user.login === savedMember.access?.login ? savedMember.id : user.dutyMemberId === savedMember.id ? null : user.dutyMemberId,
         })),
       );
@@ -572,6 +594,9 @@ export default function DutyMembersPage() {
       });
 
       setMembers((currentMembers) => currentMembers.map((currentMember) => (currentMember.id === updatedMember.id ? updatedMember : currentMember)));
+      setAccessUsers((currentUsers) =>
+        currentUsers.map((user) => (user.login === updatedMember.access?.login ? { ...user, isActive: updatedMember.access?.isActive ?? false } : user)),
+      );
       setConfirmDialog(null);
     } catch (error) {
       setActionMessage(error instanceof Error ? error.message : "Не удалось выполнить операцию.");
@@ -583,7 +608,7 @@ export default function DutyMembersPage() {
   function requestExclude(member: DutyMember) {
     setConfirmDialog({
       title: "Исключить из состава?",
-      message: "Профиль будет переведён в состояние исключённого из состава.",
+      message: "Профиль будет переведён в список исключённых. Служебный доступ будет заблокирован.",
       confirmLabel: "Исключить",
       variant: "danger",
       onConfirm: async () => {
@@ -602,6 +627,9 @@ export default function DutyMembersPage() {
       });
 
       setMembers((currentMembers) => currentMembers.map((currentMember) => (currentMember.id === updatedMember.id ? updatedMember : currentMember)));
+      setAccessUsers((currentUsers) =>
+        currentUsers.map((user) => (user.login === updatedMember.access?.login ? { ...user, isActive: false } : user)),
+      );
       setSelectedMemberId(updatedMember.id);
       setConfirmDialog(null);
       closeForm();
@@ -614,6 +642,12 @@ export default function DutyMembersPage() {
 
   async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (selectedMember && isExcludedMember(selectedMember)) {
+      setPasswordMessage("Доступ к операции запрещён.");
+      return;
+    }
+
     setIsPasswordSaving(true);
     setPasswordMessage("");
 
@@ -634,6 +668,11 @@ export default function DutyMembersPage() {
   }
 
   function openResetPassword(member: DutyMember) {
+    if (isExcludedMember(member)) {
+      setActionMessage("Доступ к операции запрещён.");
+      return;
+    }
+
     setResetPasswordState({
       member,
       newPassword: "",
@@ -651,6 +690,11 @@ export default function DutyMembersPage() {
     event.preventDefault();
 
     if (!resetPasswordState) {
+      return;
+    }
+
+    if (isExcludedMember(resetPasswordState.member)) {
+      setResetPasswordMessage("Доступ к операции запрещён.");
       return;
     }
 
@@ -795,32 +839,67 @@ export default function DutyMembersPage() {
                 {isLoading ? <p className="empty-state">Загрузка состава...</p> : null}
                 {!isLoading && loadError ? <p className="draft-message">{loadError}</p> : null}
                 {!isLoading && !loadError && members.length === 0 ? <p className="empty-state">Профили состава пока не добавлены.</p> : null}
-                {!isLoading && !loadError && members.length > 0 && filteredMembers.length === 0 ? <p className="empty-state">Профили не найдены.</p> : null}
-                {!isLoading && !loadError && filteredMembers.length > 0 ? (
-                  <div className="duty-member-list">
-                    {filteredMembers.map((member) => (
-                      <button
-                        aria-pressed={selectedMemberId === member.id}
-                        className={selectedMemberId === member.id ? "duty-member-list-row duty-member-list-row-active" : "duty-member-list-row"}
-                        key={member.id}
-                        onClick={() => {
-                          setSelectedMemberId(member.id);
-                          closeForm();
-                        }}
-                        type="button"
-                      >
-                        <span className="duty-member-list-photo">
-                          <DutyMemberPhoto alt="Фотография профиля состава" src={member.photoUrl} />
-                        </span>
-                        <span className="duty-member-list-copy">
-                          <span className="duty-member-list-head">
-                            <strong className="duty-member-list-name">{getMemberPrimaryName(member)}</strong>
+                {!isLoading && !loadError && members.length > 0 && activeMembers.length === 0 && excludedMembers.length === 0 ? <p className="empty-state">Профили не найдены.</p> : null}
+                {!isLoading && !loadError && activeMembers.length > 0 ? (
+                  <div className="duty-member-list-section">
+                    <div className="duty-member-list">
+                      {activeMembers.map((member) => (
+                        <button
+                          aria-pressed={selectedMemberId === member.id}
+                          className={selectedMemberId === member.id ? "duty-member-list-row duty-member-list-row-active" : "duty-member-list-row"}
+                          key={member.id}
+                          onClick={() => {
+                            setSelectedMemberId(member.id);
+                            closeForm();
+                          }}
+                          type="button"
+                        >
+                          <span className="duty-member-list-copy">
+                            <span className="duty-member-list-head">
+                              <strong className="duty-member-list-name">{getMemberPrimaryName(member)}</strong>
+                            </span>
+                            {member.rank ? <span className="duty-member-list-line">Звание: {member.rank}</span> : null}
+                            <span className="duty-member-list-line duty-member-position-preview">{getMemberPositionSummary(member)}</span>
                           </span>
-                          {member.rank ? <span className="duty-member-list-line">Звание: {member.rank}</span> : null}
-                          <span className="duty-member-list-line duty-member-position-preview">{getMemberPositionSummary(member)}</span>
-                        </span>
-                      </button>
-                    ))}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                {!isLoading && !loadError && members.length > 0 && activeMembers.length === 0 && excludedMembers.length > 0 && !hasSearchOrFilter ? (
+                  <p className="empty-state">Действующих профилей нет.</p>
+                ) : null}
+                {!isLoading && !loadError && members.some(isExcludedMember) && (excludedMembers.length > 0 || !hasSearchOrFilter) ? (
+                  <div className="duty-member-list-section duty-member-list-section-archived">
+                    <div className="block-heading-row duty-member-list-section-heading">
+                      <h2>Исключённые из состава</h2>
+                    </div>
+                    {excludedMembers.length > 0 ? (
+                      <div className="duty-member-list duty-member-list-archived">
+                        {excludedMembers.map((member) => (
+                          <button
+                            aria-pressed={selectedMemberId === member.id}
+                            className={selectedMemberId === member.id ? "duty-member-list-row duty-member-list-row-active" : "duty-member-list-row"}
+                            key={member.id}
+                            onClick={() => {
+                              setSelectedMemberId(member.id);
+                              closeForm();
+                            }}
+                            type="button"
+                          >
+                            <span className="duty-member-list-copy">
+                              <span className="duty-member-list-head">
+                                <strong className="duty-member-list-name">{getMemberPrimaryName(member)}</strong>
+                              </span>
+                              {member.rank ? <span className="duty-member-list-line">Звание: {member.rank}</span> : null}
+                              <span className="duty-member-list-line duty-member-position-preview">{getMemberPositionSummary(member)}</span>
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="empty-state">Исключённые профили не найдены.</p>
+                    )}
                   </div>
                 ) : null}
               </div>
@@ -856,23 +935,28 @@ export default function DutyMembersPage() {
                             <button className="command-row interactive-button duty-member-action-button" onClick={() => startEdit(selectedMember)} type="button">
                               Изменить профиль
                             </button>
-                            {selectedMember.access?.isActive ? (
+                            {!isSelectedMemberExcluded && selectedMember.access?.isActive ? (
                               <button className="command-row interactive-button duty-member-action-button" disabled={!canManageTarget(selectedMember)} onClick={() => requestAccessChange(selectedMember, false)} type="button">
                                 Временно заблокировать доступ
                               </button>
-                            ) : selectedMember.access ? (
+                            ) : !isSelectedMemberExcluded && selectedMember.access ? (
                               <button className="command-row interactive-button duty-member-action-button" disabled={!canManageTarget(selectedMember)} onClick={() => requestAccessChange(selectedMember, true)} type="button">
                                 Восстановить доступ
                               </button>
-                            ) : (
+                            ) : !isSelectedMemberExcluded ? (
                               <span className="registry-status-badge-muted">Доступ не назначен</span>
-                            )}
-                            <button className="command-row interactive-button duty-member-action-button" disabled={!canManageTarget(selectedMember)} onClick={() => openResetPassword(selectedMember)} type="button">
-                              Сбросить пароль
-                            </button>
-                            <button className="primary-command interactive-button duty-member-action-button duty-member-danger-action" disabled={!canManageTarget(selectedMember)} onClick={() => requestExclude(selectedMember)} type="button">
-                              Исключить из состава
-                            </button>
+                            ) : null}
+                            {!isSelectedMemberExcluded ? (
+                              <button className="command-row interactive-button duty-member-action-button" disabled={!canManageTarget(selectedMember)} onClick={() => openResetPassword(selectedMember)} type="button">
+                                Сбросить пароль
+                              </button>
+                            ) : null}
+                            {!isSelectedMemberExcluded ? (
+                              <button className="primary-command interactive-button duty-member-action-button duty-member-danger-action" disabled={!canManageTarget(selectedMember)} onClick={() => requestExclude(selectedMember)} type="button">
+                                Исключить из состава
+                              </button>
+                            ) : null}
+                            {isSelectedMemberExcluded ? <span className="registry-status-badge-muted">Пароль и доступ недоступны для исключённого профиля.</span> : null}
                           </div>
                         ) : null}
                       </div>
@@ -923,7 +1007,7 @@ export default function DutyMembersPage() {
                       <p className="duty-member-notes">{selectedMember.notes || "Заметок нет."}</p>
                     </div>
 
-                    {isOwnProfile ? (
+                    {isOwnProfile && !isSelectedMemberExcluded ? (
                       <form className="profile-detail-block duty-member-profile-section duty-password-form" onSubmit={handlePasswordSubmit}>
                         <div className="block-heading-row">
                           <h2>Смена пароля</h2>

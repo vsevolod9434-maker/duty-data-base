@@ -39,6 +39,7 @@ async function main() {
   let created = 0;
   let linked = 0;
   let updated = 0;
+  let blockedExcluded = 0;
 
   try {
     const accessUsers = await prisma.accessUser.findMany({
@@ -52,6 +53,14 @@ async function main() {
       if (accessUser.dutyMember) {
         const nextFullName = accessUser.dutyMember.fullName || accessUser.displayName || accessUser.login;
         const nextCallsign = accessUser.dutyMember.callsign || accessUser.login;
+
+        if (accessUser.dutyMember.serviceStatus === "discharged" && accessUser.isActive) {
+          await prisma.accessUser.update({
+            data: { isActive: false },
+            where: { id: accessUser.id },
+          });
+          blockedExcluded += 1;
+        }
 
         if (nextFullName !== accessUser.dutyMember.fullName || nextCallsign !== accessUser.dutyMember.callsign) {
           await prisma.dutyMember.update({
@@ -168,6 +177,7 @@ async function main() {
         `Создано профилей: ${created}`,
         `Связано существующих профилей: ${linked}`,
         `Обновлено профилей: ${updated}`,
+        `Заблокировано исключённых доступов: ${blockedExcluded}`,
         `Освобождено должностей: ${releasedPositions}`,
         `Архивировано профилей без доступа: ${archivedOrphans}`,
       ].join("\n"),

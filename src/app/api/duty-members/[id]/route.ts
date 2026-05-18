@@ -5,6 +5,7 @@ import {
   canDeleteDutyMember,
   createDutyMemberErrorResponse,
   dutyMemberInclude,
+  isDutyMemberExcluded,
   mapDutyMemberToResponse,
   normalizeAccessLogin,
   type DutyMemberPayload,
@@ -124,18 +125,45 @@ export async function PATCH(request: Request, context: DutyMemberContext) {
     }
   }
 
-  const member = await prisma.dutyMember
-    .update({
-      data: {
-        ...data.value,
-        fullName: data.value.fullName || accessUser!.displayName || accessUser!.login,
-        callSign: data.value.callsign || accessUser!.login,
-        callsign: data.value.callsign || accessUser!.login,
-        accessUserId: accessUser!.id,
-        updatedAt: new Date(),
-      },
-      include: dutyMemberInclude,
-      where: { id },
+  const nextMemberData = {
+    ...data.value,
+    fullName: data.value.fullName || accessUser.displayName || accessUser.login,
+    callSign: data.value.callsign || accessUser.login,
+    callsign: data.value.callsign || accessUser.login,
+    accessUserId: accessUser.id,
+    updatedAt: new Date(),
+  };
+
+  const member = await prisma
+    .$transaction(async (transaction) => {
+      const updatedMember = await transaction.dutyMember.update({
+        data: nextMemberData,
+        include: dutyMemberInclude,
+        where: { id },
+      });
+
+      if (isDutyMemberExcluded(nextMemberData.serviceStatus)) {
+        await transaction.accessUser.update({
+          data: { isActive: false },
+          where: { id: accessUser.id },
+        });
+
+        await transaction.dutyStaffPosition.updateMany({
+          data: {
+            assignedAt: null,
+            dutyMemberId: null,
+            updatedAt: new Date(),
+          },
+          where: { dutyMemberId: id },
+        });
+
+        return transaction.dutyMember.findUnique({
+          include: dutyMemberInclude,
+          where: { id },
+        });
+      }
+
+      return updatedMember;
     })
     .catch(() => null);
 
@@ -175,8 +203,14 @@ export async function DELETE(_request: Request, context: DutyMemberContext) {
     return createDutyMemberErrorResponse(permission.message, 403);
   }
 
+  const accessUserId = member.accessUserId;
   const excludedMember = await prisma
     .$transaction(async (transaction) => {
+      await transaction.accessUser.update({
+        data: { isActive: false },
+        where: { id: accessUserId },
+      });
+
       await transaction.dutyStaffPosition.updateMany({
         data: {
           assignedAt: null,

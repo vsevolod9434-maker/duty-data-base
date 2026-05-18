@@ -106,6 +106,10 @@ export function isDutyMemberProfileStatus(value: unknown): value is DutyMemberPr
   return typeof value === "string" && profileStatuses.has(value as DutyMemberProfileStatus);
 }
 
+export function isDutyMemberExcluded(serviceStatus: DutyServiceStatus) {
+  return serviceStatus === "discharged";
+}
+
 export function mapDutyMemberToResponse(member: DutyMemberRecord) {
   return {
     id: member.id,
@@ -133,7 +137,7 @@ export function mapDutyMemberToResponse(member: DutyMemberRecord) {
           displayName: member.accessUser.displayName,
           role: member.accessUser.role,
           roleLabel: getRoleLabel(member.accessUser.role as UserRole),
-          isActive: member.accessUser.isActive,
+          isActive: isDutyMemberExcluded(member.serviceStatus) ? false : member.accessUser.isActive,
         }
       : null,
   };

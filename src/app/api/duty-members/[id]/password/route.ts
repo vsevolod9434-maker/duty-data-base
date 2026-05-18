@@ -1,7 +1,7 @@
 import { requireApiAuth } from "@/lib/auth/require-api-auth";
 import { getPrismaClient } from "@/lib/prisma";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
-import { canManageDutyAccess, createDutyMemberErrorResponse } from "../../duty-member-route-utils";
+import { canManageDutyAccess, createDutyMemberErrorResponse, isDutyMemberExcluded } from "../../duty-member-route-utils";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +16,7 @@ type ResetPasswordPayload = {
 };
 
 const resetPasswordErrorMessage = "Пароль не изменён. Проверьте введённые данные.";
+const operationUnavailableMessage = "Операция временно недоступна.";
 
 export async function PATCH(request: Request, context: DutyMemberPasswordContext) {
   const auth = await requireApiAuth();
@@ -57,6 +58,7 @@ export async function PATCH(request: Request, context: DutyMemberPasswordContext
           },
         },
         id: true,
+        serviceStatus: true,
       },
       where: { id },
     })
@@ -73,6 +75,14 @@ export async function PATCH(request: Request, context: DutyMemberPasswordContext
 
   if (!permission.ok) {
     return createDutyMemberErrorResponse(permission.message, 403);
+  }
+
+  if (isDutyMemberExcluded(member.serviceStatus)) {
+    return createDutyMemberErrorResponse("Доступ к операции запрещён.", 403);
+  }
+
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return createDutyMemberErrorResponse(operationUnavailableMessage, 503);
   }
 
   try {
