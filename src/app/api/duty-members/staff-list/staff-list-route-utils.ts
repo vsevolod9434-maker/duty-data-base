@@ -1,4 +1,5 @@
 import { getRoleLabel, type UserRole } from "@/lib/auth-roles";
+import { isDutyMemberVisibleRole } from "@/lib/duty-members";
 
 export const staffListInclude = {
   positions: {
@@ -64,7 +65,9 @@ export function mapStaffSectionToResponse(section: StaffSectionRecord) {
       assignedAt: position.assignedAt?.toISOString() ?? null,
       assignedBy: position.assignedBy,
       updatedBy: position.updatedBy,
-      member: position.dutyMember?.accessUser
+      member:
+        position.dutyMember?.accessUser &&
+        isDutyMemberVisibleRole(position.dutyMember.accessUser.role as UserRole)
         ? {
             id: position.dutyMember.id,
             fullName: position.dutyMember.fullName,

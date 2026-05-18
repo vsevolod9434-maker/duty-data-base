@@ -1,5 +1,6 @@
 import { requireApiAuth } from "@/lib/auth/require-api-auth";
 import { getRoleLabel, type UserRole } from "@/lib/auth-roles";
+import { getDutyAccessLevelLabel } from "@/lib/duty-members";
 import { getPrismaClient } from "@/lib/prisma";
 import { createDutyMemberErrorResponse } from "../duty-member-route-utils";
 
@@ -31,6 +32,11 @@ export async function GET() {
         login: true,
         role: true,
       },
+      where: {
+        role: {
+          not: "system_admin",
+        },
+      },
     });
 
     return Response.json(
@@ -39,6 +45,7 @@ export async function GET() {
         displayName: user.displayName,
         role: user.role,
         roleLabel: getRoleLabel(user.role as UserRole),
+        accessLevelLabel: getDutyAccessLevelLabel(user.role as UserRole),
         isActive: user.isActive,
         dutyMemberId: user.dutyMember?.id ?? null,
       })),

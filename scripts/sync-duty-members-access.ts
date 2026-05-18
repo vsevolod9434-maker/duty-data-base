@@ -40,6 +40,7 @@ async function main() {
   let linked = 0;
   let updated = 0;
   let blockedExcluded = 0;
+  let releasedSystemAdmins = 0;
 
   try {
     const accessUsers = await prisma.accessUser.findMany({
@@ -50,6 +51,10 @@ async function main() {
     });
 
     for (const accessUser of accessUsers) {
+      if (accessUser.role === "system_admin") {
+        continue;
+      }
+
       if (accessUser.dutyMember) {
         const nextFullName = accessUser.dutyMember.fullName || accessUser.displayName || accessUser.login;
         const nextCallsign = accessUser.dutyMember.callsign || accessUser.login;
@@ -140,9 +145,31 @@ async function main() {
         where: { accessUserId: null },
       })
     ).map((member) => member.id);
+    const hiddenRoleIds = (
+      await prisma.dutyMember.findMany({
+        select: { id: true },
+        where: {
+          accessUser: {
+            role: "system_admin",
+          },
+        },
+      })
+    ).map((member) => member.id);
 
     let releasedPositions = 0;
     let archivedOrphans = 0;
+
+    if (hiddenRoleIds.length > 0) {
+      const releaseHiddenResult = await prisma.dutyStaffPosition.updateMany({
+        data: {
+          assignedAt: null,
+          dutyMemberId: null,
+          updatedAt: now,
+        },
+        where: { dutyMemberId: { in: hiddenRoleIds } },
+      });
+      releasedSystemAdmins = releaseHiddenResult.count;
+    }
 
     if (orphanIds.length > 0) {
       const releaseResult = await prisma.dutyStaffPosition.updateMany({
@@ -178,6 +205,7 @@ async function main() {
         `Связано существующих профилей: ${linked}`,
         `Обновлено профилей: ${updated}`,
         `Заблокировано исключённых доступов: ${blockedExcluded}`,
+        `Освобождено должностей системного администратора: ${releasedSystemAdmins}`,
         `Освобождено должностей: ${releasedPositions}`,
         `Архивировано профилей без доступа: ${archivedOrphans}`,
       ].join("\n"),

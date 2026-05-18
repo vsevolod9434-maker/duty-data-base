@@ -5,6 +5,7 @@ import {
   canDeleteDutyMember,
   createDutyMemberErrorResponse,
   dutyMemberInclude,
+  isHiddenDutyMemberRole,
   isDutyMemberExcluded,
   mapDutyMemberToResponse,
   normalizeAccessLogin,
@@ -34,7 +35,7 @@ export async function GET(_request: Request, context: DutyMemberContext) {
     })
     .catch(() => null);
 
-  if (!member || !member.accessUserId) {
+  if (!member || !member.accessUserId || isHiddenDutyMemberRole(member.accessUser?.role)) {
     return createDutyMemberErrorResponse("Профиль не найден.", 404);
   }
 
@@ -73,7 +74,7 @@ export async function PATCH(request: Request, context: DutyMemberContext) {
     })
     .catch(() => null);
 
-  if (!currentMember || !currentMember.accessUserId) {
+  if (!currentMember || !currentMember.accessUserId || isHiddenDutyMemberRole(currentMember.accessUser?.role)) {
     return createDutyMemberErrorResponse("Профиль не найден.", 404);
   }
 
@@ -103,6 +104,10 @@ export async function PATCH(request: Request, context: DutyMemberContext) {
 
   if (!accessUser) {
     return createDutyMemberErrorResponse("Профиль доступа не найден.");
+  }
+
+  if (isHiddenDutyMemberRole(accessUser.role)) {
+    return createDutyMemberErrorResponse("Р”РѕСЃС‚СѓРї Рє РѕРїРµСЂР°С†РёРё Р·Р°РїСЂРµС‰С‘РЅ.", 403);
   }
 
   if (auth.role === "officer" && accessUser?.role === "system_admin") {
@@ -190,7 +195,7 @@ export async function DELETE(_request: Request, context: DutyMemberContext) {
     })
     .catch(() => null);
 
-  if (!member || !member.accessUserId) {
+  if (!member || !member.accessUserId || isHiddenDutyMemberRole(member.accessUser?.role)) {
     return createDutyMemberErrorResponse("Профиль не найден.", 404);
   }
 

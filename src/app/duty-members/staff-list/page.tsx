@@ -7,6 +7,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { apiFetchJson } from "@/lib/api-client";
 import type { UserRole } from "@/lib/auth-roles";
 import { cachePolicy, dutyDataKeys, scheduleClientStateSync, TWO_HOURS, useCurrentUserCacheKey, useDutyQueryClient } from "@/lib/data-cache";
+import { compareDutyMembersByRankAndName } from "@/lib/duty-members";
 
 type DutyMember = {
   id: string;
@@ -60,6 +61,10 @@ function matchesMemberSearch(member: DutyMember, query: string) {
     .some((value) => value!.toLocaleLowerCase("ru-RU").includes(normalizedQuery));
 }
 
+function getSortedMembers(members: DutyMember[]) {
+  return members.slice().sort(compareDutyMembersByRankAndName);
+}
+
 export default function DutyStaffListPage() {
   const queryClient = useDutyQueryClient();
   const { currentUser: cachedCurrentUser, currentUserKey, isCurrentUserLoading } = useCurrentUserCacheKey();
@@ -67,7 +72,7 @@ export default function DutyStaffListPage() {
     currentUserKey ? (queryClient.getQueryData<StaffSection[]>(dutyDataKeys.staffList(currentUserKey)) ?? []) : [],
   );
   const [members, setMembers] = useState<DutyMember[]>(() =>
-    currentUserKey ? (queryClient.getQueryData<DutyMember[]>(dutyDataKeys.dutyMembers(currentUserKey)) ?? []) : [],
+    currentUserKey ? getSortedMembers(queryClient.getQueryData<DutyMember[]>(dutyDataKeys.dutyMembers(currentUserKey)) ?? []) : [],
   );
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -83,6 +88,7 @@ export default function DutyStaffListPage() {
       members
         .filter((member) => member.serviceStatus !== "discharged")
         .filter((member) => matchesMemberSearch(member, memberSearchQuery))
+        .sort(compareDutyMembersByRankAndName)
         .slice(0, 12),
     [memberSearchQuery, members],
   );
@@ -116,7 +122,7 @@ export default function DutyStaffListPage() {
 
       if (cachedSections) {
         setSections(cachedSections);
-        setMembers(cachedMembers ?? []);
+        setMembers(getSortedMembers(cachedMembers ?? []));
         setIsLoading(false);
         return;
       }
@@ -146,7 +152,7 @@ export default function DutyStaffListPage() {
             setSections(loadedSections);
           }
 
-          setMembers(loadedMembers);
+          setMembers(getSortedMembers(loadedMembers));
           setIsLoading(false);
         }
       }
@@ -179,7 +185,7 @@ export default function DutyStaffListPage() {
   useEffect(() => {
     return scheduleClientStateSync(() => {
       if (membersQuery.data) {
-        setMembers(membersQuery.data);
+        setMembers(getSortedMembers(membersQuery.data));
       }
     });
   }, [membersQuery.data]);

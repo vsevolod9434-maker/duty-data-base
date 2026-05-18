@@ -1,7 +1,12 @@
 import { requireApiAuth } from "@/lib/auth/require-api-auth";
 import { getPrismaClient } from "@/lib/prisma";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
-import { canManageDutyAccess, createDutyMemberErrorResponse, isDutyMemberExcluded } from "../../duty-member-route-utils";
+import {
+  canManageDutyAccess,
+  createDutyMemberErrorResponse,
+  isDutyMemberExcluded,
+  isHiddenDutyMemberRole,
+} from "../../duty-member-route-utils";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -64,7 +69,7 @@ export async function PATCH(request: Request, context: DutyMemberPasswordContext
     })
     .catch(() => null);
 
-  if (!member?.accessUser) {
+  if (!member?.accessUser || isHiddenDutyMemberRole(member.accessUser.role)) {
     return createDutyMemberErrorResponse("Профиль не найден.", 404);
   }
 

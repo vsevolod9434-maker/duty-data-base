@@ -4,6 +4,7 @@ import {
   canManageDutyAccess,
   createDutyMemberErrorResponse,
   dutyMemberInclude,
+  isHiddenDutyMemberRole,
   isDutyMemberExcluded,
   mapDutyMemberToResponse,
 } from "../../duty-member-route-utils";
@@ -41,7 +42,7 @@ export async function PATCH(request: Request, context: DutyMemberAccessContext) 
     })
     .catch(() => null);
 
-  if (!member) {
+  if (!member || isHiddenDutyMemberRole(member.accessUser?.role)) {
     return createDutyMemberErrorResponse("Профиль не найден.", 404);
   }
 

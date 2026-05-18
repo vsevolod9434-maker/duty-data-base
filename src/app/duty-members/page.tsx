@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { apiFetchJson } from "@/lib/api-client";
 import type { UserRole } from "@/lib/auth-roles";
 import { cachePolicy, dutyDataKeys, scheduleClientStateSync, TWO_HOURS, useCurrentUserCacheKey, useDutyQueryClient } from "@/lib/data-cache";
+import { compareDutyMembersByRankAndName, isDutyMemberVisibleRole } from "@/lib/duty-members";
 
 type DutyServiceStatus = "active" | "leave" | "wounded" | "missing" | "discharged";
 type DutyMemberProfileStatus = "active" | "archived";
@@ -18,6 +19,7 @@ type DutyMemberAccess = {
   displayName: string | null;
   role: UserRole;
   roleLabel: string;
+  accessLevelLabel: string;
   isActive: boolean;
 };
 
@@ -55,6 +57,7 @@ type AccessUserOption = {
   displayName: string | null;
   role: UserRole;
   roleLabel: string;
+  accessLevelLabel: string;
   isActive: boolean;
   dutyMemberId: string | null;
 };
@@ -111,6 +114,7 @@ const serviceStatusOptions: Array<{ label: string; value: DutyServiceStatus }> =
 const accessFilters: Array<{ label: string; value: DutyAccessFilter }> = [
   { label: "Все", value: "all" },
   { label: "С доступом", value: "with_access" },
+  { label: "Без доступа", value: "without_access" },
   { label: "Заблокированы", value: "blocked" },
 ];
 
@@ -134,6 +138,10 @@ function getAccessStatus(member: DutyMember) {
   }
 
   return member.access.isActive ? "Доступ разрешён" : "Доступ заблокирован";
+}
+
+function getAccessLevelLabel(member: DutyMember) {
+  return member.access?.accessLevelLabel ?? "Не назначен";
 }
 
 function getAccessBadgeClass(member: DutyMember) {
@@ -196,7 +204,7 @@ function matchesMemberSearch(member: DutyMember, query: string) {
     serviceStatusLabels[member.serviceStatus],
     member.access?.login,
     member.access?.displayName,
-    member.access?.roleLabel,
+    member.access?.accessLevelLabel,
     ...member.positions.flatMap((position) => [position.title, position.sectionName]),
   ]
     .filter(Boolean)
@@ -220,11 +228,15 @@ function matchesAccessFilter(member: DutyMember, filter: DutyAccessFilter) {
 }
 
 function isAccessBackedMember(member: DutyMember) {
-  return Boolean(member.access);
+  return Boolean(member.access && isDutyMemberVisibleRole(member.access.role));
 }
 
 function getVisibleMembers(members: DutyMember[]) {
-  return members.filter(isAccessBackedMember);
+  return members.filter(isAccessBackedMember).sort(compareDutyMembersByRankAndName);
+}
+
+function getSelectableAccessUsers(users: AccessUserOption[]) {
+  return users.filter((user) => isDutyMemberVisibleRole(user.role));
 }
 
 function resolveSelectedMemberId(members: DutyMember[], currentId: string | null) {
@@ -259,7 +271,7 @@ export default function DutyMembersPage() {
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [accessUsers, setAccessUsers] = useState<AccessUserOption[]>(() =>
-    currentUserKey ? (queryClient.getQueryData<AccessUserOption[]>(dutyDataKeys.dutyAccessUsers(currentUserKey)) ?? []) : [],
+    currentUserKey ? getSelectableAccessUsers(queryClient.getQueryData<AccessUserOption[]>(dutyDataKeys.dutyAccessUsers(currentUserKey)) ?? []) : [],
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [accessFilter, setAccessFilter] = useState<DutyAccessFilter>("all");
@@ -290,7 +302,8 @@ export default function DutyMembersPage() {
     () =>
       members
         .filter((member) => matchesAccessFilter(member, accessFilter))
-        .filter((member) => matchesMemberSearch(member, searchQuery)),
+        .filter((member) => matchesMemberSearch(member, searchQuery))
+        .sort(compareDutyMembersByRankAndName),
     [accessFilter, members, searchQuery],
   );
   const activeMembers = useMemo(
@@ -304,7 +317,7 @@ export default function DutyMembersPage() {
   const hasSearchOrFilter = Boolean(searchQuery.trim()) || accessFilter !== "all";
   const isEditing = isCreating || Boolean(editingId);
   const availableAccessUsers = useMemo(
-    () => accessUsers.filter((user) => !user.dutyMemberId || user.dutyMemberId === editingId),
+    () => accessUsers.filter((user) => isDutyMemberVisibleRole(user.role) && (!user.dutyMemberId || user.dutyMemberId === editingId)),
     [accessUsers, editingId],
   );
 
@@ -341,7 +354,7 @@ export default function DutyMembersPage() {
         setIsLoading(false);
 
         if (cachedAccessUsers) {
-          setAccessUsers(cachedAccessUsers);
+          setAccessUsers(getSelectableAccessUsers(cachedAccessUsers));
         }
 
         return;
@@ -382,7 +395,7 @@ export default function DutyMembersPage() {
           const loadedAccessUsers = await apiFetchJson<AccessUserOption[]>("/api/duty-members/access-users").catch(() => []);
 
           if (!isCancelled) {
-            setAccessUsers(loadedAccessUsers);
+            setAccessUsers(getSelectableAccessUsers(loadedAccessUsers));
             if (currentUserKey) {
               queryClient.setQueryData(dutyDataKeys.dutyAccessUsers(currentUserKey), loadedAccessUsers);
             }
@@ -424,7 +437,7 @@ export default function DutyMembersPage() {
   useEffect(() => {
     return scheduleClientStateSync(() => {
       if (accessUsersQuery.data) {
-        setAccessUsers(accessUsersQuery.data);
+        setAccessUsers(getSelectableAccessUsers(accessUsersQuery.data));
       }
     });
   }, [accessUsersQuery.data]);
@@ -768,7 +781,7 @@ export default function DutyMembersPage() {
                   </option>
                   {availableAccessUsers.map((user) => (
                     <option key={user.login} value={user.login}>
-                      {user.displayName || user.login} · {user.roleLabel}
+                      {user.displayName || user.login} · {user.accessLevelLabel}
                     </option>
                   ))}
                 </select>
@@ -816,7 +829,7 @@ export default function DutyMembersPage() {
                   <div className="duty-member-search-filter-row">
                     <label className="filter-field">
                       <span>Поиск по составу</span>
-                      <input onChange={(event) => setSearchQuery(event.target.value)} placeholder="ФИО, звание, должность или доступ" type="search" value={searchQuery} />
+                      <input onChange={(event) => setSearchQuery(event.target.value)} placeholder="ФИО, звание или доступ" type="search" value={searchQuery} />
                     </label>
                     <label className="filter-field duty-member-access-filter">
                       <span>Фильтр доступа</span>
@@ -925,6 +938,7 @@ export default function DutyMembersPage() {
                               <h1 className="profile-hero-title">{getMemberPrimaryName(selectedMember)}</h1>
                               <div className="duty-member-hero-lines">
                                 <p>{selectedMember.rank ? `Звание: ${selectedMember.rank}` : "Звание не указано"}</p>
+                                <p>{`Уровень допуска: ${getAccessLevelLabel(selectedMember)}`}</p>
                               </div>
                             </div>
                           </div>
@@ -978,6 +992,10 @@ export default function DutyMembersPage() {
                         <div className="registry-info-field">
                           <dt>Статус состава</dt>
                           <dd>{serviceStatusLabels[selectedMember.serviceStatus]}</dd>
+                        </div>
+                        <div className="registry-info-field">
+                          <dt>Уровень допуска</dt>
+                          <dd>{getAccessLevelLabel(selectedMember)}</dd>
                         </div>
                       </dl>
                     </div>

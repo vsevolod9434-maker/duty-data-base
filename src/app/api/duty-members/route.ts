@@ -4,6 +4,7 @@ import {
   buildDutyMemberData,
   createDutyMemberErrorResponse,
   dutyMemberInclude,
+  isHiddenDutyMemberRole,
   isDutyMemberExcluded,
   mapDutyMemberToResponse,
   normalizeAccessLogin,
@@ -27,6 +28,9 @@ export async function GET() {
       include: dutyMemberInclude,
       where: {
         accessUserId: { not: null },
+        accessUser: {
+          role: { not: "system_admin" },
+        },
       },
       orderBy: [{ profileStatus: "asc" }, { fullName: "asc" }],
     });
@@ -83,6 +87,10 @@ export async function POST(request: Request) {
 
   if (!accessUser) {
     return createDutyMemberErrorResponse("Профиль доступа не найден.");
+  }
+
+  if (isHiddenDutyMemberRole(accessUser.role)) {
+    return createDutyMemberErrorResponse("Р”РѕСЃС‚СѓРї Рє РѕРїРµСЂР°С†РёРё Р·Р°РїСЂРµС‰С‘РЅ.", 403);
   }
 
   if (auth.role === "officer" && accessUser?.role === "system_admin") {
