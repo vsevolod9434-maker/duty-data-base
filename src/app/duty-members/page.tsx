@@ -63,12 +63,17 @@ type AccessUserOption = {
 };
 
 type DutyMemberDraft = {
+  accessLevel: "officer" | "regular";
   accessLogin: string;
   callsign: string;
+  displayName: string;
   fullName: string;
+  login: string;
   notes: string;
+  password: string;
   photoUrl: string;
   rank: string;
+  repeatPassword: string;
   serviceStatus: DutyServiceStatus;
 };
 
@@ -87,12 +92,17 @@ type ResetPasswordState = {
 };
 
 const emptyDraft: DutyMemberDraft = {
+  accessLevel: "regular",
   accessLogin: "",
   callsign: "",
+  displayName: "",
   fullName: "",
+  login: "",
   notes: "",
+  password: "",
   photoUrl: "",
   rank: "",
+  repeatPassword: "",
   serviceStatus: "active",
 };
 
@@ -116,6 +126,11 @@ const accessFilters: Array<{ label: string; value: DutyAccessFilter }> = [
   { label: "С доступом", value: "with_access" },
   { label: "Без доступа", value: "without_access" },
   { label: "Заблокированы", value: "blocked" },
+];
+
+const accessLevelOptions: Array<{ label: string; value: "officer" | "regular" }> = [
+  { label: "Офицерский допуск", value: "officer" },
+  { label: "Базовый допуск", value: "regular" },
 ];
 
 const activeDutyServiceStatuses: DutyServiceStatus[] = ["active", "leave", "wounded", "missing"];
@@ -180,12 +195,17 @@ function createDraft(member?: DutyMember): DutyMemberDraft {
   }
 
   return {
+    accessLevel: member.access?.role === "officer" ? "officer" : "regular",
     accessLogin: member.access?.login ?? "",
     callsign: member.callsign ?? "",
+    displayName: member.access?.displayName ?? "",
     fullName: member.fullName,
+    login: member.access?.login ?? "",
     notes: member.notes ?? "",
+    password: "",
     photoUrl: member.photoUrl ?? "",
     rank: member.rank ?? "",
+    repeatPassword: "",
     serviceStatus: member.serviceStatus === "missing" ? "wounded" : member.serviceStatus,
   };
 }
@@ -259,6 +279,20 @@ function buildMemberPayload(draft: DutyMemberDraft) {
     rank: draft.rank,
     serviceStatus: draft.serviceStatus,
     profileStatus: isExcluded ? "archived" : "active",
+  };
+}
+
+function buildCreateUserPayload(draft: DutyMemberDraft) {
+  return {
+    accessLevel: draft.accessLevel,
+    displayName: draft.displayName,
+    fullName: draft.fullName,
+    login: draft.login,
+    notes: draft.notes,
+    password: draft.password,
+    photoUrl: draft.photoUrl,
+    rank: draft.rank,
+    repeatPassword: draft.repeatPassword,
   };
 }
 
@@ -479,21 +513,9 @@ export default function DutyMembersPage() {
   }
 
   function startCreate() {
-    const firstAvailableAccessUser = availableAccessUsers[0];
-
-    if (!firstAvailableAccessUser) {
-      setActionMessage("Все пользователи доступа уже добавлены в состав.");
-      return;
-    }
-
     setIsCreating(true);
     setEditingId(null);
-    setDraft({
-      ...emptyDraft,
-      accessLogin: firstAvailableAccessUser.login,
-      callsign: firstAvailableAccessUser.login,
-      fullName: firstAvailableAccessUser.displayName || firstAvailableAccessUser.login,
-    });
+    setDraft(emptyDraft);
     setActionMessage("");
   }
 
@@ -519,8 +541,33 @@ export default function DutyMembersPage() {
       return;
     }
 
-    if (!draft.accessLogin.trim()) {
+    if (!isCreating && !draft.accessLogin.trim()) {
       setActionMessage("Выберите учётную запись доступа.");
+      return;
+    }
+
+    if (isCreating && !draft.login.trim()) {
+      setActionMessage("Введите логин.");
+      return;
+    }
+
+    if (isCreating && !draft.password) {
+      setActionMessage("Введите пароль.");
+      return;
+    }
+
+    if (isCreating && !draft.repeatPassword) {
+      setActionMessage("Повторите пароль.");
+      return;
+    }
+
+    if (isCreating && draft.password !== draft.repeatPassword) {
+      setActionMessage("Пароль и повтор не совпадают.");
+      return;
+    }
+
+    if (isCreating && (draft.password.length < 8 || draft.password.length > 128)) {
+      setActionMessage("Пароль должен быть от 8 до 128 символов.");
       return;
     }
 
@@ -534,11 +581,11 @@ export default function DutyMembersPage() {
 
     try {
       const savedMember = await apiFetchJson<DutyMember>(
-        editingId ? `/api/duty-members/${editingId}` : "/api/duty-members",
+        editingId ? `/api/duty-members/${editingId}` : "/api/duty-members/users",
         {
           method: editingId ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(buildMemberPayload(draft)),
+          body: JSON.stringify(editingId ? buildMemberPayload(draft) : buildCreateUserPayload(draft)),
         },
       );
 
@@ -547,7 +594,7 @@ export default function DutyMembersPage() {
           return currentMembers.map((member) => (member.id === savedMember.id ? savedMember : member));
         }
 
-        return [savedMember, ...currentMembers];
+        return getVisibleMembers([savedMember, ...currentMembers]);
       });
       setAccessUsers((currentUsers) =>
         currentUsers.map((user) => ({
@@ -745,47 +792,88 @@ export default function DutyMembersPage() {
         <form className="pda-modal duty-member-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleMemberSubmit}>
           <div className="section-header modal-header">
             <div className="min-w-0">
-              <span className="eyebrow-text">{editingId ? "Изменение профиля" : "Новый профиль"}</span>
-              <h1>{editingId ? "Редактирование профиля состава" : "Добавление в состав"}</h1>
+              <span className="eyebrow-text">{editingId ? "Изменение профиля" : "Новый пользователь"}</span>
+              <h1>{editingId ? "Редактирование профиля состава" : "Добавление пользователя"}</h1>
             </div>
           </div>
           <div className="modal-body duty-member-modal-body">
             <div className="duty-member-form-grid">
+              {isCreating ? (
+                <>
+                  <label className="filter-field">
+                    <span>Логин</span>
+                    <input autoComplete="username" disabled={isSaving} maxLength={64} onChange={(event) => updateDraft("login", event.target.value)} value={draft.login} />
+                  </label>
+                  <label className="filter-field">
+                    <span>Отображаемое имя</span>
+                    <input disabled={isSaving} maxLength={120} onChange={(event) => updateDraft("displayName", event.target.value)} value={draft.displayName} />
+                  </label>
+                </>
+              ) : null}
               <label className="filter-field duty-member-form-wide">
                 <span>ФИО</span>
                 <input disabled={isSaving} maxLength={120} onChange={(event) => updateDraft("fullName", event.target.value)} value={draft.fullName} />
               </label>
-              <label className="filter-field">
-                <span>Позывной</span>
-                <input disabled={isSaving} maxLength={80} onChange={(event) => updateDraft("callsign", event.target.value)} value={draft.callsign} />
-              </label>
+              {!isCreating ? (
+                <label className="filter-field">
+                  <span>Позывной</span>
+                  <input disabled={isSaving} maxLength={80} onChange={(event) => updateDraft("callsign", event.target.value)} value={draft.callsign} />
+                </label>
+              ) : null}
               <label className="filter-field">
                 <span>Звание</span>
                 <input disabled={isSaving} maxLength={80} onChange={(event) => updateDraft("rank", event.target.value)} value={draft.rank} />
               </label>
-              <label className="filter-field">
-                <span>Статус состава</span>
-                <select disabled={isSaving} onChange={(event) => updateDraft("serviceStatus", event.target.value)} value={draft.serviceStatus}>
-                  {serviceStatusOptions.map((status) => (
-                    <option key={status.value} value={status.value}>
-                      {status.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="filter-field">
-                <span>Учётная запись доступа</span>
-                <select disabled={isSaving} onChange={(event) => updateAccessDraft(event.target.value)} value={draft.accessLogin}>
-                  <option disabled value="">
-                    Выберите учётную запись доступа
-                  </option>
-                  {availableAccessUsers.map((user) => (
-                    <option key={user.login} value={user.login}>
-                      {user.displayName || user.login} · {user.accessLevelLabel}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {isCreating ? (
+                <label className="filter-field">
+                  <span>Уровень допуска</span>
+                  <select disabled={isSaving} onChange={(event) => updateDraft("accessLevel", event.target.value)} value={draft.accessLevel}>
+                    {accessLevelOptions.map((accessLevel) => (
+                      <option key={accessLevel.value} value={accessLevel.value}>
+                        {accessLevel.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <>
+                  <label className="filter-field">
+                    <span>Статус состава</span>
+                    <select disabled={isSaving} onChange={(event) => updateDraft("serviceStatus", event.target.value)} value={draft.serviceStatus}>
+                      {serviceStatusOptions.map((status) => (
+                        <option key={status.value} value={status.value}>
+                          {status.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="filter-field">
+                    <span>Учётная запись доступа</span>
+                    <select disabled={isSaving} onChange={(event) => updateAccessDraft(event.target.value)} value={draft.accessLogin}>
+                      <option disabled value="">
+                        Выберите учётную запись доступа
+                      </option>
+                      {availableAccessUsers.map((user) => (
+                        <option key={user.login} value={user.login}>
+                          {user.displayName || user.login} · {user.accessLevelLabel}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </>
+              )}
+              {isCreating ? (
+                <>
+                  <label className="filter-field">
+                    <span>Пароль</span>
+                    <input autoComplete="new-password" disabled={isSaving} onChange={(event) => updateDraft("password", event.target.value)} type="password" value={draft.password} />
+                  </label>
+                  <label className="filter-field">
+                    <span>Повтор пароля</span>
+                    <input autoComplete="new-password" disabled={isSaving} onChange={(event) => updateDraft("repeatPassword", event.target.value)} type="password" value={draft.repeatPassword} />
+                  </label>
+                </>
+              ) : null}
               <label className="filter-field duty-member-form-wide">
                 <span>Фотография</span>
                 <input disabled={isSaving} maxLength={500} onChange={(event) => updateDraft("photoUrl", event.target.value)} placeholder="Например: https://..." type="url" value={draft.photoUrl} />
@@ -808,7 +896,7 @@ export default function DutyMembersPage() {
             Отмена
           </button>
           <button className="primary-command interactive-button" disabled={isSaving} type="submit">
-            {isSaving ? "Сохранение..." : "Сохранить профиль"}
+            {isSaving ? "Сохранение..." : isCreating ? "Создать пользователя" : "Сохранить профиль"}
           </button>
           </div>
         </form>
@@ -844,7 +932,7 @@ export default function DutyMembersPage() {
                   </div>
                   {canManage ? (
                     <button className="primary-command interactive-button duty-member-add-button" onClick={startCreate} type="button">
-                      Добавить профиль
+                      Добавить пользователя
                     </button>
                   ) : null}
                 </div>
@@ -1030,19 +1118,21 @@ export default function DutyMembersPage() {
                         <div className="block-heading-row">
                           <h2>Смена пароля</h2>
                         </div>
-                        <div className="duty-member-form-grid">
-                          <label className="filter-field">
+                        <div className="duty-password-grid">
+                          <label className="filter-field duty-password-field duty-password-field-wide">
                             <span>Текущий пароль</span>
                             <input autoComplete="current-password" onChange={(event) => setPasswordDraft((current) => ({ ...current, currentPassword: event.target.value }))} type="password" value={passwordDraft.currentPassword} />
                           </label>
-                          <label className="filter-field">
-                            <span>Новый пароль</span>
-                            <input autoComplete="new-password" onChange={(event) => setPasswordDraft((current) => ({ ...current, newPassword: event.target.value }))} type="password" value={passwordDraft.newPassword} />
-                          </label>
-                          <label className="filter-field">
-                            <span>Повтор нового пароля</span>
-                            <input autoComplete="new-password" onChange={(event) => setPasswordDraft((current) => ({ ...current, repeatPassword: event.target.value }))} type="password" value={passwordDraft.repeatPassword} />
-                          </label>
+                          <div className="duty-password-row">
+                            <label className="filter-field duty-password-field">
+                              <span>Новый пароль</span>
+                              <input autoComplete="new-password" onChange={(event) => setPasswordDraft((current) => ({ ...current, newPassword: event.target.value }))} type="password" value={passwordDraft.newPassword} />
+                            </label>
+                            <label className="filter-field duty-password-field">
+                              <span>Повтор нового пароля</span>
+                              <input autoComplete="new-password" onChange={(event) => setPasswordDraft((current) => ({ ...current, repeatPassword: event.target.value }))} type="password" value={passwordDraft.repeatPassword} />
+                            </label>
+                          </div>
                         </div>
                         {passwordMessage ? <p className="draft-message">{passwordMessage}</p> : null}
                         <div className="modal-actions duty-member-form-actions">

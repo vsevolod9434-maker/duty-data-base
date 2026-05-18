@@ -9521,6 +9521,39 @@ body::after,
   margin-top: 0;
 }
 
+.duty-password-grid {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.duty-password-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.duty-password-field {
+  min-width: 0;
+}
+
+.duty-password-field-wide {
+  width: 100%;
+}
+
+.duty-password-form .filter-field {
+  gap: 0.42rem;
+}
+
+.duty-password-form .filter-field span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.1rem;
+}
+
+.duty-password-form .filter-field input {
+  min-height: 2.7rem;
+}
+
 @media (max-width: 900px) {
   .registry-shell-header,
   .pda-shell-header {
@@ -9558,6 +9591,10 @@ body::after,
   .duty-members-page .duty-member-hero-photo {
     width: min(100%, 15rem);
     min-height: 16rem;
+  }
+
+  .duty-password-row {
+    grid-template-columns: 1fr;
   }
 
   .duty-member-hero-actions {
