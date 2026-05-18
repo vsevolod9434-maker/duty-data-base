@@ -325,13 +325,6 @@ function getSourcePoint(metadata: MapMetadata, view: MapView, viewportPoint: Poi
   return { x, y };
 }
 
-function mapIntersectsViewport(metadata: MapMetadata, viewportSize: ViewportSize, view: MapView) {
-  const right = view.offset.x + metadata.width * view.scale;
-  const bottom = view.offset.y + metadata.height * view.scale;
-
-  return right > 0 && bottom > 0 && view.offset.x < viewportSize.width && view.offset.y < viewportSize.height;
-}
-
 export function TileMapViewer({
   draftMarkerPreview = null,
   draftRouteColorKey = DEFAULT_MAP_ROUTE_COLOR_KEY,
@@ -849,19 +842,6 @@ export function TileMapViewer({
     };
   }, [currentView, metadata, selectedRoute, viewportSize, visibleLayers]);
 
-  useEffect(() => {
-    if (
-      process.env.NODE_ENV !== "production" &&
-      metadata &&
-      viewportSize.width > 0 &&
-      viewportSize.height > 0 &&
-      visibleTiles.length === 0 &&
-      mapIntersectsViewport(metadata, viewportSize, currentView)
-    ) {
-      console.warn("Не найдены видимые тайлы карты", { tileZoom, view: currentView, viewportSize });
-    }
-  }, [currentView, metadata, tileZoom, viewportSize, visibleTiles.length]);
-
   const applyZoom = useCallback(
     (nextScaleValue: number, anchor?: Point) => {
       if (!metadata || viewportSize.width === 0 || viewportSize.height === 0) {
@@ -1009,12 +989,6 @@ export function TileMapViewer({
     applyZoom(currentView.scale * ZOOM_STEP, getViewportPoint(event.nativeEvent, viewportRef.current));
   }
 
-  function handleTileError(src: string) {
-    if (process.env.NODE_ENV !== "production") {
-      console.warn("Не удалось загрузить тайл карты", src);
-    }
-  }
-
   if (status === "loading") {
     return <div className="map-viewer-state">Загрузка карты...</div>;
   }
@@ -1069,7 +1043,6 @@ export function TileMapViewer({
               className="map-viewer-tile"
               draggable={false}
               key={tile.key}
-              onError={() => handleTileError(tile.src)}
               src={tile.src}
               style={{
                 height: tile.height,
@@ -1310,6 +1283,12 @@ export function TileMapViewer({
                 <dt>Слой</dt>
                 <dd>{selectedMarkerPopover.marker.layer}</dd>
               </div>
+              {selectedMarkerPopover.marker.createdBy ? (
+                <div>
+                  <dt>Добавил</dt>
+                  <dd>{selectedMarkerPopover.marker.createdBy}</dd>
+                </div>
+              ) : null}
               <div>
                 <dt>Цвет</dt>
                 <dd>{getZoneColorPreset(selectedMarkerPopover.marker.colorKey).label}</dd>

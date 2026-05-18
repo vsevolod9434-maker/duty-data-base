@@ -10,7 +10,6 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 type AccessUserResponse = {
   login?: string | null;
   displayName?: string | null;
-  email?: string | null;
 };
 
 type PdaTopbarProps = {

@@ -15,6 +15,7 @@ type DatabaseMapMarker = {
   contrast: number;
   size: number;
   description: string | null;
+  createdBy: string | null;
   layer: string;
   createdAt: Date;
   updatedAt: Date;
@@ -30,6 +31,7 @@ export function mapMarkerToResponse(marker: DatabaseMapMarker): MapMarkerDto {
     colorKey: normalizeObjectColorKey(marker.colorKey),
     contrast: marker.contrast,
     createdAt: marker.createdAt.toISOString(),
+    createdBy: marker.createdBy,
     description: marker.description,
     id: marker.id,
     layer: marker.layer,

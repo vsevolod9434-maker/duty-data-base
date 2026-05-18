@@ -47,10 +47,14 @@ export async function POST(request: Request) {
   }
 
   const prisma = getPrismaClient();
+  const createdBy = auth.accessUser.displayName || auth.accessUser.login || "Сотрудник системы";
 
   try {
     const marker = await prisma.mapMarker.create({
-      data: validation.value,
+      data: {
+        ...validation.value,
+        createdBy,
+      },
     });
 
     return Response.json(mapMarkerToResponse(marker), { status: 201 });

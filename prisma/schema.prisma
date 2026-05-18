@@ -273,6 +273,7 @@ model MapMarker {
   contrast    Int             @default(100)
   size        Int             @default(100)
   description String?
+  createdBy   String?
   layer       String          @default("Основной слой")
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt

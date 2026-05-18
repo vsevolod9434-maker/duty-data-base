@@ -90,7 +90,7 @@ export async function POST(request: Request) {
   }
 
   if (isHiddenDutyMemberRole(accessUser.role)) {
-    return createDutyMemberErrorResponse("Р”РѕСЃС‚СѓРї Рє РѕРїРµСЂР°С†РёРё Р·Р°РїСЂРµС‰С‘РЅ.", 403);
+    return createDutyMemberErrorResponse("Доступ к операции запрещён.", 403);
   }
 
   if (auth.role === "officer" && accessUser?.role === "system_admin") {
@@ -115,8 +115,8 @@ export async function POST(request: Request) {
   const memberData = {
     ...data.value,
     fullName: data.value.fullName || linkedAccessUser.displayName || linkedAccessUser.login,
-    callSign: data.value.callsign || linkedAccessUser.login,
-    callsign: data.value.callsign || linkedAccessUser.login,
+    callSign: data.value.callsign,
+    callsign: data.value.callsign,
   };
   const createdMemberId = crypto.randomUUID();
   const member = await prisma

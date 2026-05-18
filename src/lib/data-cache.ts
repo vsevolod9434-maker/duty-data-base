@@ -6,7 +6,6 @@ import { apiFetchJson } from "@/lib/api-client";
 export type CurrentUserCacheRecord = {
   login?: string | null;
   displayName?: string | null;
-  email?: string | null;
   role?: string | null;
   roleLabel?: string | null;
 };
@@ -58,7 +57,7 @@ export function createDutyQueryClient() {
 }
 
 export function getCurrentUserCacheKey(user: CurrentUserCacheRecord | null | undefined) {
-  return user?.login?.trim() || user?.email?.trim() || null;
+  return user?.login?.trim() || null;
 }
 
 export function useCurrentUserQuery() {

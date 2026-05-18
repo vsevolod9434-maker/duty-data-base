@@ -1,6 +1,7 @@
 import type { UserRole } from "@/lib/auth-roles";
 
 const dutyRankOrder = [
+  "Генерал",
   "Полковник",
   "Подполковник",
   "Майор",

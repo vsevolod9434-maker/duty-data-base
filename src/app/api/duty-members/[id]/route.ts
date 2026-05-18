@@ -107,7 +107,7 @@ export async function PATCH(request: Request, context: DutyMemberContext) {
   }
 
   if (isHiddenDutyMemberRole(accessUser.role)) {
-    return createDutyMemberErrorResponse("Р”РѕСЃС‚СѓРї Рє РѕРїРµСЂР°С†РёРё Р·Р°РїСЂРµС‰С‘РЅ.", 403);
+    return createDutyMemberErrorResponse("Доступ к операции запрещён.", 403);
   }
 
   if (auth.role === "officer" && accessUser?.role === "system_admin") {
@@ -133,8 +133,8 @@ export async function PATCH(request: Request, context: DutyMemberContext) {
   const nextMemberData = {
     ...data.value,
     fullName: data.value.fullName || accessUser.displayName || accessUser.login,
-    callSign: data.value.callsign || accessUser.login,
-    callsign: data.value.callsign || accessUser.login,
+    callSign: data.value.callsign,
+    callsign: data.value.callsign,
     accessUserId: accessUser.id,
     updatedAt: new Date(),
   };

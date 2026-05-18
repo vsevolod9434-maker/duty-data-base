@@ -46,7 +46,7 @@ type ConfirmState = {
 };
 
 function getMemberLabel(member: DutyMember) {
-  return [member.rank, member.fullName].filter(Boolean).join(" ") || member.callsign || "Без имени";
+  return [member.rank, member.fullName].filter(Boolean).join(" ") || "Без имени";
 }
 
 function matchesMemberSearch(member: DutyMember, query: string) {
@@ -56,7 +56,7 @@ function matchesMemberSearch(member: DutyMember, query: string) {
     return true;
   }
 
-  return [member.fullName, member.callsign, member.rank]
+  return [member.fullName, member.rank]
     .filter(Boolean)
     .some((value) => value!.toLocaleLowerCase("ru-RU").includes(normalizedQuery));
 }
@@ -318,10 +318,7 @@ export default function DutyStaffListPage() {
                           </div>
                           <div className="duty-staff-cell duty-staff-cell-assignee" data-label="Назначен" role="cell">
                             {position.member ? (
-                              <>
-                                <strong>{getMemberLabel(position.member)}</strong>
-                                {position.member.callsign ? <span>Позывной: {position.member.callsign}</span> : null}
-                              </>
+                              <strong>{getMemberLabel(position.member)}</strong>
                             ) : (
                               <span className="duty-vacancy-label">Вакант</span>
                             )}
@@ -361,14 +358,13 @@ export default function DutyStaffListPage() {
             <div className="modal-body">
               <label className="filter-field">
                 <span>Поиск участника состава</span>
-                <input autoFocus onChange={(event) => setMemberSearchQuery(event.target.value)} placeholder="ФИО, позывной или звание" type="search" value={memberSearchQuery} />
+                <input autoFocus onChange={(event) => setMemberSearchQuery(event.target.value)} placeholder="ФИО или звание" type="search" value={memberSearchQuery} />
               </label>
               <div className="duty-staff-member-picker">
                 {availableMembers.length > 0 ? (
                   availableMembers.map((member) => (
                     <button className="duty-member-list-row" disabled={isSaving} key={member.id} onClick={() => selectMemberForPosition(member)} type="button">
                       <span>{getMemberLabel(member)}</span>
-                      {member.callsign ? <small>Позывной: {member.callsign}</small> : null}
                     </button>
                   ))
                 ) : (

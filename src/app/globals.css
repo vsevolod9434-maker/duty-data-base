@@ -9056,6 +9056,45 @@ body::after,
   padding: 0.2rem 0.44rem;
 }
 
+.duty-members-page .profile-hero-badges .duty-badge-service-active,
+.duty-members-page .profile-hero-badges .duty-badge-access-active {
+  border-color: rgba(126, 165, 112, 0.34);
+  background: rgba(79, 115, 71, 0.18);
+  color: #c9ddc0;
+}
+
+.duty-members-page .profile-hero-badges .duty-badge-service-reserve {
+  border-color: rgba(185, 151, 73, 0.34);
+  background: rgba(132, 101, 38, 0.18);
+  color: #e0c88d;
+}
+
+.duty-members-page .profile-hero-badges .duty-badge-service-suspended {
+  border-color: rgba(191, 112, 65, 0.34);
+  background: rgba(136, 68, 35, 0.18);
+  color: #e5b18f;
+}
+
+.duty-members-page .profile-hero-badges .duty-badge-service-discharged,
+.duty-members-page .profile-hero-badges .duty-badge-access-blocked {
+  border-color: rgba(170, 56, 62, 0.42);
+  background: rgba(112, 31, 36, 0.24);
+  color: #ebb5b8;
+}
+
+.duty-members-page .profile-hero-badges .duty-badge-access-neutral,
+.duty-members-page .profile-hero-badges .duty-badge-access-level-basic {
+  border-color: rgba(158, 167, 170, 0.2);
+  background: rgba(34, 39, 41, 0.62);
+  color: rgba(214, 220, 220, 0.82);
+}
+
+.duty-members-page .profile-hero-badges .duty-badge-access-level-officer {
+  border-color: rgba(185, 66, 73, 0.36);
+  background: rgba(116, 34, 39, 0.22);
+  color: #e6bdc0;
+}
+
 .duty-members-page .profile-hero-title {
   margin: 0;
   overflow-wrap: anywhere;
@@ -9140,6 +9179,16 @@ body::after,
 
 .duty-members-page .duty-position-list {
   gap: 0.45rem;
+}
+
+.duty-position-section-heading {
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.duty-position-assign-button {
+  min-height: 2rem;
+  padding: 0.4rem 0.62rem;
 }
 
 .duty-members-page .duty-position-row {
@@ -9511,6 +9560,115 @@ body::after,
   max-width: 38rem;
 }
 
+.duty-position-assign-modal {
+  max-width: 46rem;
+}
+
+.duty-position-assign-body {
+  display: grid;
+  gap: 0.68rem;
+}
+
+.duty-position-picker {
+  display: grid;
+  max-height: min(52vh, 30rem);
+  gap: 0.68rem;
+  overflow: auto;
+  padding-right: 0.2rem;
+}
+
+.duty-position-picker-section {
+  display: grid;
+  gap: 0.42rem;
+}
+
+.duty-position-picker-section h2 {
+  margin: 0;
+  color: rgba(226, 231, 231, 0.9);
+  font-size: 0.82rem;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.duty-position-picker-list {
+  display: grid;
+  gap: 0.42rem;
+}
+
+.duty-position-picker-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(8.5rem, auto);
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+  border: 1px solid rgba(151, 159, 159, 0.18);
+  background: rgba(8, 10, 11, 0.78);
+  color: var(--foreground);
+  cursor: pointer;
+  padding: 0.62rem 0.68rem;
+  text-align: left;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
+.duty-position-picker-row:hover:not(:disabled) {
+  border-color: rgba(209, 69, 76, 0.38);
+  background: rgba(61, 22, 25, 0.46);
+}
+
+.duty-position-picker-row:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.duty-position-picker-row-current {
+  border-color: rgba(126, 165, 112, 0.28);
+  background: rgba(45, 69, 41, 0.2);
+}
+
+.duty-position-picker-row span {
+  display: grid;
+  min-width: 0;
+  gap: 0.18rem;
+}
+
+.duty-position-picker-row strong {
+  overflow: hidden;
+  color: var(--foreground-strong);
+  font-size: 0.9rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.duty-position-picker-row small {
+  overflow: hidden;
+  color: rgba(190, 198, 199, 0.74);
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.duty-position-picker-row em {
+  justify-self: end;
+  border: 1px solid rgba(151, 159, 159, 0.18);
+  background: rgba(5, 7, 8, 0.56);
+  color: rgba(218, 224, 224, 0.82);
+  font-size: 0.74rem;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1.15;
+  max-width: 15rem;
+  overflow: hidden;
+  padding: 0.32rem 0.45rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .duty-staff-member-picker {
   max-height: min(42vh, 24rem);
   overflow: auto;
@@ -9595,6 +9753,15 @@ body::after,
 
   .duty-password-row {
     grid-template-columns: 1fr;
+  }
+
+  .duty-position-picker-row {
+    grid-template-columns: 1fr;
+  }
+
+  .duty-position-picker-row em {
+    justify-self: start;
+    max-width: 100%;
   }
 
   .duty-member-hero-actions {

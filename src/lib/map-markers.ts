@@ -48,6 +48,7 @@ export type MapMarkerDto = {
   contrast: number;
   size: number;
   description: string | null;
+  createdBy: string | null;
   layer: string;
   createdAt: string;
   updatedAt: string;

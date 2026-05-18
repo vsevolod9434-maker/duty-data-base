@@ -54,6 +54,5 @@ export async function GET() {
     displayName: accessUser.displayName,
     role: accessUser.role,
     roleLabel: getRoleLabel(accessUser.role as UserRole),
-    email: user.email ?? null,
   });
 }
