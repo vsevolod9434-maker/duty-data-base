@@ -186,7 +186,7 @@ export default function CalculatorPage() {
                 <div className="calculator-panel-header">
                   <div>
                     <h2 id="calculator-catalog-title">Каталог снабжения</h2>
-                    <span>{filteredItems.length > 0 ? `Позиций найдено: ${filteredItems.length}` : "Позиции не найдены"}</span>
+                    <span>{filteredItems.length > 0 ? `Найдено позиций: ${filteredItems.length}` : "Позиции не найдены"}</span>
                   </div>
                 </div>
 
@@ -247,15 +247,18 @@ export default function CalculatorPage() {
                             </div>
 
                             <div className="calculator-price-grid">
-                              <span>
-                                Общая: <strong>{formatMoney(parsePrice(item.generalPrice))} ₽</strong>
-                              </span>
-                              <span>
-                                Сотрудничающие: <strong>{formatMoney(parsePrice(item.partnerPrice))} ₽</strong>
-                              </span>
-                              <span>
-                                Жильцы: <strong>{formatMoney(parsePrice(item.tenantPrice))} ₽</strong>
-                              </span>
+                              <div>
+                                <span>Общая</span>
+                                <strong>{formatMoney(parsePrice(item.generalPrice))} ₽</strong>
+                              </div>
+                              <div>
+                                <span>Сотрудничающие</span>
+                                <strong>{formatMoney(parsePrice(item.partnerPrice))} ₽</strong>
+                              </div>
+                              <div>
+                                <span>Жильцы</span>
+                                <strong>{formatMoney(parsePrice(item.tenantPrice))} ₽</strong>
+                              </div>
                             </div>
                           </div>
 
