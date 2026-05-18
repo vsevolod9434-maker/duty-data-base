@@ -231,7 +231,10 @@ export default function CalculatorPage() {
                       <span>Действие</span>
                     </div>
                     <div className="calculator-catalog-list">
-                      {filteredItems.map((item) => (
+                      {filteredItems.map((item) => {
+                        const compositionTooltip = item.contents?.trim();
+
+                        return (
                         <article className="calculator-catalog-card" key={item.id}>
                           <div className="calculator-card-main">
                             <div className="calculator-card-title-line">
@@ -248,6 +251,21 @@ export default function CalculatorPage() {
                                   </button>
                                   <span className="calculator-tooltip-content" role="tooltip">
                                     Наша цена: {formatMoney(parsePrice(item.basePrice))} ₽
+                                  </span>
+                                </span>
+                              ) : null}
+                              {compositionTooltip ? (
+                                <span className="calculator-info-tooltip calculator-composition-tooltip">
+                                  <button
+                                    aria-label={`Состав: ${item.name}`}
+                                    className="calculator-info-button calculator-composition-button"
+                                    type="button"
+                                  >
+                                    ¡
+                                  </button>
+                                  <span className="calculator-tooltip-content calculator-composition-tooltip-content" role="tooltip">
+                                    <strong>Состав</strong>
+                                    <span>{compositionTooltip}</span>
                                   </span>
                                 </span>
                               ) : null}
@@ -270,7 +288,8 @@ export default function CalculatorPage() {
                             </button>
                           </div>
                         </article>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 ) : (

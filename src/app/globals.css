@@ -12593,13 +12593,25 @@ body::after,
   outline: none;
 }
 
+.calculator-page .calculator-composition-button {
+  border-color: rgba(112, 158, 128, 0.24);
+  color: #c8dfd0;
+  font-family: var(--font-mono, monospace);
+}
+
+.calculator-page .calculator-composition-button:hover,
+.calculator-page .calculator-composition-button:focus-visible {
+  border-color: rgba(112, 158, 128, 0.42);
+  background: rgba(112, 158, 128, 0.1);
+}
+
 .calculator-page .calculator-tooltip-content {
   position: absolute;
   left: 50%;
   bottom: calc(100% + 0.38rem);
   z-index: 10;
   width: max-content;
-  max-width: 14rem;
+  max-width: min(14rem, calc(100vw - 2rem));
   transform: translateX(-50%) translateY(0.18rem);
   border: 1px solid rgba(190, 204, 209, 0.18);
   background: #080c0e;
@@ -12614,6 +12626,36 @@ body::after,
   transition:
     opacity 140ms ease,
     transform 140ms ease;
+}
+
+.calculator-page .calculator-composition-tooltip-content {
+  display: grid;
+  gap: 0.34rem;
+  width: max-content;
+  max-width: min(24rem, calc(100vw - 2rem));
+  max-height: min(22rem, 62vh);
+  overflow-y: auto;
+  text-align: left;
+}
+
+.calculator-page .calculator-composition-tooltip-content strong {
+  display: block;
+  color: #f0f5f4;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.calculator-page .calculator-composition-tooltip-content span {
+  display: block;
+  color: #d8e1df;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
 }
 
 .calculator-page .calculator-tooltip-content::after {

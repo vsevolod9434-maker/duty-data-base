@@ -22,7 +22,14 @@ type ParsedItem = {
   sortOrder: number;
 };
 
+type ParsedTooltip = {
+  category: string;
+  name: string;
+  tooltip: string;
+};
+
 const catalogPath = path.join(process.cwd(), "tools", "calculator-source", "supply-catalog.tsv");
+const tooltipsPath = path.join(process.cwd(), "tools", "calculator-source", "supply-catalog-tooltips.tsv");
 
 function normalizeConnectionString(connectionString: string) {
   const url = new URL(connectionString);
@@ -49,14 +56,15 @@ function createPrismaClient() {
   });
 }
 
-function parseTsvLine(line: string) {
-  const cells: string[] = [];
+function parseTsvRecords(rawContent: string) {
+  const records: string[][] = [];
+  let currentRecord: string[] = [];
   let currentCell = "";
   let isQuoted = false;
 
-  for (let index = 0; index < line.length; index += 1) {
-    const character = line[index];
-    const nextCharacter = line[index + 1];
+  for (let index = 0; index < rawContent.length; index += 1) {
+    const character = rawContent[index];
+    const nextCharacter = rawContent[index + 1];
 
     if (character === '"' && isQuoted && nextCharacter === '"') {
       currentCell += '"';
@@ -70,7 +78,23 @@ function parseTsvLine(line: string) {
     }
 
     if (character === "\t" && !isQuoted) {
-      cells.push(currentCell);
+      currentRecord.push(currentCell);
+      currentCell = "";
+      continue;
+    }
+
+    if ((character === "\n" || character === "\r") && !isQuoted) {
+      if (character === "\r" && nextCharacter === "\n") {
+        index += 1;
+      }
+
+      currentRecord.push(currentCell);
+
+      if (currentRecord.some((cell) => cell.trim())) {
+        records.push(currentRecord);
+      }
+
+      currentRecord = [];
       currentCell = "";
       continue;
     }
@@ -78,8 +102,13 @@ function parseTsvLine(line: string) {
     currentCell += character;
   }
 
-  cells.push(currentCell);
-  return cells;
+  currentRecord.push(currentCell);
+
+  if (currentRecord.some((cell) => cell.trim())) {
+    records.push(currentRecord);
+  }
+
+  return records;
 }
 
 function parseNumber(value: string | undefined, fallback = 0) {
@@ -153,28 +182,23 @@ function parseCatalogRow(row: CatalogRow, lineNumber: number): ParsedItem | null
 
 async function readCatalog() {
   const rawContent = await readFile(catalogPath, "utf8");
-  const lines = rawContent.split(/\r?\n/);
-  const headerLine = lines.shift();
+  const records = parseTsvRecords(rawContent);
+  const headerLine = records.shift();
 
   if (!headerLine) {
     return { items: [] as ParsedItem[], skipped: 0 };
   }
 
-  const headers = parseTsvLine(headerLine).map((header) => header.trim());
+  const headers = headerLine.map((header) => header.replace(/^\uFEFF/, "").trim());
   const items: ParsedItem[] = [];
   let skipped = 0;
 
-  lines.forEach((line, lineIndex) => {
-    if (!line.trim()) {
-      return;
-    }
-
-    const cells = parseTsvLine(line);
+  records.forEach((cells, recordIndex) => {
     const row = headers.reduce<CatalogRow>((record, header, index) => {
       record[header] = cells[index] ?? "";
       return record;
     }, {});
-    const parsedItem = parseCatalogRow(row, lineIndex + 2);
+    const parsedItem = parseCatalogRow(row, recordIndex + 2);
 
     if (!parsedItem) {
       skipped += 1;
@@ -187,6 +211,50 @@ async function readCatalog() {
   return { items, skipped };
 }
 
+async function readTooltips() {
+  let rawContent: string;
+
+  try {
+    rawContent = await readFile(tooltipsPath, "utf8");
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return { missing: true, skipped: 0, tooltips: [] as ParsedTooltip[] };
+    }
+
+    throw error;
+  }
+
+  const records = parseTsvRecords(rawContent);
+  const headerLine = records.shift();
+
+  if (!headerLine) {
+    return { missing: false, skipped: 0, tooltips: [] as ParsedTooltip[] };
+  }
+
+  const headers = headerLine.map((header) => header.replace(/^\uFEFF/, "").trim());
+  const tooltips: ParsedTooltip[] = [];
+  let skipped = 0;
+
+  records.forEach((cells) => {
+    const row = headers.reduce<CatalogRow>((record, header, index) => {
+      record[header] = cells[index] ?? "";
+      return record;
+    }, {});
+    const category = row.category?.trim();
+    const name = row.name?.trim();
+    const tooltip = row.tooltip?.trim();
+
+    if (!category || !name || !tooltip) {
+      skipped += 1;
+      return;
+    }
+
+    tooltips.push({ category, name, tooltip });
+  });
+
+  return { missing: false, skipped, tooltips };
+}
+
 async function main() {
   const prisma = createPrismaClient();
   const { items, skipped } = await readCatalog();
@@ -194,6 +262,9 @@ async function main() {
   let categoriesUpdated = 0;
   let itemsCreated = 0;
   let itemsUpdated = 0;
+  let tooltipsUpdated = 0;
+  let tooltipsSkipped = 0;
+  let tooltipsMissingItems = 0;
 
   try {
     const categories = new Map<string, number>();
@@ -283,11 +354,65 @@ async function main() {
       }
     }
 
+    const tooltipImport = await readTooltips();
+    tooltipsSkipped = tooltipImport.skipped;
+
+    if (tooltipImport.missing) {
+      console.warn("Файл подсказок каталога не найден, импорт подсказок пропущен.");
+    }
+
+    for (const tooltip of tooltipImport.tooltips) {
+      const categoryId = categoryIds.get(tooltip.category);
+      let existingItem: { id: string } | null = null;
+
+      if (categoryId) {
+        existingItem = await prisma.supplyCatalogItem.findFirst({
+          select: { id: true },
+          where: {
+            categoryId,
+            name: tooltip.name,
+          },
+        });
+      }
+
+      if (!existingItem) {
+        const itemsByName = await prisma.supplyCatalogItem.findMany({
+          select: { id: true, kind: true },
+          where: { name: tooltip.name },
+        });
+        const bundleMatches = itemsByName.filter((item) => item.kind === "bundle");
+
+        if (itemsByName.length === 1) {
+          existingItem = itemsByName[0];
+        } else if (bundleMatches.length === 1) {
+          existingItem = bundleMatches[0];
+        } else if (itemsByName.length > 1) {
+          tooltipsMissingItems += 1;
+          console.warn(`Подсказка пропущена: найдено несколько позиций — ${tooltip.category} / ${tooltip.name}`);
+          continue;
+        }
+      }
+
+      if (!existingItem) {
+        tooltipsMissingItems += 1;
+        console.warn(`Подсказка пропущена: позиция не найдена — ${tooltip.category} / ${tooltip.name}`);
+        continue;
+      }
+
+      await prisma.supplyCatalogItem.update({
+        data: { contents: tooltip.tooltip },
+        where: { id: existingItem.id },
+      });
+      tooltipsUpdated += 1;
+    }
     console.log(`Категорий создано: ${categoriesCreated}`);
     console.log(`Категорий обновлено: ${categoriesUpdated}`);
     console.log(`Позиций создано: ${itemsCreated}`);
     console.log(`Позиций обновлено: ${itemsUpdated}`);
     console.log(`Строк пропущено: ${skipped}`);
+    console.log(`Подсказок обновлено: ${tooltipsUpdated}`);
+    console.log(`Подсказок пропущено: ${tooltipsSkipped}`);
+    console.log(`Подсказок без позиции: ${tooltipsMissingItems}`);
   } finally {
     await prisma.$disconnect();
   }
