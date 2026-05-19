@@ -31,17 +31,19 @@ model Stalker {
 }
 
 model StalkerNote {
-  id        String   @id @default(cuid())
-  stalkerId String
-  text      String
-  createdBy String
-  updatedBy String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  stalker   Stalker  @relation(fields: [stalkerId], references: [id], onDelete: Cascade)
+  id                    String   @id @default(cuid())
+  stalkerId             String
+  text                  String
+  createdBy             String
+  createdByAccessUserId String?
+  updatedBy             String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  stalker               Stalker  @relation(fields: [stalkerId], references: [id], onDelete: Cascade)
 
   @@index([stalkerId])
   @@index([createdAt])
+  @@index([createdByAccessUserId])
 }
 
 model SupplyCatalogCategory {

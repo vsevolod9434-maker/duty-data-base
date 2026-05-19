@@ -4,6 +4,7 @@ import { QueryClient, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetchJson } from "@/lib/api-client";
 
 export type CurrentUserCacheRecord = {
+  id?: string | null;
   login?: string | null;
   displayName?: string | null;
   role?: string | null;

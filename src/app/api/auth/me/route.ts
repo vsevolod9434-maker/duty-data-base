@@ -25,6 +25,7 @@ export async function GET() {
   const authEmail = user.email?.trim();
   const accessUser = await prisma.accessUser.findFirst({
     select: {
+      id: true,
       displayName: true,
       isActive: true,
       login: true,
@@ -50,6 +51,7 @@ export async function GET() {
   }
 
   return Response.json({
+    id: accessUser.id,
     login: accessUser.login,
     displayName: accessUser.displayName,
     role: accessUser.role,

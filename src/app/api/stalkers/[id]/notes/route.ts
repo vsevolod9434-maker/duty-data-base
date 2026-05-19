@@ -81,6 +81,7 @@ export async function POST(request: Request, context: RouteContext) {
         stalkerId: id,
         text,
         createdBy: getAccessUserDisplayName(auth.accessUser),
+        createdByAccessUserId: auth.accessUser.id,
         updatedBy: null,
         createdAt: now,
         updatedAt: now,

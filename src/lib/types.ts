@@ -93,6 +93,7 @@ export interface StalkerNote {
   stalkerId: string;
   text: string;
   createdBy: string;
+  createdByAccessUserId?: string | null;
   updatedBy?: string | null;
   createdAt: string;
   updatedAt: string;

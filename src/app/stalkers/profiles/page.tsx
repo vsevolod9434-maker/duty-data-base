@@ -143,6 +143,42 @@ function formatDateTime(value: string) {
     : "Не указано";
 }
 
+type NotePermissionUser = {
+  id?: string | null;
+  login?: string | null;
+  displayName?: string | null;
+  role?: string | null;
+};
+
+function normalizeComparableNoteValue(value: string | null | undefined) {
+  return value?.trim().toLocaleLowerCase("ru-RU") || "";
+}
+
+function canManageStalkerNote(note: StalkerNote, currentUser: NotePermissionUser | null | undefined) {
+  if (!currentUser) {
+    return false;
+  }
+
+  if (currentUser.role === "system_admin" || currentUser.role === "officer") {
+    return true;
+  }
+
+  if (note.createdByAccessUserId && currentUser.id) {
+    return note.createdByAccessUserId === currentUser.id;
+  }
+
+  const noteAuthor = normalizeComparableNoteValue(note.createdBy);
+
+  if (!noteAuthor) {
+    return false;
+  }
+
+  return [currentUser.displayName, currentUser.login]
+    .map((value) => normalizeComparableNoteValue(value))
+    .filter(Boolean)
+    .includes(noteAuthor);
+}
+
 function normalizeApiProfile(profile: StalkerProfileApiResponse): StalkerProfile {
   return {
     id: profile.id,
@@ -1971,6 +2007,11 @@ export default function StalkerProfilesPage() {
   }
 
   function openEditNote(note: StalkerNote) {
+    if (!canManageStalkerNote(note, currentUser)) {
+      setNoteMessage("Доступ к операции запрещён.");
+      return;
+    }
+
     setEditingNoteId(note.id);
     setEditNoteDraft(note.text);
     setNoteMessage("");
@@ -2013,6 +2054,11 @@ export default function StalkerProfilesPage() {
 
   function requestDeleteNote(note: StalkerNote) {
     if (!selectedProfile || !currentUserKey) {
+      return;
+    }
+
+    if (!canManageStalkerNote(note, currentUser)) {
+      setNoteMessage("Доступ к операции запрещён.");
       return;
     }
 
@@ -2558,6 +2604,7 @@ export default function StalkerProfilesPage() {
                           selectedProfileNotes.map((note) => {
                             const isEditingNote = editingNoteId === note.id;
                             const wasEdited = Boolean(note.updatedBy && note.updatedAt !== note.createdAt);
+                            const canManageNoteActions = canManageStalkerNote(note, currentUser);
 
                             return (
                               <article className="stalker-note-card" key={note.id}>
@@ -2584,19 +2631,23 @@ export default function StalkerProfilesPage() {
                                 ) : (
                                   <>
                                     <p className="stalker-note-text">{note.text}</p>
-                                    <div className="stalker-note-meta">
-                                      <span>Добавил: {note.createdBy}</span>
-                                      <span>Добавлено: {formatDateTime(note.createdAt)}</span>
-                                      {wasEdited ? <span>Изменил: {note.updatedBy}</span> : null}
-                                      {wasEdited ? <span>Изменено: {formatDateTime(note.updatedAt)}</span> : null}
-                                    </div>
-                                    <div className="stalker-note-actions">
-                                      <button className="command-row task-action-button" onClick={() => openEditNote(note)} type="button">
-                                        Изменить
-                                      </button>
-                                      <button className="command-row task-action-button" onClick={() => requestDeleteNote(note)} type="button">
-                                        Удалить
-                                      </button>
+                                    <div className="stalker-note-footer">
+                                      <div className="stalker-note-meta">
+                                        <span>Добавил: {note.createdBy}</span>
+                                        <span>Добавлено: {formatDateTime(note.createdAt)}</span>
+                                        {wasEdited ? <span>Изменил: {note.updatedBy}</span> : null}
+                                        {wasEdited ? <span>Изменено: {formatDateTime(note.updatedAt)}</span> : null}
+                                      </div>
+                                      {canManageNoteActions ? (
+                                        <div className="stalker-note-inline-actions">
+                                          <button className="command-row task-action-button" onClick={() => openEditNote(note)} type="button">
+                                            Изменить
+                                          </button>
+                                          <button className="command-row task-action-button" onClick={() => requestDeleteNote(note)} type="button">
+                                            Удалить
+                                          </button>
+                                        </div>
+                                      ) : null}
                                     </div>
                                   </>
                                 )}

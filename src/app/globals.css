@@ -11687,7 +11687,6 @@ body::after,
   position: relative;
   align-items: stretch;
   min-height: 224px;
-  max-height: 268px;
   overflow: hidden;
   border: 1px solid rgba(218, 229, 232, 0.18);
   background:
@@ -11778,10 +11777,10 @@ body::after,
   width: 100%;
   min-width: 0;
   grid-template-columns: 1fr;
-  grid-template-rows: auto auto auto;
-  align-content: start;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 0.46rem;
   overflow: hidden;
+  min-height: 0;
 }
 
 .profiles-page .profile-hero-head {
@@ -12012,6 +12011,7 @@ body::after,
   display: flex;
   flex-direction: column;
   align-self: stretch;
+  flex: 1 1 auto;
   gap: 0.44rem;
   width: 100%;
   min-width: 0;
@@ -12020,10 +12020,13 @@ body::after,
 }
 
 .profiles-page .profile-hero-note {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
   width: 100%;
   box-sizing: border-box;
   min-width: 0;
-  min-height: 0;
+  min-height: 100%;
   border-left: 3px solid rgba(168, 50, 58, 0.72);
   background: rgba(5, 7, 8, 0.42);
   padding: 0.4rem 0.58rem;
@@ -12039,15 +12042,14 @@ body::after,
 }
 
 .profiles-page .profile-hero-note p {
-  display: -webkit-box;
-  max-height: 2.25rem;
+  flex: 1 1 auto;
+  min-height: 0;
   margin-top: 0.14rem;
-  overflow: hidden;
+  overflow: auto;
   color: #d8e0e1;
   font-size: 0.9rem;
   line-height: 1.25;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  white-space: pre-wrap;
 }
 
 .profiles-page .dossier-context-strip {
@@ -12335,8 +12337,34 @@ body::after,
   display: flex;
   flex-wrap: wrap;
   gap: 0.22rem 0.78rem;
+  flex: 1 1 22rem;
+  min-width: 0;
+}
+
+.profiles-page .stalker-note-footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.42rem 0.72rem;
   border-top: 1px solid rgba(190, 204, 209, 0.1);
   padding-top: 0.42rem;
+}
+
+.profiles-page .stalker-note-inline-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 0.34rem;
+}
+
+.profiles-page .stalker-note-inline-actions .command-row {
+  width: fit-content;
+  min-height: 1.78rem;
+  padding: 0.24rem 0.62rem;
+  font-size: 0.76rem;
 }
 
 .profiles-page .stalker-note-edit-form {
@@ -13230,6 +13258,15 @@ body::after,
 
   .profiles-page .stalker-notes-header .task-action-button {
     width: fit-content;
+  }
+
+  .profiles-page .stalker-note-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .profiles-page .stalker-note-inline-actions {
+    justify-content: flex-start;
   }
 }
 

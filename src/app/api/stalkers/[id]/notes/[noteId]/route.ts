@@ -3,6 +3,7 @@ import { requireApiAuth } from "@/lib/auth/require-api-auth";
 import { getPrismaClient } from "@/lib/prisma";
 import { createSystemDate } from "@/lib/stalker-utils";
 import {
+  canManageStalkerNote,
   createStalkerNoteErrorResponse,
   mapStalkerNoteToResponse,
   normalizeNoteText,
@@ -35,7 +36,6 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   try {
     const existingNote = await prisma.stalkerNote.findFirst({
-      select: { id: true },
       where: {
         id: noteId,
         stalkerId: id,
@@ -44,6 +44,10 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     if (!existingNote) {
       return createStalkerNoteErrorResponse("Заметка не найдена.", 404);
+    }
+
+    if (!canManageStalkerNote(existingNote, auth.accessUser)) {
+      return createStalkerNoteErrorResponse("Доступ к операции запрещён.", 403);
     }
 
     const note = await prisma.stalkerNote.update({
@@ -73,7 +77,6 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
   try {
     const existingNote = await prisma.stalkerNote.findFirst({
-      select: { id: true },
       where: {
         id: noteId,
         stalkerId: id,
@@ -82,6 +85,10 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
     if (!existingNote) {
       return createStalkerNoteErrorResponse("Заметка не найдена.", 404);
+    }
+
+    if (!canManageStalkerNote(existingNote, auth.accessUser)) {
+      return createStalkerNoteErrorResponse("Доступ к операции запрещён.", 403);
     }
 
     await prisma.stalkerNote.delete({

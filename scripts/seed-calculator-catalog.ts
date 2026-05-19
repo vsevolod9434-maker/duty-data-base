@@ -31,6 +31,83 @@ type ParsedTooltip = {
 const catalogPath = path.join(process.cwd(), "tools", "calculator-source", "supply-catalog.tsv");
 const tooltipsPath = path.join(process.cwd(), "tools", "calculator-source", "supply-catalog-tooltips.tsv");
 
+const renamedCatalogNames = new Map<string, string>([
+  ['Картечь "4"', "Картечь «4»"],
+  ["Картечь 4", "Картечь «4»"],
+  ['Картечь "2"', "Картечь «2»"],
+  ["Картечь 2", "Картечь «2»"],
+  ['Пуля Полёва "6"', "Пуля Полёва «6»"],
+  ["Пуля Полёва 6", "Пуля Полёва «6»"],
+  ['Консервы "Завтрак туриста"', "Консервы «Завтрак туриста»"],
+  ["Консервы Завтрак туриста", "Консервы «Завтрак туриста»"],
+  ['Магазин ПП-19-01 "Витязь" 30 патронов', "Магазин ПП-19-01 «Витязь» 30 патронов"],
+  ['Магазин ПП-91 "Кедр" 20 патронов', "Магазин ПП-91 «Кедр» 20 патронов"],
+  ['Магазин ПП-91 "Кедр" 30 патронов', "Магазин ПП-91 «Кедр» 30 патронов"],
+  ['ПП-19-01 "Витязь"', "ПП-19-01 «Витязь»"],
+  ['ПП-91 "Кедр"', "ПП-91 «Кедр»"],
+  ['Пистолетная рукоятнка АКМ', "Пистолетная рукоятка АКМ"],
+  ['Пистолетная рукоятнка АН-94', "Пистолетная рукоятка АН-94"],
+  ['Пистолетная рукоятнка Magpul...', "Пистолетная рукоятка Magpul — качественная"],
+  ["Пистолетная рукоятка Magpul...", "Пистолетная рукоятка Magpul — качественная"],
+  ['АК-74 (Обвелы Magpul, качественная пистолетная рукоятка, ДТК АК Альфа)', "АК-74 (обвесы Magpul, качественная пистолетная рукоятка, ДТК АК Альфа)"],
+  ['АК-101 (Обвелы Magpul, качественная пистолетная рукоятка, ДТК АК Альфа)', "АК-101 (обвесы Magpul, качественная пистолетная рукоятка, ДТК АК Альфа)"],
+  ['АКМ (Обвелы Magpul, качественная пистолетная рукоятка, ДТК АК Альфа)', "АКМ (обвесы Magpul, качественная пистолетная рукоятка, ДТК АК Альфа)"],
+  ['АН-94 "Абакан" (Приклад Magpul и качественная пистолетная рукоятка)', "АН-94 «Абакан» (Приклад Magpul и качественная пистолетная рукоятка)"],
+  ['ОЦ-14-1 "Гроза" (Тактическое цевье и качественная пистолетная рукоятка)', "ОЦ-14-1 «Гроза» (Тактическое цевьё и качественная пистолетная рукоятка)"],
+  ['ПП-19-01 "Витязь" (Легкий приклад, пистолетная рукоятка АН-94, цевье Magpul, рукоятка Tango, пистолетный компенсатор)', "ПП-19-01 «Витязь» (Лёгкий приклад, пистолетная рукоятка АН-94, цевьё Magpul, рукоятка Tango, пистолетный компенсатор)"],
+  ["Mossberg 590 - Минимальный", "Mossberg 590 — минимальный"],
+  ["Mossberg 590 - Стандартный", "Mossberg 590 — стандартный"],
+  ["Mossberg 590 - Тактический", "Mossberg 590 — тактический"],
+  ["Benelli M4 - Отдельно", "Benelli M4 — отдельно"],
+  ["Benelli M4 - Комфортная", "Benelli M4 — комфортная"],
+  ["Benelli M4 - Тактическая", "Benelli M4 — тактическая"],
+  ["Сайга-12 - Минимальная", "Сайга-12 — минимальная"],
+  ["Сайга-12 - Полимерная", "Сайга-12 — полимерная"],
+  ["Sig Sauer P226 - Дешевый", "SIG Sauer P226 — дешёвый"],
+  ["Sig Sauer P226 - Оптимальный", "SIG Sauer P226 — оптимальный"],
+  ['ПП-91 "Кедр" - Дешёвый', "ПП-91 «Кедр» — дешёвый"],
+  ['ПП-91 "Кедр" - Оптимальный', "ПП-91 «Кедр» — оптимальный"],
+  ['ПП-91 "Кедр" - Комфортный', "ПП-91 «Кедр» — комфортный"],
+  ['ПП-19-01 "Витязь" - Минимальный', "ПП-19-01 «Витязь» — минимальный"],
+  ['ПП-19-01 "Витязь" - Комфортный', "ПП-19-01 «Витязь» — комфортный"],
+  ['ПП-19-01 "Витязь" - Тактический', "ПП-19-01 «Витязь» — тактический"],
+  ['ПП-19-01 "Витязь" - Доллоровый', "ПП-19-01 «Витязь» — долларовый"],
+  ["Steyr AUG A3 .45ACP - Минимальный", "Steyr AUG A3 .45ACP — минимальный"],
+  ["Steyr AUG A3 .45ACP - Оптимальный", "Steyr AUG A3 .45ACP — оптимальный"],
+  ["Steyr AUG A3 .45ACP - Тактический", "Steyr AUG A3 .45ACP — тактический"],
+  ["СКС Тактическая - Минимальный", "СКС Тактическая — минимальный"],
+  ["СКС Тактическая - Оптимальная", "СКС Тактическая — оптимальная"],
+  ["СКС Тактическая - Комфортная", "СКС Тактическая — комфортная"],
+  ["АК-74 - Стандартный", "АК-74 — стандартный"],
+  ["АК-74 - Оптимальный", "АК-74 — оптимальный"],
+  ["АК-74 - Тактический", "АК-74 — тактический"],
+  ["АК-74 - Доллоровый", "АК-74 — долларовый"],
+  ["АК-101 - СТандартный", "АК-101 — стандартный"],
+  ["АК-101 - Оптимальный", "АК-101 — оптимальный"],
+  ["АК-101 - Тактический", "АК-101 — тактический"],
+  ["АК-101 - Доллоровый", "АК-101 — долларовый"],
+  ["АКС-74У - Стандартная", "АКС-74У — стандартная"],
+  ["АКС-74У - Оптимальная", "АКС-74У — оптимальная"],
+  ["АКС-74У - Тактическая", "АКС-74У — тактическая"],
+  ["АКС-74У - Доллоровая", "АКС-74У — долларовая"],
+  ["АКМ - Стандартный", "АКМ — стандартный"],
+  ["АКМ - Оптимальный", "АКМ — оптимальный"],
+  ["АКМ - Тактический", "АКМ — тактический"],
+  ["АКМ - Доллоровый", "АКМ — долларовый"],
+  ['АН-94 "Абакан" - Доллоровый', "АН-94 «Абакан» — долларовый"],
+  ['ОЦ-14-1 "Гроза" - Доллоровая', "ОЦ-14-1 «Гроза» — долларовая"],
+]);
+
+const legacyCatalogNamesByCurrentName = Array.from(renamedCatalogNames.entries()).reduce(
+  (accumulator, [legacyName, currentName]) => {
+    const knownLegacyNames = accumulator.get(currentName) ?? [];
+    knownLegacyNames.push(legacyName);
+    accumulator.set(currentName, knownLegacyNames);
+    return accumulator;
+  },
+  new Map<string, string[]>(),
+);
+
 function normalizeConnectionString(connectionString: string) {
   const url = new URL(connectionString);
   url.searchParams.delete("sslmode");
@@ -141,6 +218,34 @@ function parsePrice(value: string | undefined) {
 function normalizeOptionalString(value: string | undefined) {
   const trimmedValue = value?.trim();
   return trimmedValue || null;
+}
+
+async function findExistingCatalogItem(
+  prisma: PrismaClient,
+  categoryId: string,
+  kind: string,
+  currentName: string,
+) {
+  const namesToTry = [currentName, ...(legacyCatalogNamesByCurrentName.get(currentName) ?? [])];
+
+  for (const name of namesToTry) {
+    const existingItem = await prisma.supplyCatalogItem.findUnique({
+      select: { id: true },
+      where: {
+        categoryId_name_kind: {
+          categoryId,
+          kind,
+          name,
+        },
+      },
+    });
+
+    if (existingItem) {
+      return existingItem;
+    }
+  }
+
+  return null;
 }
 
 function parseCatalogRow(row: CatalogRow, lineNumber: number): ParsedItem | null {
@@ -262,6 +367,7 @@ async function main() {
   let categoriesUpdated = 0;
   let itemsCreated = 0;
   let itemsUpdated = 0;
+  let duplicateItemsRemoved = 0;
   let tooltipsUpdated = 0;
   let tooltipsSkipped = 0;
   let tooltipsMissingItems = 0;
@@ -313,17 +419,10 @@ async function main() {
         continue;
       }
 
-      const existingItem = await prisma.supplyCatalogItem.findUnique({
-        select: { id: true },
-        where: {
-          categoryId_name_kind: {
-            categoryId,
-            kind: item.kind,
-            name: item.name,
-          },
-        },
-      });
+      const existingItem = await findExistingCatalogItem(prisma, categoryId, item.kind, item.name);
+      const legacyNames = legacyCatalogNamesByCurrentName.get(item.name) ?? [];
       const data = {
+        name: item.name,
         contents: item.contents,
         traderPrice: item.traderPrice,
         basePrice: item.basePrice,
@@ -341,8 +440,22 @@ async function main() {
           where: { id: existingItem.id },
         });
         itemsUpdated += 1;
+
+        if (legacyNames.length > 0) {
+          const removedLegacyItems = await prisma.supplyCatalogItem.deleteMany({
+            where: {
+              categoryId,
+              kind: item.kind,
+              name: { in: legacyNames },
+              NOT: {
+                id: existingItem.id,
+              },
+            },
+          });
+          duplicateItemsRemoved += removedLegacyItems.count;
+        }
       } else {
-        await prisma.supplyCatalogItem.create({
+        const createdItem = await prisma.supplyCatalogItem.create({
           data: {
             ...data,
             categoryId,
@@ -351,6 +464,20 @@ async function main() {
           },
         });
         itemsCreated += 1;
+
+        if (legacyNames.length > 0) {
+          const removedLegacyItems = await prisma.supplyCatalogItem.deleteMany({
+            where: {
+              categoryId,
+              kind: item.kind,
+              name: { in: legacyNames },
+              NOT: {
+                id: createdItem.id,
+              },
+            },
+          });
+          duplicateItemsRemoved += removedLegacyItems.count;
+        }
       }
     }
 
@@ -409,6 +536,7 @@ async function main() {
     console.log(`Категорий обновлено: ${categoriesUpdated}`);
     console.log(`Позиций создано: ${itemsCreated}`);
     console.log(`Позиций обновлено: ${itemsUpdated}`);
+    console.log(`Дублей удалено: ${duplicateItemsRemoved}`);
     console.log(`Строк пропущено: ${skipped}`);
     console.log(`Подсказок обновлено: ${tooltipsUpdated}`);
     console.log(`Подсказок пропущено: ${tooltipsSkipped}`);
