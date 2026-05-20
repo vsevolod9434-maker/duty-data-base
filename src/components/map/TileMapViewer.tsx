@@ -1315,7 +1315,7 @@ export function TileMapViewer({
             ) : null}
             <div className="map-marker-popover-actions">
               <button className="command-row interactive-button" onClick={() => onMarkerEdit?.(selectedMarkerPopover.marker)} type="button">
-                Изменить
+                Редактировать
               </button>
               <button className="primary-command interactive-button" onClick={() => onMarkerDelete?.(selectedMarkerPopover.marker)} type="button">
                 Удалить
@@ -1386,7 +1386,7 @@ export function TileMapViewer({
             ) : null}
             <div className="map-marker-popover-actions">
               <button className="command-row interactive-button" onClick={() => onZoneEdit?.(selectedZonePopover.zone)} type="button">
-                Изменить
+                Редактировать
               </button>
               <button className="primary-command interactive-button" onClick={() => onZoneDelete?.(selectedZonePopover.zone)} type="button">
                 Удалить
@@ -1440,7 +1440,7 @@ export function TileMapViewer({
             ) : null}
             <div className="map-marker-popover-actions">
               <button className="command-row interactive-button" onClick={() => onRouteEdit?.(selectedRoutePopover.route)} type="button">
-                Изменить
+                Редактировать
               </button>
               <button className="primary-command interactive-button" onClick={() => onRouteDelete?.(selectedRoutePopover.route)} type="button">
                 Удалить

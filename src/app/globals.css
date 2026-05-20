@@ -7008,6 +7008,8 @@ body::after,
   z-index: 8;
   display: grid;
   width: min(16.5rem, calc(100% - 1rem));
+  box-sizing: border-box;
+  max-height: 230px;
   gap: 0.58rem;
   border: 1px solid rgba(190, 204, 209, 0.2);
   background:
@@ -7017,6 +7019,7 @@ body::after,
     inset 3px 0 0 rgba(167, 52, 58, 0.38),
     0 14px 32px rgba(0, 0, 0, 0.42);
   color: var(--foreground);
+  overflow: auto;
   padding: 0.68rem;
   pointer-events: auto;
 }

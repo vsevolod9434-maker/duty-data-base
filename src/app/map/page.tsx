@@ -1589,14 +1589,18 @@ export default function MapPage() {
 
   function selectMarker(marker: MapMarkerDto) {
     runWithEditorClose(() => {
-      beginMarkerEditForm(marker);
+      setSelectedMarkerId(marker.id);
+      setSelectedZoneId(null);
+      setSelectedRouteId(null);
       setFocus({ type: "point", x: marker.x, y: marker.y });
     });
   }
 
   function selectZone(zone: MapZoneDto) {
     runWithEditorClose(() => {
-      beginZoneEditForm(zone);
+      setSelectedMarkerId(null);
+      setSelectedZoneId(zone.id);
+      setSelectedRouteId(null);
       const bounds = getZoneBounds(zone);
       setFocus(bounds ? { bounds, type: "bounds" } : { type: "point", x: zone.centerX, y: zone.centerY });
     });
@@ -1604,7 +1608,9 @@ export default function MapPage() {
 
   function selectRoute(route: MapRouteDto) {
     runWithEditorClose(() => {
-      beginRouteEditForm(route);
+      setSelectedMarkerId(null);
+      setSelectedZoneId(null);
+      setSelectedRouteId(route.id);
       const bounds = getRouteBounds(route);
       if (bounds) {
         setFocus({ bounds, type: "bounds" });
