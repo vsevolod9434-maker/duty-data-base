@@ -60,6 +60,8 @@ export type MapZoneDto = {
   description: string | null;
   layer: string;
   points: MapZonePointDto[];
+  createdBy: string | null;
+  updatedBy: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -83,6 +85,8 @@ export type MapRouteDto = {
   description: string | null;
   layer: string;
   points: MapRoutePointDto[];
+  createdBy: string | null;
+  updatedBy: string | null;
   createdAt: string;
   updatedAt: string;
 };

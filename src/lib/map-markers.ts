@@ -49,6 +49,7 @@ export type MapMarkerDto = {
   size: number;
   description: string | null;
   createdBy: string | null;
+  updatedBy: string | null;
   layer: string;
   createdAt: string;
   updatedAt: string;

@@ -2,11 +2,11 @@
 
 import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { MapLabelDto } from "@/lib/map-labels";
 import { getMapMarkerTypeClassName, getMapMarkerTypeLabel, normalizeMapMarkerType, type MapMarkerDto, type MapMarkerType } from "@/lib/map-markers";
 import {
   DEFAULT_MAP_ROUTE_COLOR_KEY,
   DEFAULT_MAP_ROUTE_LINE_PATTERN,
-  getFillPatternPreset,
   getLinePatternPreset,
   getMapRouteTypeClassName,
   getMapZoneShapeLabel,
@@ -59,6 +59,12 @@ type VisibleMarker = {
   top: number;
 };
 
+type VisibleLabel = {
+  label: MapLabelDto;
+  left: number;
+  top: number;
+};
+
 type VisibleZone = {
   zone: MapZoneDto;
   cx: number;
@@ -72,7 +78,7 @@ type VisibleRoute = {
   points: Array<{ x: number; y: number }>;
 };
 
-type DrawingMode = "marker" | "zone" | "zone-polygon" | "route" | null;
+type DrawingMode = "marker" | "zone" | "zone-polygon" | "route" | "label" | null;
 
 type FocusTarget =
   | { type: "point"; x: number; y: number; nonce: number }
@@ -93,6 +99,17 @@ type DraftMarkerPreview = {
   y?: number;
 };
 
+type DraftLabelPreview = {
+  brightness: number;
+  colorKey: string;
+  contrast: number;
+  followCursor?: boolean;
+  size: number;
+  text: string;
+  x?: number;
+  y?: number;
+};
+
 type DraftZonePlacementPreview = {
   brightness: number;
   colorKey: string;
@@ -103,6 +120,7 @@ type DraftZonePlacementPreview = {
 };
 
 type TileMapViewerProps = {
+  draftLabelPreview?: DraftLabelPreview | null;
   draftMarkerPreview?: DraftMarkerPreview | null;
   draftZonePreview?: DraftZonePreview | null;
   draftZonePlacementPreview?: DraftZonePlacementPreview | null;
@@ -111,13 +129,18 @@ type TileMapViewerProps = {
   draftRoutePoints?: Array<Pick<MapRoutePointDto, "x" | "y">>;
   drawingMode?: DrawingMode;
   focusTarget?: FocusTarget | null;
+  labels?: MapLabelDto[];
   markers?: MapMarkerDto[];
   routes?: MapRouteDto[];
   visibleLayers?: string[];
   zones?: MapZoneDto[];
+  selectedLabelId?: string;
   selectedRouteId?: string;
   selectedMarkerId?: string;
   selectedZoneId?: string;
+  onLabelDelete?: (label: MapLabelDto) => void;
+  onLabelEdit?: (label: MapLabelDto) => void;
+  onLabelSelect?: (label: MapLabelDto) => void;
   onMarkerClear?: () => void;
   onMarkerDelete?: (marker: MapMarkerDto) => void;
   onMarkerEdit?: (marker: MapMarkerDto) => void;
@@ -137,13 +160,17 @@ type TileMapViewerProps = {
 const METADATA_URL = "/map/zone/metadata.json";
 const MISSING_MAP_MESSAGE = "Карта не подготовлена. Сформируйте тайлы перед использованием.";
 const ZOOM_STEP = 1.35;
-const MARKER_POPOVER_WIDTH = 264;
-const MARKER_POPOVER_HEIGHT = 230;
+const MARKER_POPOVER_WIDTH = 336;
+const MARKER_POPOVER_HEIGHT = 380;
 const MARKER_POPOVER_GAP = 14;
 const MARKER_POPOVER_MARGIN = 8;
 
 function getMapStyleFilter(brightness: number, contrast: number) {
   return `brightness(${brightness}%) contrast(${contrast}%)`;
+}
+
+function getMapObjectAuthorLabel(author: string | null | undefined) {
+  return author?.trim() || "не указано";
 }
 
 function getFillPatternId(colorKey: string, patternKey: string) {
@@ -326,6 +353,7 @@ function getSourcePoint(metadata: MapMetadata, view: MapView, viewportPoint: Poi
 }
 
 export function TileMapViewer({
+  draftLabelPreview = null,
   draftMarkerPreview = null,
   draftRouteColorKey = DEFAULT_MAP_ROUTE_COLOR_KEY,
   draftRouteLinePattern = DEFAULT_MAP_ROUTE_LINE_PATTERN,
@@ -335,7 +363,11 @@ export function TileMapViewer({
   drawingMode = null,
   focusTarget = null,
   isPickingPoint = false,
+  labels = [],
   markers = [],
+  onLabelDelete,
+  onLabelEdit,
+  onLabelSelect,
   onMapClick,
   onMarkerClear,
   onMarkerDelete,
@@ -350,6 +382,7 @@ export function TileMapViewer({
   onZoneEdit,
   onZoneSelect,
   routes = [],
+  selectedLabelId,
   selectedRouteId,
   selectedMarkerId,
   selectedZoneId,
@@ -566,6 +599,29 @@ export function TileMapViewer({
       );
   }, [currentView, markers, metadata, viewportSize, visibleLayers]);
 
+  const visibleLabels = useMemo<VisibleLabel[]>(() => {
+    if (!metadata || viewportSize.width === 0 || viewportSize.height === 0) {
+      return [];
+    }
+
+    const layerSet = new Set(visibleLayers);
+
+    return labels
+      .filter((label) => layerSet.size === 0 || layerSet.has(label.layer))
+      .map((label) => ({
+        label,
+        left: currentView.offset.x + label.x * currentView.scale,
+        top: currentView.offset.y + label.y * currentView.scale,
+      }))
+      .filter(
+        (label) =>
+          label.left >= -180 &&
+          label.top >= -48 &&
+          label.left <= viewportSize.width + 180 &&
+          label.top <= viewportSize.height + 48,
+      );
+  }, [currentView, labels, metadata, viewportSize, visibleLayers]);
+
   const visibleZones = useMemo<VisibleZone[]>(() => {
     if (!metadata || viewportSize.width === 0 || viewportSize.height === 0) {
       return [];
@@ -719,9 +775,39 @@ export function TileMapViewer({
     };
   }, [currentView, cursorCoordinates, draftMarkerPreview]);
 
+  const draftLabelScreenPreview = useMemo(() => {
+    if (!draftLabelPreview) {
+      return null;
+    }
+
+    const sourcePoint = draftLabelPreview.followCursor
+      ? cursorCoordinates
+      : typeof draftLabelPreview.x === "number" && typeof draftLabelPreview.y === "number"
+        ? { x: draftLabelPreview.x, y: draftLabelPreview.y }
+        : null;
+
+    if (!sourcePoint || !Number.isFinite(sourcePoint.x) || !Number.isFinite(sourcePoint.y)) {
+      return null;
+    }
+
+    return {
+      brightness: draftLabelPreview.brightness,
+      colorKey: draftLabelPreview.colorKey,
+      contrast: draftLabelPreview.contrast,
+      left: currentView.offset.x + sourcePoint.x * currentView.scale,
+      size: draftLabelPreview.size,
+      text: draftLabelPreview.text,
+      top: currentView.offset.y + sourcePoint.y * currentView.scale,
+    };
+  }, [currentView, cursorCoordinates, draftLabelPreview]);
+
   const selectedMarker = useMemo(() => {
     return markers.find((marker) => marker.id === selectedMarkerId && marker.status !== "archived") ?? null;
   }, [markers, selectedMarkerId]);
+
+  const selectedLabel = useMemo(() => {
+    return labels.find((label) => label.id === selectedLabelId) ?? null;
+  }, [labels, selectedLabelId]);
 
   const selectedZone = useMemo(() => {
     return zones.find((zone) => zone.id === selectedZoneId) ?? null;
@@ -773,6 +859,49 @@ export function TileMapViewer({
       top: Math.round(Math.min(Math.max(MARKER_POPOVER_MARGIN, top), Math.max(MARKER_POPOVER_MARGIN, viewportSize.height - popoverHeight - MARKER_POPOVER_MARGIN))),
     };
   }, [currentView, metadata, selectedMarker, viewportSize, visibleLayers]);
+
+  const selectedLabelPopover = useMemo(() => {
+    if (!metadata || !selectedLabel || viewportSize.width === 0 || viewportSize.height === 0) {
+      return null;
+    }
+
+    const layerSet = new Set(visibleLayers);
+
+    if (layerSet.size > 0 && !layerSet.has(selectedLabel.layer)) {
+      return null;
+    }
+
+    const labelLeft = currentView.offset.x + selectedLabel.x * currentView.scale;
+    const labelTop = currentView.offset.y + selectedLabel.y * currentView.scale;
+
+    if (
+      labelLeft < -MARKER_POPOVER_MARGIN ||
+      labelTop < -MARKER_POPOVER_MARGIN ||
+      labelLeft > viewportSize.width + MARKER_POPOVER_MARGIN ||
+      labelTop > viewportSize.height + MARKER_POPOVER_MARGIN
+    ) {
+      return null;
+    }
+
+    const popoverWidth = Math.min(MARKER_POPOVER_WIDTH, Math.max(1, viewportSize.width - MARKER_POPOVER_MARGIN * 2));
+    const popoverHeight = Math.min(MARKER_POPOVER_HEIGHT, Math.max(1, viewportSize.height - MARKER_POPOVER_MARGIN * 2));
+    let left = labelLeft + MARKER_POPOVER_GAP;
+    let top = labelTop - MARKER_POPOVER_MARGIN;
+
+    if (left + popoverWidth > viewportSize.width - MARKER_POPOVER_MARGIN) {
+      left = labelLeft - popoverWidth - MARKER_POPOVER_GAP;
+    }
+
+    if (top + popoverHeight > viewportSize.height - MARKER_POPOVER_MARGIN) {
+      top = viewportSize.height - popoverHeight - MARKER_POPOVER_MARGIN;
+    }
+
+    return {
+      label: selectedLabel,
+      left: Math.round(Math.min(Math.max(MARKER_POPOVER_MARGIN, left), Math.max(MARKER_POPOVER_MARGIN, viewportSize.width - popoverWidth - MARKER_POPOVER_MARGIN))),
+      top: Math.round(Math.min(Math.max(MARKER_POPOVER_MARGIN, top), Math.max(MARKER_POPOVER_MARGIN, viewportSize.height - popoverHeight - MARKER_POPOVER_MARGIN))),
+    };
+  }, [currentView, metadata, selectedLabel, viewportSize, visibleLayers]);
 
   const selectedZonePopover = useMemo(() => {
     if (!metadata || !selectedZone || viewportSize.width === 0 || viewportSize.height === 0) {
@@ -1257,6 +1386,47 @@ export function TileMapViewer({
             </div>
           ) : null}
         </div>
+        <div className="map-label-layer">
+          {visibleLabels.map(({ label, left, top }) => (
+            <button
+              aria-label={label.text}
+              className={`map-label ${selectedLabelId === label.id ? "map-label--selected" : ""}`}
+              key={label.id}
+              onClick={(event) => {
+                event.stopPropagation();
+                onLabelSelect?.(label);
+              }}
+              onDoubleClick={(event) => event.stopPropagation()}
+              onPointerDown={(event) => event.stopPropagation()}
+              style={{
+                "--map-label-scale": String(Math.max(0.55, (label.size ?? 100) / 100)),
+                color: getZoneColorPreset(label.colorKey).marker,
+                filter: getMapStyleFilter(label.brightness, label.contrast),
+                left,
+                top,
+              } as CSSProperties}
+              title={label.text}
+              type="button"
+            >
+              {label.text}
+            </button>
+          ))}
+          {draftLabelScreenPreview ? (
+            <div
+              aria-hidden="true"
+              className="map-label map-label-draft"
+              style={{
+                "--map-label-scale": String(Math.max(0.55, (draftLabelScreenPreview.size ?? 100) / 100)),
+                color: getZoneColorPreset(draftLabelScreenPreview.colorKey).marker,
+                filter: getMapStyleFilter(draftLabelScreenPreview.brightness, draftLabelScreenPreview.contrast),
+                left: draftLabelScreenPreview.left,
+                top: draftLabelScreenPreview.top,
+              } as CSSProperties}
+            >
+              {draftLabelScreenPreview.text}
+            </div>
+          ) : null}
+        </div>
         {selectedMarkerPopover ? (
           <article
             className="map-marker-popover"
@@ -1283,12 +1453,6 @@ export function TileMapViewer({
                 <dt>Слой</dt>
                 <dd>{selectedMarkerPopover.marker.layer}</dd>
               </div>
-              {selectedMarkerPopover.marker.createdBy ? (
-                <div>
-                  <dt>Добавил</dt>
-                  <dd>{selectedMarkerPopover.marker.createdBy}</dd>
-                </div>
-              ) : null}
               <div>
                 <dt>Цвет</dt>
                 <dd>{getZoneColorPreset(selectedMarkerPopover.marker.colorKey).label}</dd>
@@ -1300,14 +1464,12 @@ export function TileMapViewer({
                 </dd>
               </div>
               <div>
-                <dt>Оформление</dt>
-                <dd>
-                  Яркость: {selectedMarkerPopover.marker.brightness} / Контрастность: {selectedMarkerPopover.marker.contrast}
-                </dd>
-              </div>
-              <div>
                 <dt>Размер</dt>
                 <dd>{selectedMarkerPopover.marker.size ?? 100}</dd>
+              </div>
+              <div>
+                <dt>Добавил</dt>
+                <dd>{getMapObjectAuthorLabel(selectedMarkerPopover.marker.createdBy)}</dd>
               </div>
             </dl>
             {selectedMarkerPopover.marker.description ? (
@@ -1318,6 +1480,57 @@ export function TileMapViewer({
                 Редактировать
               </button>
               <button className="primary-command interactive-button" onClick={() => onMarkerDelete?.(selectedMarkerPopover.marker)} type="button">
+                Удалить
+              </button>
+            </div>
+          </article>
+        ) : null}
+        {selectedLabelPopover ? (
+          <article
+            className="map-marker-popover"
+            onClick={(event) => event.stopPropagation()}
+            onDoubleClick={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
+            style={{
+              left: selectedLabelPopover.left,
+              top: selectedLabelPopover.top,
+            }}
+          >
+            <div className="map-marker-popover-head">
+              <strong>{selectedLabelPopover.label.text}</strong>
+              <button aria-label="Закрыть" onClick={onSelectionClear} type="button">
+                ×
+              </button>
+            </div>
+            <dl className="map-marker-popover-details">
+              <div>
+                <dt>Слой</dt>
+                <dd>{selectedLabelPopover.label.layer}</dd>
+              </div>
+              <div>
+                <dt>Цвет</dt>
+                <dd>{getZoneColorPreset(selectedLabelPopover.label.colorKey).label}</dd>
+              </div>
+              <div>
+                <dt>Координаты</dt>
+                <dd>
+                  X: {selectedLabelPopover.label.x} Y: {selectedLabelPopover.label.y}
+                </dd>
+              </div>
+              <div>
+                <dt>Размер</dt>
+                <dd>{selectedLabelPopover.label.size}</dd>
+              </div>
+              <div>
+                <dt>Добавил</dt>
+                <dd>{getMapObjectAuthorLabel(selectedLabelPopover.label.createdBy)}</dd>
+              </div>
+            </dl>
+            <div className="map-marker-popover-actions">
+              <button className="command-row interactive-button" onClick={() => onLabelEdit?.(selectedLabelPopover.label)} type="button">
+                Редактировать
+              </button>
+              <button className="primary-command interactive-button" onClick={() => onLabelDelete?.(selectedLabelPopover.label)} type="button">
                 Удалить
               </button>
             </div>
@@ -1350,14 +1563,6 @@ export function TileMapViewer({
                 <dd>{getMapZoneShapeLabel(selectedZonePopover.zone.shape)}</dd>
               </div>
               <div>
-                <dt>Цвет</dt>
-                <dd>{getZoneColorPreset(selectedZonePopover.zone.colorKey).label}</dd>
-              </div>
-              <div>
-                <dt>Формат</dt>
-                <dd>{getFillPatternPreset(selectedZonePopover.zone.patternKey).label}</dd>
-              </div>
-              <div>
                 <dt>Центр</dt>
                 <dd>
                   X: {selectedZonePopover.zone.centerX} Y: {selectedZonePopover.zone.centerY}
@@ -1375,10 +1580,8 @@ export function TileMapViewer({
                 </div>
               )}
               <div>
-                <dt>Оформление</dt>
-                <dd>
-                  Яркость: {selectedZonePopover.zone.brightness} / Контрастность: {selectedZonePopover.zone.contrast}
-                </dd>
+                <dt>Добавил</dt>
+                <dd>{getMapObjectAuthorLabel(selectedZonePopover.zone.createdBy)}</dd>
               </div>
             </dl>
             {selectedZonePopover.zone.description ? (
@@ -1417,22 +1620,16 @@ export function TileMapViewer({
                 <dd>{selectedRoutePopover.route.layer}</dd>
               </div>
               <div>
-                <dt>Цвет</dt>
-                <dd>{getRouteColorPreset(selectedRoutePopover.route.colorKey).label}</dd>
-              </div>
-              <div>
                 <dt>Линия</dt>
                 <dd>{getLinePatternPreset(selectedRoutePopover.route.linePattern).label}</dd>
               </div>
               <div>
-                <dt>Оформление</dt>
-                <dd>
-                  Яркость: {selectedRoutePopover.route.brightness} / Контрастность: {selectedRoutePopover.route.contrast}
-                </dd>
-              </div>
-              <div>
                 <dt>Точки</dt>
                 <dd>{selectedRoutePopover.route.points.length}</dd>
+              </div>
+              <div>
+                <dt>Добавил</dt>
+                <dd>{getMapObjectAuthorLabel(selectedRoutePopover.route.createdBy)}</dd>
               </div>
             </dl>
             {selectedRoutePopover.route.description ? (

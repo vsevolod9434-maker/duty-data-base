@@ -327,6 +327,7 @@ model MapMarker {
   size        Int             @default(100)
   description String?
   createdBy   String?
+  updatedBy   String?
   layer       String          @default("Основной слой")
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
@@ -351,6 +352,8 @@ model MapZone {
   brightness  Int           @default(100)
   contrast    Int           @default(100)
   description String?
+  createdBy   String?
+  updatedBy   String?
   layer       String        @default("Основной слой")
   points      MapZonePoint[]
   createdAt   DateTime      @default(now())
@@ -385,6 +388,8 @@ model MapRoute {
   brightness  Int             @default(100)
   contrast    Int             @default(100)
   description String?
+  createdBy   String?
+  updatedBy   String?
   layer       String          @default("Основной слой")
   points      MapRoutePoint[]
   createdAt   DateTime        @default(now())
@@ -405,6 +410,25 @@ model MapRoutePoint {
 
   @@index([routeId])
   @@index([order])
+}
+
+model MapLabel {
+  id         String   @id @default(cuid())
+  text       String
+  x          Int
+  y          Int
+  colorKey   String   @default("red")
+  brightness Int      @default(100)
+  contrast   Int      @default(100)
+  size       Int      @default(130)
+  layer      String   @default("Основной слой")
+  createdBy  String?
+  updatedBy  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([layer])
+  @@index([x, y])
 }
 
 model MapLayer {

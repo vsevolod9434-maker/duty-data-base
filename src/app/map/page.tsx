@@ -14,6 +14,12 @@ import {
   useDutyQueryClient,
 } from "@/lib/data-cache";
 import { createMapLayer, deleteMapLayer, fetchMapLayers, updateMapLayer } from "@/lib/map-layer-api";
+import { createMapLabel, deleteMapLabel, fetchMapLabels, updateMapLabel } from "@/lib/map-label-api";
+import {
+  DEFAULT_MAP_LABEL_SIZE,
+  MAP_LABEL_SIZE_PRESETS,
+  type MapLabelDto,
+} from "@/lib/map-labels";
 import { DEFAULT_MAP_LAYER, normalizeMapLayerName, type MapLayerDto } from "@/lib/map-layers";
 import { createMapMarker, deleteMapMarker, fetchMapMarkers, updateMapMarker } from "@/lib/map-marker-api";
 import {
@@ -70,8 +76,8 @@ import {
   type MapZoneType,
 } from "@/lib/map-overlays";
 
-type ActivePanel = "markers" | "zones" | "routes" | "layers";
-type DrawingMode = "marker" | "zone" | "zone-polygon" | "route" | null;
+type ActivePanel = "markers" | "zones" | "routes" | "labels" | "layers";
+type DrawingMode = "marker" | "zone" | "zone-polygon" | "route" | "label" | null;
 type MapPoint = { x: number; y: number };
 type FocusTarget =
   | { type: "point"; x: number; y: number; nonce: number }
@@ -126,6 +132,18 @@ type RouteFormDraft = {
   layer: string;
   points: MapPoint[];
   description: string;
+};
+
+type LabelFormDraft = {
+  id?: string;
+  text: string;
+  colorKey: MapObjectColorKey;
+  brightness: string;
+  contrast: string;
+  size: string;
+  layer: string;
+  x: string;
+  y: string;
 };
 
 type ConfirmDialogState = {
@@ -384,10 +402,27 @@ const emptyRouteDraft: RouteFormDraft = {
   type: DEFAULT_MAP_ROUTE_TYPE,
 };
 
+const emptyLabelDraft: LabelFormDraft = {
+  brightness: "100",
+  colorKey: DEFAULT_MAP_ROUTE_COLOR_KEY,
+  contrast: "100",
+  layer: DEFAULT_MAP_LAYER,
+  size: String(DEFAULT_MAP_LABEL_SIZE),
+  text: "",
+  x: "0",
+  y: "0",
+};
+
 const orderedMarkerSizePresets = [
   ["small", MAP_MARKER_SIZE_PRESETS.small],
   ["standard", MAP_MARKER_SIZE_PRESETS.standard],
   ["large", MAP_MARKER_SIZE_PRESETS.large],
+] as const;
+
+const orderedLabelSizePresets = [
+  ["small", MAP_LABEL_SIZE_PRESETS.small],
+  ["standard", MAP_LABEL_SIZE_PRESETS.standard],
+  ["large", MAP_LABEL_SIZE_PRESETS.large],
 ] as const;
 
 const orderedMarkerUiTypes: MapMarkerUiType[] = [
@@ -421,7 +456,7 @@ function sortedPoints<T extends { order: number; x: number; y: number }>(points:
   return [...points].sort((firstPoint, secondPoint) => firstPoint.order - secondPoint.order);
 }
 
-function getLayerOptions(mapLayers: MapLayerDto[], markers: MapMarkerDto[], zones: MapZoneDto[], routes: MapRouteDto[]) {
+function getLayerOptions(mapLayers: MapLayerDto[], markers: MapMarkerDto[], zones: MapZoneDto[], routes: MapRouteDto[], labels: MapLabelDto[]) {
   return Array.from(
     new Set([
       DEFAULT_MAP_LAYER,
@@ -429,6 +464,7 @@ function getLayerOptions(mapLayers: MapLayerDto[], markers: MapMarkerDto[], zone
       ...markers.map((marker) => normalizeMapLayerName(marker.layer)),
       ...zones.map((zone) => normalizeMapLayerName(zone.layer)),
       ...routes.map((route) => normalizeMapLayerName(route.layer)),
+      ...labels.map((label) => normalizeMapLayerName(label.layer)),
     ]),
   ).sort((firstLayer, secondLayer) => {
     if (firstLayer === DEFAULT_MAP_LAYER) {
@@ -545,6 +581,24 @@ function createRouteDraftFromPoints(points: MapPoint[], baseRoute?: MapRouteDto)
   };
 }
 
+function createLabelDraftFromLabel(label: MapLabelDto): LabelFormDraft {
+  return {
+    brightness: String(label.brightness),
+    colorKey: label.colorKey,
+    contrast: String(label.contrast),
+    id: label.id,
+    layer: label.layer,
+    size: String(label.size ?? DEFAULT_MAP_LABEL_SIZE),
+    text: label.text,
+    x: String(label.x),
+    y: String(label.y),
+  };
+}
+
+function createLabelDraftAtPoint(x: number, y: number): LabelFormDraft {
+  return { ...emptyLabelDraft, x: String(x), y: String(y) };
+}
+
 function normalizeMarkerDraft(draft: MarkerFormDraft) {
   return {
     brightness: normalizeStyleDraftValue(draft.brightness),
@@ -596,6 +650,19 @@ function normalizeRouteDraft(draft: RouteFormDraft) {
   };
 }
 
+function normalizeLabelDraft(draft: LabelFormDraft) {
+  return {
+    brightness: normalizeStyleDraftValue(draft.brightness),
+    colorKey: draft.colorKey,
+    contrast: normalizeStyleDraftValue(draft.contrast),
+    layer: normalizeMapLayerName(draft.layer),
+    size: Number(draft.size),
+    text: draft.text.trim(),
+    x: Number(draft.x),
+    y: Number(draft.y),
+  };
+}
+
 function getRouteBounds(route: MapRouteDto) {
   return getMapPointsBounds(route.points);
 }
@@ -619,9 +686,13 @@ export default function MapPage() {
   const initialMarkerDraftRef = useRef<MarkerFormDraft | null>(null);
   const initialZoneDraftRef = useRef<ZoneFormDraft | null>(null);
   const initialRouteDraftRef = useRef<RouteFormDraft | null>(null);
+  const initialLabelDraftRef = useRef<LabelFormDraft | null>(null);
   const [activePanel, setActivePanel] = useState<ActivePanel>("markers");
   const [markers, setMarkers] = useState<MapMarkerDto[]>(() =>
     currentUserKey ? (queryClient.getQueryData<MapMarkerDto[]>(dutyDataKeys.mapMarkers(currentUserKey)) ?? []) : [],
+  );
+  const [labels, setLabels] = useState<MapLabelDto[]>(() =>
+    currentUserKey ? (queryClient.getQueryData<MapLabelDto[]>(dutyDataKeys.mapLabels(currentUserKey)) ?? []) : [],
   );
   const [zones, setZones] = useState<MapZoneDto[]>(() =>
     currentUserKey ? (queryClient.getQueryData<MapZoneDto[]>(dutyDataKeys.mapZones(currentUserKey)) ?? []) : [],
@@ -634,6 +705,7 @@ export default function MapPage() {
   );
   const [visibleLayerState, setVisibleLayerState] = useState<Record<string, boolean>>({});
   const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
+  const [selectedLabelId, setSelectedLabelId] = useState<string | null>(null);
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [drawingMode, setDrawingMode] = useState<DrawingMode>(null);
@@ -648,6 +720,7 @@ export default function MapPage() {
   const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
   const [objectError, setObjectError] = useState("");
   const [markerDraft, setMarkerDraft] = useState<MarkerFormDraft | null>(null);
+  const [labelDraft, setLabelDraft] = useState<LabelFormDraft | null>(null);
   const [zoneDraft, setZoneDraft] = useState<ZoneFormDraft | null>(null);
   const [routeDraft, setRouteDraft] = useState<RouteFormDraft | null>(null);
   const [formMessage, setFormMessage] = useState("");
@@ -657,6 +730,11 @@ export default function MapPage() {
   const markerQuery = useQuery({
     queryKey: dutyDataKeys.mapMarkers(currentUserKey ?? "pending"),
     queryFn: fetchMapMarkers,
+    enabled: Boolean(currentUserKey),
+  });
+  const labelQuery = useQuery({
+    queryKey: dutyDataKeys.mapLabels(currentUserKey ?? "pending"),
+    queryFn: fetchMapLabels,
     enabled: Boolean(currentUserKey),
   });
   const zoneQuery = useQuery({
@@ -676,12 +754,13 @@ export default function MapPage() {
   });
   const isLoadingObjects =
     isCurrentUserLoading ||
-    ([markerQuery, zoneQuery, routeQuery, layerQuery].some((query) => query.isPending) &&
+    ([markerQuery, labelQuery, zoneQuery, routeQuery, layerQuery].some((query) => query.isPending) &&
       markers.length === 0 &&
+      labels.length === 0 &&
       zones.length === 0 &&
       routes.length === 0 &&
       mapLayers.length === 0);
-  const objectLoadError = [markerQuery, zoneQuery, routeQuery, layerQuery].some((query) => query.isError)
+  const objectLoadError = [markerQuery, labelQuery, zoneQuery, routeQuery, layerQuery].some((query) => query.isError)
     ? "Не удалось загрузить объекты карты."
     : "";
 
@@ -692,6 +771,14 @@ export default function MapPage() {
       }
     });
   }, [markerQuery.data]);
+
+  useEffect(() => {
+    return scheduleClientStateSync(() => {
+      if (labelQuery.data) {
+        setLabels(labelQuery.data);
+      }
+    });
+  }, [labelQuery.data]);
 
   useEffect(() => {
     return scheduleClientStateSync(() => {
@@ -726,6 +813,18 @@ export default function MapPage() {
       }
 
       return nextMarkers;
+    });
+  }
+
+  function updateLabelsCache(updater: (currentLabels: MapLabelDto[]) => MapLabelDto[]) {
+    setLabels((currentLabels) => {
+      const nextLabels = updater(currentLabels);
+
+      if (currentUserKey) {
+        queryClient.setQueryData(dutyDataKeys.mapLabels(currentUserKey), nextLabels);
+      }
+
+      return nextLabels;
     });
   }
 
@@ -766,8 +865,8 @@ export default function MapPage() {
   }
 
   const layers = useMemo(() => {
-    return getLayerOptions(mapLayers, markers, zones, routes);
-  }, [mapLayers, markers, routes, zones]);
+    return getLayerOptions(mapLayers, markers, zones, routes, labels);
+  }, [labels, mapLayers, markers, routes, zones]);
 
   const visibleLayers = useMemo(() => layers.filter((layer) => visibleLayerState[layer] !== false), [layers, visibleLayerState]);
 
@@ -775,6 +874,11 @@ export default function MapPage() {
     const layerSet = new Set(visibleLayers);
     return markers.filter((marker) => layerSet.has(marker.layer));
   }, [markers, visibleLayers]);
+
+  const visibleLabels = useMemo(() => {
+    const layerSet = new Set(visibleLayers);
+    return labels.filter((label) => layerSet.has(label.layer));
+  }, [labels, visibleLayers]);
 
   const visibleZones = useMemo(() => {
     const layerSet = new Set(visibleLayers);
@@ -789,6 +893,10 @@ export default function MapPage() {
   const viewerMarkers = useMemo(() => {
     return markerDraft?.id ? visibleMarkers.filter((marker) => marker.id !== markerDraft.id) : visibleMarkers;
   }, [markerDraft?.id, visibleMarkers]);
+
+  const viewerLabels = useMemo(() => {
+    return labelDraft?.id ? visibleLabels.filter((label) => label.id !== labelDraft.id) : visibleLabels;
+  }, [labelDraft?.id, visibleLabels]);
 
   const viewerZones = useMemo(() => {
     return zoneDraft?.id ? visibleZones.filter((zone) => zone.id !== zoneDraft.id) : visibleZones;
@@ -915,6 +1023,34 @@ export default function MapPage() {
     return null;
   }, [drawingMode, markerDraft]);
 
+  const draftLabelPreview = useMemo(() => {
+    if (labelDraft) {
+      return {
+        brightness: normalizeStyleDraftValue(labelDraft.brightness),
+        colorKey: labelDraft.colorKey,
+        contrast: normalizeStyleDraftValue(labelDraft.contrast),
+        followCursor: drawingMode === "label",
+        size: Math.max(1, Number(labelDraft.size) || DEFAULT_MAP_LABEL_SIZE),
+        text: labelDraft.text.trim() || "Надпись",
+        x: Number(labelDraft.x),
+        y: Number(labelDraft.y),
+      };
+    }
+
+    if (drawingMode === "label") {
+      return {
+        brightness: 100,
+        colorKey: DEFAULT_MAP_ROUTE_COLOR_KEY,
+        contrast: 100,
+        followCursor: true,
+        size: DEFAULT_MAP_LABEL_SIZE,
+        text: "Надпись",
+      };
+    }
+
+    return null;
+  }, [drawingMode, labelDraft]);
+
   const draftZonePlacementPreview = useMemo(() => {
     if (drawingMode !== "zone" || !zoneDraft || zoneDraft.shape !== "circle") {
       return null;
@@ -932,6 +1068,7 @@ export default function MapPage() {
 
   function clearSelection() {
     setSelectedMarkerId(null);
+    setSelectedLabelId(null);
     setSelectedZoneId(null);
     setSelectedRouteId(null);
   }
@@ -947,8 +1084,14 @@ export default function MapPage() {
   }
 
   function hasDirtyEditor() {
-    const currentDraft = markerDraft ?? zoneDraft ?? routeDraft;
-    const initialDraft = markerDraft ? initialMarkerDraftRef.current : zoneDraft ? initialZoneDraftRef.current : initialRouteDraftRef.current;
+    const currentDraft = markerDraft ?? labelDraft ?? zoneDraft ?? routeDraft;
+    const initialDraft = markerDraft
+      ? initialMarkerDraftRef.current
+      : labelDraft
+        ? initialLabelDraftRef.current
+        : zoneDraft
+          ? initialZoneDraftRef.current
+          : initialRouteDraftRef.current;
 
     if (currentDraft) {
       return JSON.stringify(currentDraft) !== JSON.stringify(initialDraft);
@@ -958,7 +1101,7 @@ export default function MapPage() {
   }
 
   function hasOpenEditor() {
-    return Boolean(markerDraft || zoneDraft || routeDraft || drawingMode || drawingPoints.length > 0);
+    return Boolean(markerDraft || labelDraft || zoneDraft || routeDraft || drawingMode || drawingPoints.length > 0);
   }
 
   function runWithEditorClose(action: () => void) {
@@ -998,9 +1141,24 @@ export default function MapPage() {
     if (nextMode === "marker") {
       const nextDraft = createMarkerDraftAtPoint(0, 0);
       initialMarkerDraftRef.current = nextDraft;
+      initialLabelDraftRef.current = null;
       initialZoneDraftRef.current = null;
       initialRouteDraftRef.current = null;
       setMarkerDraft(nextDraft);
+      setLabelDraft(null);
+      setZoneDraft(null);
+      setRouteDraft(null);
+      return;
+    }
+
+    if (nextMode === "label") {
+      const nextDraft = createLabelDraftAtPoint(0, 0);
+      initialMarkerDraftRef.current = null;
+      initialLabelDraftRef.current = nextDraft;
+      initialZoneDraftRef.current = null;
+      initialRouteDraftRef.current = null;
+      setMarkerDraft(null);
+      setLabelDraft(nextDraft);
       setZoneDraft(null);
       setRouteDraft(null);
       return;
@@ -1009,18 +1167,22 @@ export default function MapPage() {
     if (nextMode === "zone") {
       const nextDraft = createCircleZoneDraftAtPoint(0, 0);
       initialMarkerDraftRef.current = null;
+      initialLabelDraftRef.current = null;
       initialZoneDraftRef.current = nextDraft;
       initialRouteDraftRef.current = null;
       setMarkerDraft(null);
+      setLabelDraft(null);
       setZoneDraft(nextDraft);
       setRouteDraft(null);
       return;
     }
 
     setMarkerDraft(null);
+    setLabelDraft(null);
     setZoneDraft(null);
     setRouteDraft(null);
     initialMarkerDraftRef.current = null;
+    initialLabelDraftRef.current = null;
     initialZoneDraftRef.current = null;
     initialRouteDraftRef.current = null;
   }
@@ -1043,6 +1205,14 @@ export default function MapPage() {
 
   function setMarkerSizePreset(size: number) {
     updateMarkerDraft("size", String(size));
+  }
+
+  function updateLabelDraft<K extends keyof LabelFormDraft>(field: K, value: LabelFormDraft[K]) {
+    setLabelDraft((currentDraft) => (currentDraft ? { ...currentDraft, [field]: value } : currentDraft));
+  }
+
+  function setLabelSizePreset(size: number) {
+    updateLabelDraft("size", String(size));
   }
 
   function updateZoneDraft<K extends keyof ZoneFormDraft>(field: K, value: ZoneFormDraft[K]) {
@@ -1071,9 +1241,11 @@ export default function MapPage() {
   function openMarkerCreateForm(x: number, y: number) {
     const nextDraft = createMarkerDraftAtPoint(x, y);
     initialMarkerDraftRef.current = nextDraft;
+    initialLabelDraftRef.current = null;
     initialZoneDraftRef.current = null;
     initialRouteDraftRef.current = null;
     setMarkerDraft(nextDraft);
+    setLabelDraft(null);
     setZoneDraft(null);
     setRouteDraft(null);
     setActivePanel("markers");
@@ -1083,12 +1255,15 @@ export default function MapPage() {
   function beginMarkerEditForm(marker: MapMarkerDto) {
     const nextDraft = createMarkerDraftFromMarker(marker);
     initialMarkerDraftRef.current = nextDraft;
+    initialLabelDraftRef.current = null;
     initialZoneDraftRef.current = null;
     initialRouteDraftRef.current = null;
     setMarkerDraft(nextDraft);
+    setLabelDraft(null);
     setZoneDraft(null);
     setRouteDraft(null);
     setSelectedMarkerId(marker.id);
+    setSelectedLabelId(null);
     setSelectedZoneId(null);
     setSelectedRouteId(null);
     setActivePanel("markers");
@@ -1100,12 +1275,51 @@ export default function MapPage() {
     runWithEditorClose(() => beginMarkerEditForm(marker));
   }
 
+  function openLabelCreateForm(x: number, y: number) {
+    const nextDraft = createLabelDraftAtPoint(x, y);
+    initialMarkerDraftRef.current = null;
+    initialLabelDraftRef.current = nextDraft;
+    initialZoneDraftRef.current = null;
+    initialRouteDraftRef.current = null;
+    setMarkerDraft(null);
+    setLabelDraft(nextDraft);
+    setZoneDraft(null);
+    setRouteDraft(null);
+    setActivePanel("labels");
+    setFormMessage("");
+  }
+
+  function beginLabelEditForm(label: MapLabelDto) {
+    const nextDraft = createLabelDraftFromLabel(label);
+    initialMarkerDraftRef.current = null;
+    initialLabelDraftRef.current = nextDraft;
+    initialZoneDraftRef.current = null;
+    initialRouteDraftRef.current = null;
+    setMarkerDraft(null);
+    setLabelDraft(nextDraft);
+    setZoneDraft(null);
+    setRouteDraft(null);
+    setSelectedMarkerId(null);
+    setSelectedLabelId(label.id);
+    setSelectedZoneId(null);
+    setSelectedRouteId(null);
+    setActivePanel("labels");
+    stopDrawing();
+    setFormMessage("");
+  }
+
+  function openLabelEditForm(label: MapLabelDto) {
+    runWithEditorClose(() => beginLabelEditForm(label));
+  }
+
   function openCircleZoneCreateForm(x: number, y: number) {
     const nextDraft = createCircleZoneDraftAtPoint(x, y);
     initialMarkerDraftRef.current = null;
+    initialLabelDraftRef.current = null;
     initialZoneDraftRef.current = nextDraft;
     initialRouteDraftRef.current = null;
     setMarkerDraft(null);
+    setLabelDraft(null);
     setZoneDraft(nextDraft);
     setRouteDraft(null);
     setActivePanel("zones");
@@ -1115,12 +1329,15 @@ export default function MapPage() {
   function beginZoneEditForm(zone: MapZoneDto) {
     const nextDraft = createZoneDraftFromZone(zone);
     initialMarkerDraftRef.current = null;
+    initialLabelDraftRef.current = null;
     initialZoneDraftRef.current = nextDraft;
     initialRouteDraftRef.current = null;
     setMarkerDraft(null);
+    setLabelDraft(null);
     setZoneDraft(nextDraft);
     setRouteDraft(null);
     setSelectedMarkerId(null);
+    setSelectedLabelId(null);
     setSelectedZoneId(zone.id);
     setSelectedRouteId(null);
     setActivePanel("zones");
@@ -1135,9 +1352,11 @@ export default function MapPage() {
   function openPolygonZoneForm(points: MapPoint[], baseZone?: MapZoneDto) {
     const nextDraft = createPolygonZoneDraftFromPoints(points, baseZone);
     initialMarkerDraftRef.current = null;
+    initialLabelDraftRef.current = null;
     initialZoneDraftRef.current = nextDraft;
     initialRouteDraftRef.current = null;
     setMarkerDraft(null);
+    setLabelDraft(null);
     setZoneDraft(nextDraft);
     setRouteDraft(null);
     setActivePanel("zones");
@@ -1147,9 +1366,11 @@ export default function MapPage() {
   function openRouteCreateForm(points: MapPoint[], baseRoute?: MapRouteDto) {
     const nextDraft = createRouteDraftFromPoints(points, baseRoute);
     initialMarkerDraftRef.current = null;
+    initialLabelDraftRef.current = null;
     initialZoneDraftRef.current = null;
     initialRouteDraftRef.current = nextDraft;
     setMarkerDraft(null);
+    setLabelDraft(null);
     setZoneDraft(null);
     setRouteDraft(nextDraft);
     setActivePanel("routes");
@@ -1159,12 +1380,15 @@ export default function MapPage() {
   function beginRouteEditForm(route: MapRouteDto) {
     const nextDraft = createRouteDraftFromRoute(route);
     initialMarkerDraftRef.current = null;
+    initialLabelDraftRef.current = null;
     initialZoneDraftRef.current = null;
     initialRouteDraftRef.current = nextDraft;
     setMarkerDraft(null);
+    setLabelDraft(null);
     setZoneDraft(null);
     setRouteDraft(nextDraft);
     setSelectedMarkerId(null);
+    setSelectedLabelId(null);
     setSelectedZoneId(null);
     setSelectedRouteId(route.id);
     setActivePanel("routes");
@@ -1178,6 +1402,7 @@ export default function MapPage() {
 
   function closeForms() {
     setMarkerDraft(null);
+    setLabelDraft(null);
     setZoneDraft(null);
     setRouteDraft(null);
     setFormMessage("");
@@ -1185,6 +1410,7 @@ export default function MapPage() {
     setDrawingPoints([]);
     setDrawingMessage("");
     initialMarkerDraftRef.current = null;
+    initialLabelDraftRef.current = null;
     initialZoneDraftRef.current = null;
     initialRouteDraftRef.current = null;
   }
@@ -1224,6 +1450,20 @@ export default function MapPage() {
 
       setDrawingMode(null);
       openMarkerCreateForm(x, y);
+      return;
+    }
+
+    if (drawingMode === "label") {
+      if (labelDraft) {
+        updateLabelDraft("x", String(x));
+        updateLabelDraft("y", String(y));
+        setDrawingMode(null);
+        setFormMessage("");
+        return;
+      }
+
+      setDrawingMode(null);
+      openLabelCreateForm(x, y);
       return;
     }
 
@@ -1308,6 +1548,7 @@ export default function MapPage() {
         setSelectedMarkerId(createdMarker.id);
       }
 
+      setSelectedLabelId(null);
       setSelectedZoneId(null);
       setSelectedRouteId(null);
       closeForms();
@@ -1353,10 +1594,55 @@ export default function MapPage() {
 
       setDrawingPoints([]);
       setSelectedMarkerId(null);
+      setSelectedLabelId(null);
       setSelectedRouteId(null);
       closeForms();
     } catch (error) {
       setFormMessage(error instanceof Error ? error.message : "Не удалось сохранить зону.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleLabelSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!labelDraft) {
+      return;
+    }
+
+    const payload = normalizeLabelDraft(labelDraft);
+
+    if (!payload.text) {
+      setFormMessage("Укажите текст надписи.");
+      return;
+    }
+
+    if (!labelDraft.id && drawingMode === "label") {
+      setFormMessage("Выберите точку на карте.");
+      return;
+    }
+
+    setIsSaving(true);
+    setFormMessage("");
+
+    try {
+      if (labelDraft.id) {
+        const updatedLabel = await updateMapLabel(labelDraft.id, payload);
+        updateLabelsCache((currentLabels) => replaceCachedRecord(currentLabels, updatedLabel));
+        setSelectedLabelId(updatedLabel.id);
+      } else {
+        const createdLabel = await createMapLabel(payload);
+        updateLabelsCache((currentLabels) => replaceCachedRecord(currentLabels, createdLabel));
+        setSelectedLabelId(createdLabel.id);
+      }
+
+      setSelectedMarkerId(null);
+      setSelectedZoneId(null);
+      setSelectedRouteId(null);
+      closeForms();
+    } catch (error) {
+      setFormMessage(error instanceof Error ? error.message : "Не удалось сохранить надпись.");
     } finally {
       setIsSaving(false);
     }
@@ -1397,6 +1683,7 @@ export default function MapPage() {
 
       setDrawingPoints([]);
       setSelectedMarkerId(null);
+      setSelectedLabelId(null);
       setSelectedZoneId(null);
       closeForms();
     } catch (error) {
@@ -1425,6 +1712,29 @@ export default function MapPage() {
         }
       },
       title: "Удаление метки",
+      variant: "danger",
+    });
+  }
+
+  function requestDeleteLabel(label: MapLabelDto) {
+    setConfirmDialog({
+      cancelLabel: "Отмена",
+      confirmLabel: "Удалить",
+      message: "Удалить надпись окончательно?",
+      onConfirm: async () => {
+        setConfirmDialog((currentDialog) => (currentDialog ? { ...currentDialog, loading: true } : currentDialog));
+
+        try {
+          const deletedLabel = await deleteMapLabel(label.id);
+          updateLabelsCache((currentLabels) => removeCachedRecord(currentLabels, deletedLabel.id));
+          setSelectedLabelId((currentId) => (currentId === deletedLabel.id ? null : currentId));
+          setConfirmDialog(null);
+        } catch {
+          setConfirmDialog(null);
+          setObjectError("Не удалось удалить надпись.");
+        }
+      },
+      title: "Удаление надписи",
       variant: "danger",
     });
   }
@@ -1485,10 +1795,11 @@ export default function MapPage() {
 
     if (willHideLayer) {
       const selectedMarker = markers.find((marker) => marker.id === selectedMarkerId);
+      const selectedLabel = labels.find((label) => label.id === selectedLabelId);
       const selectedZone = zones.find((zone) => zone.id === selectedZoneId);
       const selectedRoute = routes.find((route) => route.id === selectedRouteId);
 
-      if (selectedMarker?.layer === layer || selectedZone?.layer === layer || selectedRoute?.layer === layer) {
+      if (selectedMarker?.layer === layer || selectedLabel?.layer === layer || selectedZone?.layer === layer || selectedRoute?.layer === layer) {
         clearSelection();
       }
     }
@@ -1536,9 +1847,11 @@ export default function MapPage() {
 
       updateLayersCache((currentLayers) => replaceCachedRecord(currentLayers, updatedLayer));
       updateMarkersCache((currentMarkers) => currentMarkers.map((marker) => (marker.layer === previousName ? { ...marker, layer: updatedLayer.name } : marker)));
+      updateLabelsCache((currentLabels) => currentLabels.map((label) => (label.layer === previousName ? { ...label, layer: updatedLayer.name } : label)));
       updateZonesCache((currentZones) => currentZones.map((zone) => (zone.layer === previousName ? { ...zone, layer: updatedLayer.name } : zone)));
       updateRoutesCache((currentRoutes) => currentRoutes.map((route) => (route.layer === previousName ? { ...route, layer: updatedLayer.name } : route)));
       setMarkerDraft((currentDraft) => (currentDraft?.layer === previousName ? { ...currentDraft, layer: updatedLayer.name } : currentDraft));
+      setLabelDraft((currentDraft) => (currentDraft?.layer === previousName ? { ...currentDraft, layer: updatedLayer.name } : currentDraft));
       setZoneDraft((currentDraft) => (currentDraft?.layer === previousName ? { ...currentDraft, layer: updatedLayer.name } : currentDraft));
       setRouteDraft((currentDraft) => (currentDraft?.layer === previousName ? { ...currentDraft, layer: updatedLayer.name } : currentDraft));
       setVisibleLayerState((currentState) => {
@@ -1556,6 +1869,16 @@ export default function MapPage() {
   }
 
   function requestDeleteLayer(layer: MapLayerDto) {
+    if (
+      markers.some((marker) => marker.layer === layer.name) ||
+      labels.some((label) => label.layer === layer.name) ||
+      zones.some((zone) => zone.layer === layer.name) ||
+      routes.some((route) => route.layer === layer.name)
+    ) {
+      setLayerMessage("Слой используется объектами карты.");
+      return;
+    }
+
     setConfirmDialog({
       cancelLabel: "Отмена",
       confirmLabel: "Удалить",
@@ -1574,6 +1897,7 @@ export default function MapPage() {
             return nextState;
           });
           setMarkerDraft((currentDraft) => (currentDraft?.layer === layer.name ? { ...currentDraft, layer: DEFAULT_MAP_LAYER } : currentDraft));
+          setLabelDraft((currentDraft) => (currentDraft?.layer === layer.name ? { ...currentDraft, layer: DEFAULT_MAP_LAYER } : currentDraft));
           setZoneDraft((currentDraft) => (currentDraft?.layer === layer.name ? { ...currentDraft, layer: DEFAULT_MAP_LAYER } : currentDraft));
           setRouteDraft((currentDraft) => (currentDraft?.layer === layer.name ? { ...currentDraft, layer: DEFAULT_MAP_LAYER } : currentDraft));
         } catch (error) {
@@ -1590,15 +1914,27 @@ export default function MapPage() {
   function selectMarker(marker: MapMarkerDto) {
     runWithEditorClose(() => {
       setSelectedMarkerId(marker.id);
+      setSelectedLabelId(null);
       setSelectedZoneId(null);
       setSelectedRouteId(null);
       setFocus({ type: "point", x: marker.x, y: marker.y });
     });
   }
 
+  function selectLabel(label: MapLabelDto) {
+    runWithEditorClose(() => {
+      setSelectedMarkerId(null);
+      setSelectedLabelId(label.id);
+      setSelectedZoneId(null);
+      setSelectedRouteId(null);
+      setFocus({ type: "point", x: label.x, y: label.y });
+    });
+  }
+
   function selectZone(zone: MapZoneDto) {
     runWithEditorClose(() => {
       setSelectedMarkerId(null);
+      setSelectedLabelId(null);
       setSelectedZoneId(zone.id);
       setSelectedRouteId(null);
       const bounds = getZoneBounds(zone);
@@ -1609,6 +1945,7 @@ export default function MapPage() {
   function selectRoute(route: MapRouteDto) {
     runWithEditorClose(() => {
       setSelectedMarkerId(null);
+      setSelectedLabelId(null);
       setSelectedZoneId(null);
       setSelectedRouteId(route.id);
       const bounds = getRouteBounds(route);
@@ -1684,6 +2021,73 @@ export default function MapPage() {
           </button>
           <button className="primary-command interactive-button" disabled={isSaving || isPointPending} type="submit">
             {isSaving ? "Сохранение..." : "Сохранить метку"}
+          </button>
+        </div>
+      </form>
+    );
+  }
+
+  function renderLabelEditor() {
+    if (!labelDraft) {
+      return null;
+    }
+
+    const isPointPending = !labelDraft.id && drawingMode === "label";
+
+    return (
+      <form className="map-panel-editor" onSubmit={handleLabelSubmit}>
+        <div className="map-panel-editor-head">
+          <div>
+            <span>{labelDraft.id ? "Изменение объекта" : "Создание объекта"}</span>
+            <h2>{labelDraft.id ? "Редактирование надписи" : "Новая надпись"}</h2>
+          </div>
+          <p>{isPointPending ? "Наведите курсор на карту и нажмите, чтобы выбрать место." : `Координаты: X ${labelDraft.x} · Y ${labelDraft.y}`}</p>
+        </div>
+
+        <div className="map-panel-editor-grid">
+          <label className="filter-field map-form-wide">
+            <span>Текст</span>
+            <textarea disabled={isSaving} maxLength={200} onChange={(event) => updateLabelDraft("text", event.target.value)} placeholder="Введите текст надписи" rows={3} value={labelDraft.text} />
+          </label>
+          <label className="filter-field">
+            <span>Слой</span>
+            <select disabled={isSaving} onChange={(event) => updateLabelDraft("layer", event.target.value)} value={labelDraft.layer}>
+              {layers.map((layer) => (
+                <option key={layer} value={layer}>
+                  {layer}
+                </option>
+              ))}
+            </select>
+          </label>
+          <MapColorDropdown disabled={isSaving} getPreset={getRouteColorPreset} onChange={(value) => updateLabelDraft("colorKey", value)} value={labelDraft.colorKey} />
+          <label className="filter-field">
+            <span>Размер</span>
+            <input disabled={isSaving} onChange={(event) => updateLabelDraft("size", event.target.value)} step={5} type="number" value={labelDraft.size} />
+          </label>
+          <div className="map-marker-size-presets map-choice-row map-form-wide">
+            {orderedLabelSizePresets.map(([key, preset]) => (
+              <button className={`map-preset-button ${Number(labelDraft.size) === preset.size ? "map-choice-active" : ""}`} disabled={isSaving} key={key} onClick={() => setLabelSizePreset(preset.size)} type="button">
+                {preset.label}
+              </button>
+            ))}
+          </div>
+          <label className="filter-field">
+            <span>Яркость</span>
+            <input disabled={isSaving} onChange={(event) => updateLabelDraft("brightness", event.target.value)} step={5} type="number" value={labelDraft.brightness} />
+          </label>
+          <label className="filter-field">
+            <span>Контрастность</span>
+            <input disabled={isSaving} onChange={(event) => updateLabelDraft("contrast", event.target.value)} step={5} type="number" value={labelDraft.contrast} />
+          </label>
+        </div>
+
+        {formMessage ? <p className="draft-message">{formMessage}</p> : null}
+        <div className="map-panel-editor-actions">
+          <button className="command-row interactive-button" disabled={isSaving} onClick={requestCloseForms} type="button">
+            Отмена
+          </button>
+          <button className="primary-command interactive-button" disabled={isSaving || isPointPending} type="submit">
+            {isSaving ? "Сохранение..." : "Сохранить надпись"}
           </button>
         </div>
       </form>
@@ -1930,6 +2334,7 @@ export default function MapPage() {
           <div className="map-page-layout">
             <div className="map-work-area">
               <TileMapViewer
+                draftLabelPreview={draftLabelPreview}
                 draftMarkerPreview={draftMarkerPreview}
                 draftRouteColorKey={routeDraft?.colorKey ?? DEFAULT_MAP_ROUTE_COLOR_KEY}
                 draftRouteLinePattern={routeDraft?.linePattern ?? DEFAULT_MAP_ROUTE_LINE_PATTERN}
@@ -1939,8 +2344,12 @@ export default function MapPage() {
                 drawingMode={drawingMode}
                 focusTarget={focusTarget}
                 isPickingPoint={drawingMode !== null}
+                labels={viewerLabels}
                 markers={viewerMarkers}
                 onMapClick={handleMapClick}
+                onLabelDelete={requestDeleteLabel}
+                onLabelEdit={openLabelEditForm}
+                onLabelSelect={selectLabel}
                 onMarkerClear={clearSelection}
                 onMarkerDelete={requestDeleteMarker}
                 onMarkerEdit={openMarkerEditForm}
@@ -1954,6 +2363,7 @@ export default function MapPage() {
                 onZoneEdit={openZoneEditForm}
                 onZoneSelect={selectZone}
                 routes={viewerRoutes}
+                selectedLabelId={labelDraft ? undefined : selectedLabelId ?? undefined}
                 selectedMarkerId={markerDraft ? undefined : selectedMarkerId ?? undefined}
                 selectedRouteId={routeDraft ? undefined : selectedRouteId ?? undefined}
                 selectedZoneId={zoneDraft ? undefined : selectedZoneId ?? undefined}
@@ -1972,6 +2382,9 @@ export default function MapPage() {
                     </button>
                     <button className={activePanel === "routes" ? "map-panel-tab-active" : ""} onClick={() => handlePanelChange("routes")} type="button">
                       Маршруты
+                    </button>
+                    <button className={activePanel === "labels" ? "map-panel-tab-active" : ""} onClick={() => handlePanelChange("labels")} type="button">
+                      Надписи
                     </button>
                   </div>
                   <div className="map-panel-tabs map-panel-tabs-layers" role="tablist" aria-label="Управление слоями">
@@ -2045,6 +2458,35 @@ export default function MapPage() {
                           </div>
                         ) : (
                           <p className="map-panel-message">Зоны пока не добавлены.</p>
+                        )}
+                      </>
+                    )}
+                  </section>
+                ) : null}
+
+                {activePanel === "labels" ? (
+                  <section className="map-panel-section map-panel-section-last">
+                    {labelDraft ? (
+                      renderLabelEditor()
+                    ) : (
+                      <>
+                        <button className="primary-command interactive-button" onClick={() => startDrawing("label", "labels")} type="button">
+                          Добавить надпись
+                        </button>
+                        {labels.length > 0 ? (
+                          <div className="map-object-list">
+                            {labels.map((label) => (
+                              <button className={selectedLabelId === label.id ? "map-object-row map-object-row-active" : "map-object-row"} key={label.id} onClick={() => selectLabel(label)} type="button">
+                                <span>{label.text}</span>
+                                <small>{label.layer}</small>
+                                <small>
+                                  {getRouteColorPreset(label.colorKey).label} · {label.size}
+                                </small>
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="map-panel-message">Надписи пока не добавлены.</p>
                         )}
                       </>
                     )}

@@ -36,6 +36,8 @@ type DatabaseMapZone = {
     x: number;
     y: number;
   }>;
+  createdBy: string | null;
+  updatedBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -57,6 +59,8 @@ type DatabaseMapRoute = {
     x: number;
     y: number;
   }>;
+  createdBy: string | null;
+  updatedBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -85,6 +89,7 @@ export function mapZoneToResponse(zone: DatabaseMapZone): MapZoneDto {
     colorKey: normalizeZoneColorKey(zone.colorKey),
     contrast: zone.contrast,
     createdAt: zone.createdAt.toISOString(),
+    createdBy: zone.createdBy,
     description: zone.description,
     id: zone.id,
     layer: zone.layer,
@@ -103,12 +108,14 @@ export function mapZoneToResponse(zone: DatabaseMapZone): MapZoneDto {
     title: zone.title,
     type: zone.type,
     updatedAt: zone.updatedAt.toISOString(),
+    updatedBy: zone.updatedBy,
   };
 }
 
 export function mapRouteToResponse(route: DatabaseMapRoute): MapRouteDto {
   return {
     createdAt: route.createdAt.toISOString(),
+    createdBy: route.createdBy,
     brightness: route.brightness,
     colorKey: normalizeRouteColorKey(route.colorKey),
     contrast: route.contrast,
@@ -128,6 +135,7 @@ export function mapRouteToResponse(route: DatabaseMapRoute): MapRouteDto {
     title: route.title,
     type: route.type,
     updatedAt: route.updatedAt.toISOString(),
+    updatedBy: route.updatedBy,
   };
 }
 

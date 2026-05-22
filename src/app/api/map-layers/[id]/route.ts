@@ -96,6 +96,10 @@ export async function PATCH(request: Request, context: LayerContext) {
         data: { layer: validation.data.name },
         where: { layer: currentLayer.name },
       });
+      await transaction.mapLabel.updateMany({
+        data: { layer: validation.data.name },
+        where: { layer: currentLayer.name },
+      });
 
       return updatedLayer;
     });
@@ -129,13 +133,14 @@ export async function DELETE(_request: Request, context: LayerContext) {
       return createMapLayerErrorResponse("Основной слой нельзя удалить.");
     }
 
-    const [markersCount, zonesCount, routesCount] = await Promise.all([
+    const [markersCount, zonesCount, routesCount, labelsCount] = await Promise.all([
       prisma.mapMarker.count({ where: { layer: layer.name } }),
       prisma.mapZone.count({ where: { layer: layer.name } }),
       prisma.mapRoute.count({ where: { layer: layer.name } }),
+      prisma.mapLabel.count({ where: { layer: layer.name } }),
     ]);
 
-    if (markersCount + zonesCount + routesCount > 0) {
+    if (markersCount + zonesCount + routesCount + labelsCount > 0) {
       return createMapLayerErrorResponse("Слой используется объектами карты.");
     }
 

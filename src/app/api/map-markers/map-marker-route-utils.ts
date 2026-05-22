@@ -16,6 +16,7 @@ type DatabaseMapMarker = {
   size: number;
   description: string | null;
   createdBy: string | null;
+  updatedBy: string | null;
   layer: string;
   createdAt: Date;
   updatedAt: Date;
@@ -41,6 +42,7 @@ export function mapMarkerToResponse(marker: DatabaseMapMarker): MapMarkerDto {
     title: marker.title,
     type: marker.type,
     updatedAt: marker.updatedAt.toISOString(),
+    updatedBy: marker.updatedBy,
     x: marker.x,
     y: marker.y,
   };

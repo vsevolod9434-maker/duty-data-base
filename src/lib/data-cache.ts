@@ -30,6 +30,7 @@ export const dutyDataKeys = {
   all: ["duty-data"] as const,
   currentUser: ["duty-data", "auth", "current-user"] as const,
   mapMarkers: (userKey: string) => ["duty-data", userKey, "map", "markers"] as const,
+  mapLabels: (userKey: string) => ["duty-data", userKey, "map", "labels"] as const,
   mapZones: (userKey: string) => ["duty-data", userKey, "map", "zones"] as const,
   mapRoutes: (userKey: string) => ["duty-data", userKey, "map", "routes"] as const,
   mapLayers: (userKey: string) => ["duty-data", userKey, "map", "layers"] as const,

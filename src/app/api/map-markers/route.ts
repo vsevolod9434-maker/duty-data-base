@@ -10,6 +10,10 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function getAccessUserLabel(accessUser: { displayName: string | null; login: string }) {
+  return accessUser.displayName || accessUser.login;
+}
+
 export async function GET(request: Request) {
   const auth = await requireApiAuth();
 
@@ -47,13 +51,14 @@ export async function POST(request: Request) {
   }
 
   const prisma = getPrismaClient();
-  const createdBy = auth.accessUser.displayName || auth.accessUser.login || "Сотрудник системы";
+  const currentUserLabel = getAccessUserLabel(auth.accessUser);
 
   try {
     const marker = await prisma.mapMarker.create({
       data: {
         ...validation.value,
-        createdBy,
+        createdBy: currentUserLabel,
+        updatedBy: currentUserLabel,
       },
     });
 

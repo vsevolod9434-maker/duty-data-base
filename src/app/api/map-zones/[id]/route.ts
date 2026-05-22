@@ -17,6 +17,10 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
+function getAccessUserLabel(accessUser: { displayName: string | null; login: string }) {
+  return accessUser.displayName || accessUser.login;
+}
+
 export async function PATCH(request: Request, context: RouteContext) {
   const auth = await requireApiAuth();
 
@@ -91,6 +95,7 @@ export async function PATCH(request: Request, context: RouteContext) {
           status: validation.value.status,
           title: validation.value.title,
           type: validation.value.type,
+          updatedBy: getAccessUserLabel(auth.accessUser),
         },
         include: zoneInclude,
         where: { id },

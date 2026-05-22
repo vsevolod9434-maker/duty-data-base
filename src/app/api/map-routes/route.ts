@@ -16,6 +16,10 @@ const routeInclude = {
   },
 };
 
+function getAccessUserLabel(accessUser: { displayName: string | null; login: string }) {
+  return accessUser.displayName || accessUser.login;
+}
+
 export async function GET() {
   const auth = await requireApiAuth();
 
@@ -52,6 +56,7 @@ export async function POST(request: Request) {
   }
 
   const prisma = getPrismaClient();
+  const currentUserLabel = getAccessUserLabel(auth.accessUser);
 
   try {
     const route = await prisma.mapRoute.create({
@@ -59,6 +64,7 @@ export async function POST(request: Request) {
         brightness: validation.value.brightness,
         colorKey: validation.value.colorKey,
         contrast: validation.value.contrast,
+        createdBy: currentUserLabel,
         description: validation.value.description,
         layer: validation.value.layer,
         linePattern: validation.value.linePattern,
@@ -68,6 +74,7 @@ export async function POST(request: Request) {
         status: validation.value.status,
         title: validation.value.title,
         type: validation.value.type,
+        updatedBy: currentUserLabel,
       },
       include: routeInclude,
     });

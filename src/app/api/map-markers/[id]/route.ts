@@ -16,6 +16,10 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
+function getAccessUserLabel(accessUser: { displayName: string | null; login: string }) {
+  return accessUser.displayName || accessUser.login;
+}
+
 export async function PATCH(request: Request, context: RouteContext) {
   const auth = await requireApiAuth();
 
@@ -65,7 +69,10 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
 
     const marker = await prisma.mapMarker.update({
-      data: validation.value,
+      data: {
+        ...validation.value,
+        updatedBy: getAccessUserLabel(auth.accessUser),
+      },
       where: { id },
     });
 
