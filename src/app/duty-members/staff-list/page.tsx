@@ -9,12 +9,17 @@ import type { UserRole } from "@/lib/auth-roles";
 import { cachePolicy, dutyDataKeys, scheduleClientStateSync, TWO_HOURS, useCurrentUserCacheKey, useDutyQueryClient } from "@/lib/data-cache";
 import { compareDutyMembersByRankAndName } from "@/lib/duty-members";
 
+type DutyMemberAccess = {
+  login: string;
+};
+
 type DutyMember = {
   id: string;
   fullName: string;
   callsign: string | null;
   rank: string | null;
   serviceStatus: string;
+  access?: DutyMemberAccess | null;
 };
 
 type StaffPosition = {
@@ -45,24 +50,80 @@ type ConfirmState = {
   onConfirm: () => Promise<void>;
 };
 
-function getMemberLabel(member: DutyMember) {
-  return [member.rank, member.fullName].filter(Boolean).join(" ") || "Без имени";
+type DutyStaffFilter = "all" | "occupied" | "vacant";
+
+const staffFilters: Array<{ label: string; value: DutyStaffFilter }> = [
+  { label: "Все должности", value: "all" },
+  { label: "Занятые", value: "occupied" },
+  { label: "Вакантные", value: "vacant" },
+];
+
+function normalizeSearchValue(value: string) {
+  return value.trim().toLocaleLowerCase("ru-RU").replaceAll("ё", "е");
+}
+
+function getMemberPrimaryName(member: DutyMember) {
+  return member.callsign?.trim() || member.fullName?.trim() || "Без имени";
+}
+
+function getMemberServiceLine(member: DutyMember) {
+  return [member.rank, member.fullName].filter(Boolean).join(" · ") || "Служебная карточка без дополнительных сведений";
 }
 
 function matchesMemberSearch(member: DutyMember, query: string) {
-  const normalizedQuery = query.trim().toLocaleLowerCase("ru-RU");
+  const normalizedQuery = normalizeSearchValue(query);
 
   if (!normalizedQuery) {
-    return true;
+    return false;
   }
 
-  return [member.fullName, member.rank]
+  return [member.callsign, member.fullName, member.rank, member.id, member.access?.login]
     .filter(Boolean)
-    .some((value) => value!.toLocaleLowerCase("ru-RU").includes(normalizedQuery));
+    .some((value) => normalizeSearchValue(value!).includes(normalizedQuery));
 }
 
 function getSortedMembers(members: DutyMember[]) {
   return members.slice().sort(compareDutyMembersByRankAndName);
+}
+
+function getStaffTotals(sections: StaffSection[]) {
+  const positions = sections.flatMap((section) => section.positions);
+  const occupied = positions.filter((position) => Boolean(position.member)).length;
+
+  return {
+    occupied,
+    total: positions.length,
+    vacant: positions.length - occupied,
+  };
+}
+
+function getFilteredSections(sections: StaffSection[], filter: DutyStaffFilter) {
+  if (filter === "all") {
+    return sections;
+  }
+
+  return sections
+    .map((section) => ({
+      ...section,
+      positions: section.positions.filter((position) => (filter === "occupied" ? Boolean(position.member) : !position.member)),
+    }))
+    .filter((section) => section.positions.length > 0);
+}
+
+function getPositionSequence(sections: StaffSection[], targetId: string) {
+  let sequence = 0;
+
+  for (const section of sections) {
+    for (const position of section.positions) {
+      sequence += 1;
+
+      if (position.id === targetId) {
+        return sequence;
+      }
+    }
+  }
+
+  return 0;
 }
 
 export default function DutyStaffListPage() {
@@ -75,6 +136,7 @@ export default function DutyStaffListPage() {
     currentUserKey ? getSortedMembers(queryClient.getQueryData<DutyMember[]>(dutyDataKeys.dutyMembers(currentUserKey)) ?? []) : [],
   );
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [staffFilter, setStaffFilter] = useState<DutyStaffFilter>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -83,6 +145,8 @@ export default function DutyStaffListPage() {
   const [confirmDialog, setConfirmDialog] = useState<ConfirmState | null>(null);
 
   const canManage = currentUser?.role === "system_admin" || currentUser?.role === "officer";
+  const staffTotals = useMemo(() => getStaffTotals(sections), [sections]);
+  const filteredSections = useMemo(() => getFilteredSections(sections, staffFilter), [sections, staffFilter]);
   const availableMembers = useMemo(
     () =>
       members
@@ -222,6 +286,10 @@ export default function DutyStaffListPage() {
     setMemberSearchQuery("");
   }
 
+  function getAssignedPositionForMember(memberId: string) {
+    return sections.flatMap((section) => section.positions).find((position) => position.member?.id === memberId) ?? null;
+  }
+
   async function assignPosition(position: StaffPosition, dutyMemberId: string | null) {
     setIsSaving(true);
     setMessage("");
@@ -234,10 +302,15 @@ export default function DutyStaffListPage() {
       });
 
       setSections(updatedSections);
+      if (currentUserKey) {
+        queryClient.setQueryData(dutyDataKeys.staffList(currentUserKey), updatedSections);
+        void queryClient.invalidateQueries({ queryKey: dutyDataKeys.dutyMembers(currentUserKey) });
+      }
       closeAssignDialog();
       setConfirmDialog(null);
+      setMessage(dutyMemberId ? "Профиль назначен" : "Назначение снято");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Не удалось выполнить операцию.");
+      setMessage(error instanceof Error ? error.message : "Не удалось обновить штатную единицу");
     } finally {
       setIsSaving(false);
     }
@@ -248,11 +321,18 @@ export default function DutyStaffListPage() {
       return;
     }
 
+    const assignedPosition = getAssignedPositionForMember(member.id);
+
+    if (assignedPosition && assignedPosition.id !== assigningPosition.id) {
+      setMessage("Профиль уже назначен на должность.");
+      return;
+    }
+
     if (assigningPosition.member && assigningPosition.member.id !== member.id) {
       setConfirmDialog({
         title: "Заменить назначение?",
-        message: "Текущий участник будет снят с этой должности.",
-        confirmLabel: "Заменить",
+        message: "Текущий профиль будет снят с этой должности.",
+        confirmLabel: "Назначить",
         variant: "warning",
         onConfirm: async () => {
           await assignPosition(assigningPosition, member.id);
@@ -266,9 +346,9 @@ export default function DutyStaffListPage() {
 
   function requestRelease(position: StaffPosition) {
     setConfirmDialog({
-      title: "Освободить должность?",
-      message: "Должность будет отмечена как вакантная.",
-      confirmLabel: "Освободить",
+      title: "Снять назначение?",
+      message: "Штатная единица будет отмечена как вакантная.",
+      confirmLabel: "Снять",
       variant: "warning",
       onConfirm: async () => {
         await assignPosition(position, null);
@@ -283,65 +363,121 @@ export default function DutyStaffListPage() {
   return (
     <main className="pda-page duty-members-page duty-staff-page">
       <section className="pda-screen">
-        <PdaTopbar activeLabel="Состав" activeSubtabLabel="Штатный список" />
+        <PdaTopbar activeLabel="Состав" activeSubtabLabel="Штатно-должностной список" />
 
         <div className="pda-content duty-members-content">
           <section className="duty-members-shell">
             <section className="registry-panel duty-staff-intro">
-              <h2>Штатно-должностной список отряда специального назначения военизированной группировки «Долг»</h2>
-              {message ? <p className="draft-message">{message}</p> : null}
+              <div className="duty-staff-intro-copy">
+                <span className="eyebrow-text">Служебный состав</span>
+                <h1>Штатно-должностной список</h1>
+                <p>Отряд специального назначения военизированной группировки «Долг»</p>
+              </div>
+              <div className="duty-staff-summary">
+                <div>
+                  <span>Всего</span>
+                  <strong>{staffTotals.total}</strong>
+                </div>
+                <div>
+                  <span>Занято</span>
+                  <strong>{staffTotals.occupied}</strong>
+                </div>
+                <div>
+                  <span>Вакантно</span>
+                  <strong>{staffTotals.vacant}</strong>
+                </div>
+              </div>
             </section>
+
+            <div className="registry-panel duty-staff-toolbar">
+              <div className="duty-staff-filter-group" role="group" aria-label="Фильтр должностей">
+                {staffFilters.map((filter) => (
+                  <button
+                    aria-pressed={staffFilter === filter.value}
+                    className={staffFilter === filter.value ? "duty-staff-filter-button duty-staff-filter-button-active" : "duty-staff-filter-button"}
+                    key={filter.value}
+                    onClick={() => setStaffFilter(filter.value)}
+                    type="button"
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+              {message ? <p className="draft-message duty-staff-page-message">{message}</p> : null}
+            </div>
 
             {isLoading ? <p className="empty-state">Загрузка штатного списка...</p> : null}
             {!isLoading && sections.length === 0 ? <p className="empty-state">Штатный список пока не заполнен.</p> : null}
-            {!isLoading && sections.length > 0 ? (
+            {!isLoading && sections.length > 0 && filteredSections.length === 0 ? <p className="empty-state">По выбранному фильтру должности не найдены.</p> : null}
+            {!isLoading && filteredSections.length > 0 ? (
               <div className="duty-staff-sections">
-                {sections.map((section) => (
-                  <section className="registry-panel duty-staff-section" key={section.id}>
-                    <div className="registry-section-header">
-                      <div>
-                        <span className="eyebrow-text">Подразделение</span>
-                        <h2>{section.name}</h2>
-                      </div>
-                    </div>
+                {filteredSections.map((section) => {
+                  const sourceSection = sections.find((currentSection) => currentSection.id === section.id) ?? section;
+                  const sectionOccupied = sourceSection.positions.filter((position) => position.member).length;
 
-                    <div className="duty-staff-table" role="table" aria-label={section.name}>
-                      <div className="duty-staff-table-head" role="row">
-                        <span role="columnheader">Должность</span>
-                        <span role="columnheader">Назначен</span>
-                        {canManage ? <span role="columnheader">Действия</span> : null}
+                  return (
+                    <section className="registry-panel duty-staff-section" key={section.id}>
+                      <div className="registry-section-header duty-staff-section-header">
+                        <div>
+                          <span className="eyebrow-text">Подразделение</span>
+                          <h2>{section.name}</h2>
+                        </div>
+                        <span className="duty-staff-section-count">
+                          {sectionOccupied}/{sourceSection.positions.length}
+                        </span>
                       </div>
-                      {section.positions.map((position) => (
-                        <article className="duty-staff-table-row" key={position.id} role="row">
-                          <div className="duty-staff-cell duty-staff-cell-position" data-label="Должность" role="cell">
-                            <strong>{position.title}</strong>
-                          </div>
-                          <div className="duty-staff-cell duty-staff-cell-assignee" data-label="Назначен" role="cell">
-                            {position.member ? (
-                              <strong>{getMemberLabel(position.member)}</strong>
-                            ) : (
-                              <span className="duty-vacancy-label">Вакант</span>
-                            )}
-                          </div>
-                          {canManage ? (
-                            <div className="duty-staff-cell duty-staff-cell-actions" data-label="Действия" role="cell">
-                              <button className="duty-staff-action-button" disabled={isSaving} onClick={() => openAssignDialog(position)} type="button">
-                                {position.member ? "Заменить" : "Назначить"}
-                              </button>
-                              <button className="duty-staff-action-button duty-staff-action-muted" disabled={isSaving || !position.member} onClick={() => requestRelease(position)} type="button">
-                                Освободить
-                              </button>
-                            </div>
-                          ) : null}
-                        </article>
-                      ))}
-                    </div>
-                  </section>
-                ))}
+
+                      <div className="duty-staff-position-grid">
+                        {section.positions.map((position) => {
+                          const sequence = getPositionSequence(sections, position.id);
+
+                          return (
+                            <article className={position.member ? "duty-staff-card duty-staff-card-occupied" : "duty-staff-card duty-staff-card-vacant"} key={position.id}>
+                              <div className="duty-staff-card-main">
+                                <div className="duty-staff-card-title-row">
+                                  <span className="duty-staff-number">№ {sequence}</span>
+                                  <span className={position.member ? "duty-staff-status duty-staff-status-occupied" : "duty-staff-status duty-staff-status-vacant"}>
+                                    {position.member ? "Занято" : "Вакантно"}
+                                  </span>
+                                </div>
+                                <h3>{position.title}</h3>
+                                <p>{section.name}</p>
+                              </div>
+
+                              <div className="duty-staff-card-assignee">
+                                <span>{position.member ? "Назначенный профиль" : "Назначение"}</span>
+                                {position.member ? (
+                                  <>
+                                    <strong>{getMemberPrimaryName(position.member)}</strong>
+                                    <small>{getMemberServiceLine(position.member)}</small>
+                                  </>
+                                ) : (
+                                  <>
+                                    <strong>Вакантно</strong>
+                                    <small>Штатная единица свободна для назначения</small>
+                                  </>
+                                )}
+                              </div>
+
+                              {canManage ? (
+                                <div className="duty-staff-card-actions">
+                                  <button className="duty-staff-action-button" disabled={isSaving} onClick={() => openAssignDialog(position)} type="button">
+                                    Назначить
+                                  </button>
+                                  <button className="duty-staff-action-button duty-staff-action-muted" disabled={isSaving || !position.member} onClick={() => requestRelease(position)} type="button">
+                                    Снять
+                                  </button>
+                                </div>
+                              ) : null}
+                            </article>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  );
+                })}
               </div>
             ) : null}
-
-            <p className="duty-staff-footnote">Список будет дополняться по мере нагруженности подразделения.</p>
           </section>
         </div>
       </section>
@@ -351,26 +487,49 @@ export default function DutyStaffListPage() {
           <form className="pda-modal duty-staff-assign-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleAssignSubmit}>
             <div className="section-header modal-header">
               <div className="min-w-0">
-                <h1>{assigningPosition.member ? "Заменить назначение" : "Назначить на должность"}</h1>
+                <h1>Назначить</h1>
                 <p>{assigningPosition.title}</p>
               </div>
             </div>
-            <div className="modal-body">
+            <div className="modal-body duty-staff-assign-body">
               <label className="filter-field">
-                <span>Поиск участника состава</span>
-                <input autoFocus onChange={(event) => setMemberSearchQuery(event.target.value)} placeholder="ФИО или звание" type="search" value={memberSearchQuery} />
+                <span>Поиск профиля</span>
+                <input
+                  autoFocus
+                  disabled={isSaving}
+                  onChange={(event) => setMemberSearchQuery(event.target.value)}
+                  placeholder="Введите позывной, ФИО или номер"
+                  type="search"
+                  value={memberSearchQuery}
+                />
               </label>
               <div className="duty-staff-member-picker">
-                {availableMembers.length > 0 ? (
-                  availableMembers.map((member) => (
-                    <button className="duty-member-list-row" disabled={isSaving} key={member.id} onClick={() => selectMemberForPosition(member)} type="button">
-                      <span>{getMemberLabel(member)}</span>
-                    </button>
-                  ))
-                ) : (
-                  <p className="empty-state">Профили не найдены.</p>
-                )}
+                {!memberSearchQuery.trim() ? <p className="empty-state">Введите позывной, ФИО или номер</p> : null}
+                {memberSearchQuery.trim() && availableMembers.length > 0
+                  ? availableMembers.map((member) => {
+                      const assignedPosition = getAssignedPositionForMember(member.id);
+                      const isAssignedElsewhere = Boolean(assignedPosition && assignedPosition.id !== assigningPosition.id);
+
+                      return (
+                        <button
+                          className={isAssignedElsewhere ? "duty-staff-member-row duty-staff-member-row-blocked" : "duty-staff-member-row"}
+                          disabled={isSaving || isAssignedElsewhere}
+                          key={member.id}
+                          onClick={() => selectMemberForPosition(member)}
+                          type="button"
+                        >
+                          <span>
+                            <strong>{getMemberPrimaryName(member)}</strong>
+                            <small>{getMemberServiceLine(member)}</small>
+                          </span>
+                          {isAssignedElsewhere ? <em>Профиль уже назначен на должность.</em> : null}
+                        </button>
+                      );
+                    })
+                  : null}
+                {memberSearchQuery.trim() && availableMembers.length === 0 ? <p className="empty-state">Профили не найдены</p> : null}
               </div>
+              {message ? <p className="draft-message">{message}</p> : null}
             </div>
             <div className="modal-actions">
               <button className="command-row interactive-button" disabled={isSaving} onClick={closeAssignDialog} type="button">

@@ -1745,6 +1745,38 @@ button {
   padding: 0.75rem;
 }
 
+.profile-photo-state {
+  position: absolute;
+  inset: 0.18rem;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(218, 229, 232, 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.024), rgba(0, 0, 0, 0.18)),
+    #090d0f;
+  color: rgba(218, 229, 232, 0.62);
+  font-size: 0.88rem;
+  line-height: 1.35;
+  padding: 0.75rem;
+  text-align: center;
+}
+
+.profile-photo-pending {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.profile-photo-preload {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
 .draft-message {
   margin-top: 0.75rem;
   border: 1px solid rgba(180, 90, 80, 0.32);
@@ -9616,6 +9648,307 @@ body::after,
   padding-top: 0.7rem;
 }
 
+.duty-staff-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+}
+
+.duty-staff-intro-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.34rem;
+}
+
+.duty-staff-intro h1 {
+  margin: 0;
+  color: var(--foreground-strong);
+  font-size: clamp(1.35rem, 2.3vw, 1.95rem);
+  font-weight: 950;
+  line-height: 1.12;
+}
+
+.duty-staff-intro p {
+  margin: 0;
+  color: rgba(214, 220, 220, 0.78);
+  font-size: 0.96rem;
+  line-height: 1.45;
+}
+
+.duty-staff-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(6.5rem, 1fr));
+  gap: 0.5rem;
+}
+
+.duty-staff-summary div {
+  display: grid;
+  gap: 0.18rem;
+  border: 1px solid rgba(151, 159, 159, 0.18);
+  background: rgba(8, 10, 11, 0.68);
+  padding: 0.66rem 0.72rem;
+}
+
+.duty-staff-summary span {
+  color: rgba(190, 198, 199, 0.68);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.duty-staff-summary strong {
+  color: var(--foreground-strong);
+  font-size: 1.25rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.duty-staff-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.duty-staff-filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.duty-staff-filter-button {
+  border: 1px solid rgba(151, 159, 159, 0.18);
+  background: rgba(8, 10, 11, 0.7);
+  color: rgba(224, 228, 228, 0.78);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1;
+  min-height: 2.05rem;
+  padding: 0.48rem 0.68rem;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
+.duty-staff-filter-button:hover,
+.duty-staff-filter-button-active {
+  border-color: rgba(209, 69, 76, 0.46);
+  background: rgba(78, 22, 27, 0.58);
+  color: var(--foreground-strong);
+}
+
+.duty-staff-page-message {
+  margin: 0;
+}
+
+.duty-staff-section-header {
+  gap: 0.8rem;
+}
+
+.duty-staff-section-count {
+  align-self: start;
+  border: 1px solid rgba(151, 159, 159, 0.2);
+  background: rgba(5, 7, 8, 0.62);
+  color: rgba(225, 230, 230, 0.82);
+  font-size: 0.76rem;
+  font-weight: 900;
+  line-height: 1;
+  padding: 0.42rem 0.52rem;
+}
+
+.duty-staff-position-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 0.58rem;
+}
+
+.duty-staff-card {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 0.66rem;
+  min-width: 0;
+  min-height: 12.4rem;
+  border: 1px solid rgba(151, 159, 159, 0.17);
+  background: rgba(8, 10, 11, 0.82);
+  padding: 0.78rem;
+}
+
+.duty-staff-card-occupied {
+  border-color: rgba(151, 159, 159, 0.24);
+  background:
+    linear-gradient(180deg, rgba(23, 27, 28, 0.88), rgba(8, 10, 11, 0.86)),
+    #090b0c;
+}
+
+.duty-staff-card-vacant {
+  border-style: dashed;
+  opacity: 0.86;
+}
+
+.duty-staff-card-main,
+.duty-staff-card-assignee {
+  display: grid;
+  min-width: 0;
+  gap: 0.36rem;
+}
+
+.duty-staff-card-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.42rem;
+}
+
+.duty-staff-number,
+.duty-staff-status {
+  display: inline-flex;
+  width: fit-content;
+  border: 1px solid rgba(151, 159, 159, 0.18);
+  background: rgba(5, 7, 8, 0.62);
+  color: rgba(218, 224, 224, 0.76);
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1;
+  padding: 0.32rem 0.42rem;
+}
+
+.duty-staff-status-occupied {
+  border-color: rgba(126, 165, 112, 0.32);
+  background: rgba(39, 67, 37, 0.24);
+  color: rgba(197, 225, 188, 0.86);
+}
+
+.duty-staff-status-vacant {
+  border-color: rgba(209, 69, 76, 0.28);
+  background: rgba(75, 22, 27, 0.24);
+  color: rgba(235, 176, 180, 0.82);
+}
+
+.duty-staff-card h3 {
+  margin: 0;
+  color: var(--foreground-strong);
+  font-size: 0.94rem;
+  font-weight: 950;
+  line-height: 1.32;
+  overflow-wrap: anywhere;
+}
+
+.duty-staff-card-main p {
+  margin: 0;
+  color: rgba(190, 198, 199, 0.72);
+  font-size: 0.78rem;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.duty-staff-card-assignee {
+  border-top: 1px solid rgba(151, 159, 159, 0.13);
+  padding-top: 0.6rem;
+}
+
+.duty-staff-card-assignee span {
+  color: rgba(190, 198, 199, 0.66);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.duty-staff-card-assignee strong {
+  color: var(--foreground-strong);
+  font-size: 0.94rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.duty-staff-card-assignee small {
+  color: rgba(190, 198, 199, 0.74);
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.duty-staff-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+.duty-staff-assign-body {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.duty-staff-member-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.68rem;
+  min-width: 0;
+  border: 1px solid rgba(151, 159, 159, 0.18);
+  background: rgba(8, 10, 11, 0.78);
+  color: var(--foreground);
+  cursor: pointer;
+  padding: 0.62rem 0.68rem;
+  text-align: left;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
+.duty-staff-member-row:hover:not(:disabled) {
+  border-color: rgba(209, 69, 76, 0.38);
+  background: rgba(61, 22, 25, 0.46);
+}
+
+.duty-staff-member-row:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.duty-staff-member-row span {
+  display: grid;
+  min-width: 0;
+  gap: 0.18rem;
+}
+
+.duty-staff-member-row strong {
+  color: var(--foreground-strong);
+  font-size: 0.9rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.duty-staff-member-row small {
+  color: rgba(190, 198, 199, 0.74);
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.duty-staff-member-row em {
+  justify-self: end;
+  color: rgba(235, 176, 180, 0.86);
+  font-size: 0.74rem;
+  font-style: normal;
+  font-weight: 850;
+  line-height: 1.25;
+  max-width: 12rem;
+  text-align: right;
+}
+
 .duty-staff-assign-modal {
   max-width: 38rem;
 }
@@ -9832,6 +10165,48 @@ body::after,
 
   .duty-member-search-filter-row {
     grid-template-columns: 1fr;
+  }
+
+  .duty-staff-intro {
+    grid-template-columns: 1fr;
+  }
+
+  .duty-staff-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .duty-staff-toolbar {
+    align-items: stretch;
+  }
+
+  .duty-staff-filter-group {
+    width: 100%;
+  }
+
+  .duty-staff-filter-button {
+    flex: 1 1 8rem;
+  }
+
+  .duty-staff-position-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .duty-staff-card {
+    min-height: 0;
+  }
+
+  .duty-staff-card-actions {
+    justify-content: flex-start;
+  }
+
+  .duty-staff-member-row {
+    grid-template-columns: 1fr;
+  }
+
+  .duty-staff-member-row em {
+    justify-self: start;
+    max-width: 100%;
+    text-align: left;
   }
 
   .duty-staff-position-row,

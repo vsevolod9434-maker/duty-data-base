@@ -22,12 +22,17 @@ type ResetPasswordPayload = {
 
 const resetPasswordErrorMessage = "Пароль не изменён. Проверьте введённые данные.";
 const operationUnavailableMessage = "Операция временно недоступна.";
+const passwordPermissionMessage = "Недостаточно прав для изменения пароля.";
 
 export async function PATCH(request: Request, context: DutyMemberPasswordContext) {
   const auth = await requireApiAuth();
 
   if (!auth.ok) {
     return auth.response;
+  }
+
+  if (auth.role !== "system_admin" && auth.role !== "officer") {
+    return createDutyMemberErrorResponse(passwordPermissionMessage, 403);
   }
 
   const payload = (await request.json().catch(() => null)) as ResetPasswordPayload | null;
@@ -59,6 +64,7 @@ export async function PATCH(request: Request, context: DutyMemberPasswordContext
           select: {
             authUserId: true,
             id: true,
+            isActive: true,
             role: true,
           },
         },
@@ -79,11 +85,11 @@ export async function PATCH(request: Request, context: DutyMemberPasswordContext
   );
 
   if (!permission.ok) {
-    return createDutyMemberErrorResponse(permission.message, 403);
+    return createDutyMemberErrorResponse(passwordPermissionMessage, 403);
   }
 
-  if (isDutyMemberExcluded(member.serviceStatus)) {
-    return createDutyMemberErrorResponse("Доступ к операции запрещён.", 403);
+  if (!member.accessUser.isActive || isDutyMemberExcluded(member.serviceStatus)) {
+    return createDutyMemberErrorResponse(passwordPermissionMessage, 403);
   }
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {

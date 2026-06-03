@@ -14,7 +14,7 @@ export const apartmentStatusLabels: Record<ApartmentStatus, string> = {
 };
 
 export function createDefaultApartments(now = getSystemTimestamp()): Apartment[] {
-  return [1, 2, 3].map((number) => ({
+  return [1, 2].map((number) => ({
     id: `apartment-${number}`,
     name: `Квартира ${number}`,
     status: "free",

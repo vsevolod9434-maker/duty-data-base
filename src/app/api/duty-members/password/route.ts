@@ -13,12 +13,17 @@ type PasswordPayload = {
 };
 
 const passwordErrorMessage = "Пароль не изменён. Проверьте введённые данные.";
+const passwordPermissionMessage = "Недостаточно прав для изменения пароля.";
 
 export async function PATCH(request: Request) {
   const auth = await requireApiAuth();
 
   if (!auth.ok) {
     return auth.response;
+  }
+
+  if (auth.role !== "system_admin" && auth.role !== "officer") {
+    return createDutyMemberErrorResponse(passwordPermissionMessage, 403);
   }
 
   const payload = (await request.json().catch(() => null)) as PasswordPayload | null;
@@ -56,11 +61,11 @@ export async function PATCH(request: Request) {
   });
 
   if (!accessUser?.dutyMember) {
-    return createDutyMemberErrorResponse("Доступ к операции запрещён.", 403);
+    return createDutyMemberErrorResponse(passwordPermissionMessage, 403);
   }
 
   if (isDutyMemberExcluded(accessUser.dutyMember.serviceStatus)) {
-    return createDutyMemberErrorResponse("Доступ к операции запрещён.", 403);
+    return createDutyMemberErrorResponse(passwordPermissionMessage, 403);
   }
 
   const supabase = await createSupabaseServerClient();

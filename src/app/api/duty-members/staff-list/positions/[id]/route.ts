@@ -1,9 +1,11 @@
 import { getAccessUserDisplayName } from "@/lib/auth/access-user-display";
 import { requireApiAuth } from "@/lib/auth/require-api-auth";
 import { getPrismaClient } from "@/lib/prisma";
+import { canonicalDutyStaffPositionIds, canonicalDutyStaffSectionIds } from "@/lib/duty-staff-list";
 import { isDutyMemberExcluded, isHiddenDutyMemberRole } from "../../../duty-member-route-utils";
 import {
   createStaffListErrorResponse,
+  ensureDutyStaffList,
   mapStaffSectionToResponse,
   staffListInclude,
 } from "../../staff-list-route-utils";
@@ -27,7 +29,7 @@ export async function PATCH(request: Request, context: PositionContext) {
   }
 
   if (auth.role !== "system_admin" && auth.role !== "officer") {
-    return createStaffListErrorResponse("Доступ к операции запрещён.", 403);
+    return createStaffListErrorResponse("Недостаточно прав для изменения состава.", 403);
   }
 
   const { id } = await context.params;
@@ -37,6 +39,12 @@ export async function PATCH(request: Request, context: PositionContext) {
       ? payload.dutyMemberId.trim()
       : null;
   const prisma = getPrismaClient();
+
+  if (!canonicalDutyStaffPositionIds.includes(id)) {
+    return createStaffListErrorResponse("Должность не найдена.", 404);
+  }
+
+  await ensureDutyStaffList(prisma);
 
   const position = await prisma.dutyStaffPosition
     .findUnique({
@@ -73,6 +81,25 @@ export async function PATCH(request: Request, context: PositionContext) {
     if (isDutyMemberExcluded(member.serviceStatus)) {
       return createStaffListErrorResponse("Доступ к операции запрещён.", 403);
     }
+
+    const existingAssignment = await prisma.dutyStaffPosition
+      .findFirst({
+        select: {
+          id: true,
+        },
+        where: {
+          dutyMemberId: nextDutyMemberId,
+          id: {
+            in: canonicalDutyStaffPositionIds,
+            not: id,
+          },
+        },
+      })
+      .catch(() => null);
+
+    if (existingAssignment) {
+      return createStaffListErrorResponse("Профиль уже назначен на должность.", 409);
+    }
   }
 
   const actorName = getAccessUserDisplayName(auth.accessUser);
@@ -96,11 +123,14 @@ export async function PATCH(request: Request, context: PositionContext) {
 
     const sections = await prisma.dutyStaffSection.findMany({
       include: staffListInclude,
+      where: {
+        id: { in: canonicalDutyStaffSectionIds },
+      },
       orderBy: { sortOrder: "asc" },
     });
 
     return Response.json(sections.map(mapStaffSectionToResponse));
   } catch {
-    return createStaffListErrorResponse("Не удалось выполнить операцию.", 500);
+    return createStaffListErrorResponse("Не удалось обновить штатную единицу.", 500);
   }
 }

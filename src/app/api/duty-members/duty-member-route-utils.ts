@@ -1,6 +1,7 @@
 import type { AccessUserRole, DutyMemberProfileStatus, DutyServiceStatus } from "@/generated/prisma/client";
 import { getRoleLabel, type UserRole } from "@/lib/auth-roles";
 import { getDutyAccessLevelLabel, isDutyMemberVisibleRole } from "@/lib/duty-members";
+import { canonicalDutyStaffPositionIds } from "@/lib/duty-staff-list";
 import { normalizeLogin } from "@/lib/auth-login";
 
 export const dutyMemberInclude = {
@@ -14,6 +15,9 @@ export const dutyMemberInclude = {
     },
   },
   staffPositions: {
+    where: {
+      id: { in: canonicalDutyStaffPositionIds },
+    },
     include: {
       section: {
         select: {

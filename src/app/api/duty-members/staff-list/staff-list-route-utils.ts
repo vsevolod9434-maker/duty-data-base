@@ -1,8 +1,48 @@
 import { getRoleLabel, type UserRole } from "@/lib/auth-roles";
 import { isDutyMemberVisibleRole } from "@/lib/duty-members";
+import { canonicalDutyStaffPositionIds, canonicalDutyStaffSections } from "@/lib/duty-staff-list";
+
+type StaffListPrismaClient = {
+  dutyStaffPosition: {
+    findMany: (args: {
+      select: { dutyMemberId: true; id: true };
+      where: { dutyMemberId: { not: null }; id: { in: string[] } };
+    }) => Promise<Array<{ dutyMemberId: string | null; id: string }>>;
+    updateMany: (args: {
+      data: { assignedAt?: null; dutyMemberId?: null; updatedBy: string };
+      where: { id: { in: string[] } };
+    }) => Promise<unknown>;
+    upsert: (args: {
+      create: {
+        id: string;
+        sectionId: string;
+        sortOrder: number;
+        title: string;
+        updatedBy: string;
+      };
+      update: {
+        sectionId: string;
+        sortOrder: number;
+        title: string;
+      };
+      where: { id: string };
+    }) => Promise<unknown>;
+  };
+  dutyStaffSection: {
+    upsert: (args: {
+      create: { id: string; name: string; sortOrder: number };
+      update: { name: string; sortOrder: number };
+      where: { id: string };
+    }) => Promise<unknown>;
+  };
+  $transaction: <T>(operations: Promise<T>[]) => Promise<T[]>;
+};
 
 export const staffListInclude = {
   positions: {
+    where: {
+      id: { in: canonicalDutyStaffPositionIds },
+    },
     include: {
       dutyMember: {
         include: {
@@ -20,6 +60,96 @@ export const staffListInclude = {
     orderBy: { sortOrder: "asc" as const },
   },
 };
+
+export async function ensureDutyStaffList(prisma: StaffListPrismaClient) {
+  const operations: Promise<unknown>[] = [];
+
+  for (const section of canonicalDutyStaffSections) {
+    operations.push(
+      prisma.dutyStaffSection.upsert({
+        create: {
+          id: section.id,
+          name: section.name,
+          sortOrder: section.sortOrder,
+        },
+        update: {
+          name: section.name,
+          sortOrder: section.sortOrder,
+        },
+        where: { id: section.id },
+      }),
+    );
+
+    for (const position of section.positions) {
+      operations.push(
+        prisma.dutyStaffPosition.upsert({
+          create: {
+            id: position.id,
+            sectionId: section.id,
+            title: position.title,
+            sortOrder: position.sortOrder,
+            updatedBy: "Система учёта",
+          },
+          update: {
+            sectionId: section.id,
+            title: position.title,
+            sortOrder: position.sortOrder,
+          },
+          where: { id: position.id },
+        }),
+      );
+    }
+  }
+
+  if (operations.length > 0) {
+    await prisma.$transaction(operations);
+  }
+
+  await clearDuplicateDutyStaffAssignments(prisma);
+}
+
+async function clearDuplicateDutyStaffAssignments(prisma: StaffListPrismaClient) {
+  const assignedPositions = await prisma.dutyStaffPosition.findMany({
+    select: {
+      dutyMemberId: true,
+      id: true,
+    },
+    where: {
+      dutyMemberId: { not: null },
+      id: { in: canonicalDutyStaffPositionIds },
+    },
+  });
+  const seenMemberIds = new Set<string>();
+  const duplicatePositionIds: string[] = [];
+
+  for (const positionId of canonicalDutyStaffPositionIds) {
+    const position = assignedPositions.find((record) => record.id === positionId);
+
+    if (!position?.dutyMemberId) {
+      continue;
+    }
+
+    if (seenMemberIds.has(position.dutyMemberId)) {
+      duplicatePositionIds.push(position.id);
+      continue;
+    }
+
+    seenMemberIds.add(position.dutyMemberId);
+  }
+
+  if (duplicatePositionIds.length > 0) {
+    await prisma.dutyStaffPosition.updateMany({
+      data: {
+        assignedAt: null,
+        dutyMemberId: null,
+        updatedBy: "Повторное назначение снято",
+      },
+      where: {
+        id: { in: duplicatePositionIds },
+      },
+    });
+  }
+}
 
 export function createStaffListErrorResponse(message: string, status = 400) {
   return Response.json({ message }, { status });

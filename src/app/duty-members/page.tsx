@@ -407,13 +407,6 @@ export default function DutyMembersPage() {
   const [assignPositionState, setAssignPositionState] = useState<AssignPositionState | null>(null);
   const [positionSearchQuery, setPositionSearchQuery] = useState("");
   const [isPositionAssigning, setIsPositionAssigning] = useState(false);
-  const [passwordDraft, setPasswordDraft] = useState({
-    currentPassword: "",
-    newPassword: "",
-    repeatPassword: "",
-  });
-  const [passwordMessage, setPasswordMessage] = useState("");
-  const [isPasswordSaving, setIsPasswordSaving] = useState(false);
 
   const selectedMember = useMemo(
     () => members.find((member) => member.id === selectedMemberId) ?? null,
@@ -433,7 +426,6 @@ export default function DutyMembersPage() {
   );
   const excludedMembers = useMemo(() => filteredMembers.filter(isExcludedMember), [filteredMembers]);
   const canManage = currentUser?.role === "system_admin" || currentUser?.role === "officer";
-  const isOwnProfile = Boolean(selectedMember?.access && selectedMember.access.login === currentUser?.login);
   const isSelectedMemberExcluded = Boolean(selectedMember && isExcludedMember(selectedMember));
   const hasSearchOrFilter = Boolean(searchQuery.trim()) || accessFilter !== "all";
   const isEditing = isCreating || Boolean(editingId);
@@ -802,33 +794,6 @@ export default function DutyMembersPage() {
       setActionMessage(error instanceof Error ? error.message : "Не удалось выполнить операцию.");
     } finally {
       setIsSaving(false);
-    }
-  }
-
-  async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (selectedMember && isExcludedMember(selectedMember)) {
-      setPasswordMessage("Доступ к операции запрещён.");
-      return;
-    }
-
-    setIsPasswordSaving(true);
-    setPasswordMessage("");
-
-    try {
-      const response = await apiFetchJson<{ message: string }>("/api/duty-members/password", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(passwordDraft),
-      });
-
-      setPasswordDraft({ currentPassword: "", newPassword: "", repeatPassword: "" });
-      setPasswordMessage(response.message);
-    } catch (error) {
-      setPasswordMessage(error instanceof Error ? error.message : "Пароль не изменён. Проверьте введённые данные.");
-    } finally {
-      setIsPasswordSaving(false);
     }
   }
 
@@ -1272,35 +1237,6 @@ export default function DutyMembersPage() {
                       <p className="duty-member-notes">{selectedMember.notes || "Заметок нет."}</p>
                     </div>
 
-                    {isOwnProfile && !isSelectedMemberExcluded ? (
-                      <form className="profile-detail-block duty-member-profile-section duty-password-form" onSubmit={handlePasswordSubmit}>
-                        <div className="block-heading-row">
-                          <h2>Смена пароля</h2>
-                        </div>
-                        <div className="duty-password-grid">
-                          <label className="filter-field duty-password-field duty-password-field-wide">
-                            <span>Текущий пароль</span>
-                            <input autoComplete="current-password" onChange={(event) => setPasswordDraft((current) => ({ ...current, currentPassword: event.target.value }))} type="password" value={passwordDraft.currentPassword} />
-                          </label>
-                          <div className="duty-password-row">
-                            <label className="filter-field duty-password-field">
-                              <span>Новый пароль</span>
-                              <input autoComplete="new-password" onChange={(event) => setPasswordDraft((current) => ({ ...current, newPassword: event.target.value }))} type="password" value={passwordDraft.newPassword} />
-                            </label>
-                            <label className="filter-field duty-password-field">
-                              <span>Повтор нового пароля</span>
-                              <input autoComplete="new-password" onChange={(event) => setPasswordDraft((current) => ({ ...current, repeatPassword: event.target.value }))} type="password" value={passwordDraft.repeatPassword} />
-                            </label>
-                          </div>
-                        </div>
-                        {passwordMessage ? <p className="draft-message">{passwordMessage}</p> : null}
-                        <div className="modal-actions duty-member-form-actions">
-                          <button className="primary-command interactive-button" disabled={isPasswordSaving} type="submit">
-                            {isPasswordSaving ? "Сохранение..." : "Сменить пароль"}
-                          </button>
-                        </div>
-                      </form>
-                    ) : null}
                   </article>
                 ) : null}
 

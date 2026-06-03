@@ -50,10 +50,10 @@ export const navigation: NavigationItem[] = [
   },
   {
     label: "Состав",
-    href: "/duty-members",
+    href: "/duty-members/staff-list",
     subtabs: [
+      { label: "Штатно-должностной список", href: "/duty-members/staff-list" },
       { label: "Профили состава", href: "/duty-members" },
-      { label: "Штатный список", href: "/duty-members/staff-list" },
     ],
   },
 ];

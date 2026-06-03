@@ -579,8 +579,10 @@ export default function StalkerProfilesPage() {
   const [editTaskDraft, setEditTaskDraft] = useState(createEmptyTaskDraft);
   const [tradeDraft, setTradeDraft] = useState(() => createEmptyTradeDraft("sale"));
   const [violationDraft, setViolationDraft] = useState(createEmptyViolationDraft);
-  const [photoLoadFailed, setPhotoLoadFailed] = useState(false);
-  const [profilePhotoLoadFailed, setProfilePhotoLoadFailed] = useState(false);
+  const [loadedPhotoPreviewKey, setLoadedPhotoPreviewKey] = useState("");
+  const [failedPhotoPreviewKey, setFailedPhotoPreviewKey] = useState("");
+  const [loadedProfilePhotoKey, setLoadedProfilePhotoKey] = useState("");
+  const [failedProfilePhotoKey, setFailedProfilePhotoKey] = useState("");
   const [formMessage, setFormMessage] = useState("");
   const [taskFormMessage, setTaskFormMessage] = useState("");
   const [editTaskMessage, setEditTaskMessage] = useState("");
@@ -700,7 +702,8 @@ export default function StalkerProfilesPage() {
           setSelectedProfileId(profileFromQuery.id);
           setProfileListTab(profileFromQuery.status);
           setActiveProfileTab("");
-          setProfilePhotoLoadFailed(false);
+          setLoadedProfilePhotoKey("");
+          setFailedProfilePhotoKey("");
         }
       }
     });
@@ -822,6 +825,10 @@ export default function StalkerProfilesPage() {
     () => profiles.find((profile) => profile.id === selectedProfileId),
     [profiles, selectedProfileId],
   );
+  const selectedProfilePhotoSrc = selectedProfile?.photoUrl?.trim() ?? "";
+  const selectedProfilePhotoKey = selectedProfile ? `${selectedProfile.id}:${selectedProfilePhotoSrc || "empty"}` : "empty";
+  const isSelectedProfilePhotoLoaded = loadedProfilePhotoKey === selectedProfilePhotoKey;
+  const isSelectedProfilePhotoFailed = failedProfilePhotoKey === selectedProfilePhotoKey;
   const selectedProfileNotes = stalkerNotesQuery.data ?? [];
 
   const selectedProfileTasks = useMemo(() => {
@@ -957,6 +964,9 @@ export default function StalkerProfilesPage() {
   const visibleProfileCount = isStorageReady ? visibleProfiles.length : 0;
   const shownProfileCount = isStorageReady ? paginatedProfiles.items.length : 0;
   const normalizedPhotoUrl = draft.photoUrl.trim();
+  const photoPreviewKey = `${editingProfileId || "new"}:${normalizedPhotoUrl || "empty"}`;
+  const isPhotoPreviewLoaded = loadedPhotoPreviewKey === photoPreviewKey;
+  const isPhotoPreviewFailed = failedPhotoPreviewKey === photoPreviewKey;
   const tradeDraftQuantity = Number(tradeDraft.quantity.replace(",", "."));
   const tradeDraftPrice = Number(tradeDraft.price.replace(",", "."));
   const tradeDraftTotal =
@@ -971,7 +981,8 @@ export default function StalkerProfilesPage() {
     setDraft((currentDraft) => ({ ...currentDraft, [field]: value }));
 
     if (field === "photoUrl") {
-      setPhotoLoadFailed(false);
+      setLoadedPhotoPreviewKey("");
+      setFailedPhotoPreviewKey("");
     }
   }
 
@@ -1027,7 +1038,8 @@ export default function StalkerProfilesPage() {
 
   function resetProfileDraft() {
     setDraft(emptyDraft);
-    setPhotoLoadFailed(false);
+    setLoadedPhotoPreviewKey("");
+    setFailedPhotoPreviewKey("");
     setFormMessage("");
     setEditingProfileId("");
   }
@@ -1205,7 +1217,8 @@ export default function StalkerProfilesPage() {
     });
     setEditingProfileId(profile.id);
     setFormMessage("");
-    setPhotoLoadFailed(false);
+    setLoadedPhotoPreviewKey("");
+    setFailedPhotoPreviewKey("");
     setIsProfileModalOpen(true);
   }
 
@@ -1478,7 +1491,8 @@ export default function StalkerProfilesPage() {
   function selectProfile(profileId: string) {
     setSelectedProfileId(profileId);
     setActiveProfileTab("");
-    setProfilePhotoLoadFailed(false);
+    setLoadedProfilePhotoKey("");
+    setFailedProfilePhotoKey("");
   }
 
   function closeTaskDialog() {
@@ -2380,18 +2394,37 @@ export default function StalkerProfilesPage() {
                         className="profile-hero-photo"
                         tabIndex={selectedProfile.registryNumber ? 0 : undefined}
                       >
-                        {selectedProfile.photoUrl && !profilePhotoLoadFailed ? (
-                          <img
-                            alt="Фотография профиля сталкера"
-                            onError={() => setProfilePhotoLoadFailed(true)}
-                            src={selectedProfile.photoUrl}
-                          />
+                        {selectedProfilePhotoSrc && !isSelectedProfilePhotoFailed ? (
+                          isSelectedProfilePhotoLoaded ? (
+                            <img
+                              key={selectedProfilePhotoKey}
+                              alt="Фотография профиля сталкера"
+                              src={selectedProfilePhotoSrc}
+                            />
+                          ) : (
+                            <>
+                              <div className="profile-photo-state">Загрузка изображения...</div>
+                              <img
+                                key={selectedProfilePhotoKey}
+                                alt=""
+                                aria-hidden="true"
+                                className="profile-photo-preload"
+                                onError={() => {
+                                  setFailedProfilePhotoKey(selectedProfilePhotoKey);
+                                  setLoadedProfilePhotoKey((currentKey) => (currentKey === selectedProfilePhotoKey ? "" : currentKey));
+                                }}
+                                onLoad={() => {
+                                  setLoadedProfilePhotoKey(selectedProfilePhotoKey);
+                                  setFailedProfilePhotoKey((currentKey) => (currentKey === selectedProfilePhotoKey ? "" : currentKey));
+                                }}
+                                src={selectedProfilePhotoSrc}
+                              />
+                            </>
+                          )
                         ) : (
-                          <img
-                            alt="Стоковое изображение профиля сталкера"
-                            className="profile-photo-placeholder"
-                            src="/no-data-person.png"
-                          />
+                          <div className="profile-photo-state">
+                            {selectedProfilePhotoSrc ? "Изображение недоступно" : "Изображение не указано"}
+                          </div>
                         )}
                         {selectedProfile.registryNumber ? (
                           <div className="profile-photo-overlay" aria-hidden="true">
@@ -2827,10 +2860,37 @@ export default function StalkerProfilesPage() {
                   <div className="profile-photo-preview">
                     <span className="profile-photo-title">Фото профиля</span>
                     <div className="profile-photo-frame">
-                      {normalizedPhotoUrl && !photoLoadFailed ? (
-                        <img alt="Предпросмотр фотографии профиля" onError={() => setPhotoLoadFailed(true)} src={normalizedPhotoUrl} />
+                      {normalizedPhotoUrl && !isPhotoPreviewFailed ? (
+                        isPhotoPreviewLoaded ? (
+                          <img
+                            key={photoPreviewKey}
+                            alt="Предпросмотр фотографии профиля"
+                            src={normalizedPhotoUrl}
+                          />
+                        ) : (
+                          <>
+                            <span className="profile-photo-state">Загрузка изображения...</span>
+                            <img
+                              key={photoPreviewKey}
+                              alt=""
+                              aria-hidden="true"
+                              className="profile-photo-preload"
+                              onError={() => {
+                                setFailedPhotoPreviewKey(photoPreviewKey);
+                                setLoadedPhotoPreviewKey((currentKey) => (currentKey === photoPreviewKey ? "" : currentKey));
+                              }}
+                              onLoad={() => {
+                                setLoadedPhotoPreviewKey(photoPreviewKey);
+                                setFailedPhotoPreviewKey((currentKey) => (currentKey === photoPreviewKey ? "" : currentKey));
+                              }}
+                              src={normalizedPhotoUrl}
+                            />
+                          </>
+                        )
                       ) : (
-                        <span>{photoLoadFailed ? "Не удалось загрузить изображение" : "Фото не указано"}</span>
+                        <span className="profile-photo-state">
+                          {normalizedPhotoUrl ? "Изображение недоступно" : "Изображение не указано"}
+                        </span>
                       )}
                     </div>
                   </div>
