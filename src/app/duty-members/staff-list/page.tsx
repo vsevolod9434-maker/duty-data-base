@@ -10,6 +10,7 @@ import { cachePolicy, dutyDataKeys, scheduleClientStateSync, TWO_HOURS, useCurre
 import { compareDutyMembersByRankAndName } from "@/lib/duty-members";
 
 type DutyMemberAccess = {
+  displayName?: string | null;
   login: string;
 };
 
@@ -77,9 +78,19 @@ function matchesMemberSearch(member: DutyMember, query: string) {
     return false;
   }
 
-  return [member.callsign, member.fullName, member.rank, member.id, member.access?.login]
+  return [member.callsign, member.fullName, member.rank, member.id, member.access?.login, member.access?.displayName]
     .filter(Boolean)
     .some((value) => normalizeSearchValue(value!).includes(normalizedQuery));
+}
+
+function matchesPositionSearch(position: StaffPosition, sectionName: string, query: string) {
+  const normalizedQuery = normalizeSearchValue(query);
+
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  return [position.title, sectionName, position.id].some((value) => normalizeSearchValue(value).includes(normalizedQuery));
 }
 
 function getSortedMembers(members: DutyMember[]) {
@@ -126,6 +137,25 @@ function getPositionSequence(sections: StaffSection[], targetId: string) {
   return 0;
 }
 
+function getStaffUnitCountLabel(count: number) {
+  const lastTwoDigits = count % 100;
+  const lastDigit = count % 10;
+
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
+    return `${count} штатных единиц`;
+  }
+
+  if (lastDigit === 1) {
+    return `${count} штатную единицу`;
+  }
+
+  if (lastDigit >= 2 && lastDigit <= 4) {
+    return `${count} штатные единицы`;
+  }
+
+  return `${count} штатных единиц`;
+}
+
 export default function DutyStaffListPage() {
   const queryClient = useDutyQueryClient();
   const { currentUser: cachedCurrentUser, currentUserKey, isCurrentUserLoading } = useCurrentUserCacheKey();
@@ -142,6 +172,12 @@ export default function DutyStaffListPage() {
   const [message, setMessage] = useState("");
   const [assigningPosition, setAssigningPosition] = useState<StaffPosition | null>(null);
   const [memberSearchQuery, setMemberSearchQuery] = useState("");
+  const [isBulkAssignOpen, setIsBulkAssignOpen] = useState(false);
+  const [bulkMemberSearchQuery, setBulkMemberSearchQuery] = useState("");
+  const [bulkSelectedMember, setBulkSelectedMember] = useState<DutyMember | null>(null);
+  const [bulkPositionSearchQuery, setBulkPositionSearchQuery] = useState("");
+  const [bulkSelectedPositionIds, setBulkSelectedPositionIds] = useState<string[]>([]);
+  const [bulkAssignMessage, setBulkAssignMessage] = useState("");
   const [confirmDialog, setConfirmDialog] = useState<ConfirmState | null>(null);
 
   const canManage = currentUser?.role === "system_admin" || currentUser?.role === "officer";
@@ -155,6 +191,25 @@ export default function DutyStaffListPage() {
         .sort(compareDutyMembersByRankAndName)
         .slice(0, 12),
     [memberSearchQuery, members],
+  );
+  const availableBulkMembers = useMemo(
+    () =>
+      members
+        .filter((member) => member.serviceStatus !== "discharged")
+        .filter((member) => matchesMemberSearch(member, bulkMemberSearchQuery))
+        .sort(compareDutyMembersByRankAndName)
+        .slice(0, 12),
+    [bulkMemberSearchQuery, members],
+  );
+  const bulkPositionSections = useMemo(
+    () =>
+      sections
+        .map((section) => ({
+          ...section,
+          positions: section.positions.filter((position) => matchesPositionSearch(position, section.name, bulkPositionSearchQuery)),
+        }))
+        .filter((section) => section.positions.length > 0),
+    [bulkPositionSearchQuery, sections],
   );
 
   const sectionsQuery = useQuery({
@@ -286,8 +341,81 @@ export default function DutyStaffListPage() {
     setMemberSearchQuery("");
   }
 
-  function getAssignedPositionForMember(memberId: string) {
-    return sections.flatMap((section) => section.positions).find((position) => position.member?.id === memberId) ?? null;
+  function getAssignedPositionsForMember(memberId: string) {
+    return sections.flatMap((section) => section.positions).filter((position) => position.member?.id === memberId);
+  }
+
+  function openBulkAssignDialog() {
+    setIsBulkAssignOpen(true);
+    setBulkMemberSearchQuery("");
+    setBulkSelectedMember(null);
+    setBulkPositionSearchQuery("");
+    setBulkSelectedPositionIds([]);
+    setBulkAssignMessage("");
+    setMessage("");
+  }
+
+  function closeBulkAssignDialog() {
+    setIsBulkAssignOpen(false);
+    setBulkMemberSearchQuery("");
+    setBulkSelectedMember(null);
+    setBulkPositionSearchQuery("");
+    setBulkSelectedPositionIds([]);
+    setBulkAssignMessage("");
+  }
+
+  function selectBulkMember(member: DutyMember) {
+    setBulkSelectedMember(member);
+    setBulkMemberSearchQuery(getMemberPrimaryName(member));
+    setBulkAssignMessage("");
+  }
+
+  function toggleBulkPosition(position: StaffPosition) {
+    if (position.member) {
+      setBulkAssignMessage("Занятая штатная единица меняется через карточку должности.");
+      return;
+    }
+
+    setBulkAssignMessage("");
+    setBulkSelectedPositionIds((currentIds) =>
+      currentIds.includes(position.id) ? currentIds.filter((positionId) => positionId !== position.id) : [...currentIds, position.id],
+    );
+  }
+
+  async function assignBulkPositions() {
+    if (!bulkSelectedMember) {
+      setBulkAssignMessage("Выберите профиль состава.");
+      return;
+    }
+
+    if (bulkSelectedPositionIds.length === 0) {
+      setBulkAssignMessage("Выберите одну или несколько штатных единиц.");
+      return;
+    }
+
+    setIsSaving(true);
+    setBulkAssignMessage("");
+    setMessage("");
+
+    try {
+      const updatedSections = await apiFetchJson<StaffSection[]>("/api/duty-members/staff-list/positions", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dutyMemberId: bulkSelectedMember.id, positionIds: bulkSelectedPositionIds }),
+      });
+
+      setSections(updatedSections);
+      if (currentUserKey) {
+        queryClient.setQueryData(dutyDataKeys.staffList(currentUserKey), updatedSections);
+        void queryClient.invalidateQueries({ queryKey: dutyDataKeys.dutyMembers(currentUserKey) });
+      }
+      closeBulkAssignDialog();
+      setMessage(`Профиль назначен на ${getStaffUnitCountLabel(bulkSelectedPositionIds.length)}`);
+    } catch (error) {
+      setBulkAssignMessage(error instanceof Error ? error.message : "Не удалось выполнить массовое назначение.");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   async function assignPosition(position: StaffPosition, dutyMemberId: string | null) {
@@ -318,13 +446,6 @@ export default function DutyStaffListPage() {
 
   function selectMemberForPosition(member: DutyMember) {
     if (!assigningPosition) {
-      return;
-    }
-
-    const assignedPosition = getAssignedPositionForMember(member.id);
-
-    if (assignedPosition && assignedPosition.id !== assigningPosition.id) {
-      setMessage("Профиль уже назначен на должность.");
       return;
     }
 
@@ -403,6 +524,11 @@ export default function DutyStaffListPage() {
                   </button>
                 ))}
               </div>
+              {canManage ? (
+                <button className="duty-staff-action-button duty-staff-bulk-open-button" disabled={isSaving} onClick={openBulkAssignDialog} type="button">
+                  Массовое назначение
+                </button>
+              ) : null}
               {message ? <p className="draft-message duty-staff-page-message">{message}</p> : null}
             </div>
 
@@ -462,7 +588,7 @@ export default function DutyStaffListPage() {
                               {canManage ? (
                                 <div className="duty-staff-card-actions">
                                   <button className="duty-staff-action-button" disabled={isSaving} onClick={() => openAssignDialog(position)} type="button">
-                                    Назначить
+                                    {position.member ? "Сменить" : "Назначить"}
                                   </button>
                                   <button className="duty-staff-action-button duty-staff-action-muted" disabled={isSaving || !position.member} onClick={() => requestRelease(position)} type="button">
                                     Снять
@@ -507,13 +633,13 @@ export default function DutyStaffListPage() {
                 {!memberSearchQuery.trim() ? <p className="empty-state">Введите позывной, ФИО или номер</p> : null}
                 {memberSearchQuery.trim() && availableMembers.length > 0
                   ? availableMembers.map((member) => {
-                      const assignedPosition = getAssignedPositionForMember(member.id);
-                      const isAssignedElsewhere = Boolean(assignedPosition && assignedPosition.id !== assigningPosition.id);
+                      const assignmentCount = getAssignedPositionsForMember(member.id).length;
+                      const isCurrentAssignee = assigningPosition.member?.id === member.id;
 
                       return (
                         <button
-                          className={isAssignedElsewhere ? "duty-staff-member-row duty-staff-member-row-blocked" : "duty-staff-member-row"}
-                          disabled={isSaving || isAssignedElsewhere}
+                          className="duty-staff-member-row"
+                          disabled={isSaving}
                           key={member.id}
                           onClick={() => selectMemberForPosition(member)}
                           type="button"
@@ -522,7 +648,8 @@ export default function DutyStaffListPage() {
                             <strong>{getMemberPrimaryName(member)}</strong>
                             <small>{getMemberServiceLine(member)}</small>
                           </span>
-                          {isAssignedElsewhere ? <em>Профиль уже назначен на должность.</em> : null}
+                          {isCurrentAssignee ? <em>Назначен на эту должность</em> : null}
+                          {!isCurrentAssignee && assignmentCount > 0 ? <em>Назначений: {assignmentCount}</em> : null}
                         </button>
                       );
                     })
@@ -537,6 +664,122 @@ export default function DutyStaffListPage() {
               </button>
             </div>
           </form>
+        </div>
+      ) : null}
+
+      {isBulkAssignOpen ? (
+        <div className="pda-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && closeBulkAssignDialog()}>
+          <div className="pda-modal duty-staff-bulk-modal" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="section-header modal-header">
+              <div className="min-w-0">
+                <h1>Массовое назначение</h1>
+                <p>Назначение одного профиля на несколько вакантных штатных единиц</p>
+              </div>
+            </div>
+            <div className="modal-body duty-staff-bulk-body">
+              <section className="duty-staff-bulk-step">
+                <div className="duty-staff-bulk-step-header">
+                  <span>1</span>
+                  <strong>Профиль состава</strong>
+                </div>
+                <label className="filter-field">
+                  <span>Поиск профиля</span>
+                  <input
+                    autoFocus
+                    disabled={isSaving}
+                    onChange={(event) => {
+                      setBulkMemberSearchQuery(event.target.value);
+                      setBulkSelectedMember(null);
+                    }}
+                    placeholder="Введите позывной, ФИО или номер"
+                    type="search"
+                    value={bulkMemberSearchQuery}
+                  />
+                </label>
+                {bulkSelectedMember ? (
+                  <div className="duty-staff-selected-member">
+                    <span>Выбран профиль</span>
+                    <strong>{getMemberPrimaryName(bulkSelectedMember)}</strong>
+                    <small>{getMemberServiceLine(bulkSelectedMember)}</small>
+                  </div>
+                ) : null}
+                <div className="duty-staff-member-picker">
+                  {!bulkMemberSearchQuery.trim() ? <p className="empty-state">Введите позывной, ФИО или номер</p> : null}
+                  {bulkMemberSearchQuery.trim() && !bulkSelectedMember && availableBulkMembers.length > 0
+                    ? availableBulkMembers.map((member) => {
+                        const assignmentCount = getAssignedPositionsForMember(member.id).length;
+
+                        return (
+                          <button className="duty-staff-member-row" disabled={isSaving} key={member.id} onClick={() => selectBulkMember(member)} type="button">
+                            <span>
+                              <strong>{getMemberPrimaryName(member)}</strong>
+                              <small>{getMemberServiceLine(member)}</small>
+                            </span>
+                            {assignmentCount > 0 ? <em>Назначений: {assignmentCount}</em> : null}
+                          </button>
+                        );
+                      })
+                    : null}
+                  {bulkMemberSearchQuery.trim() && !bulkSelectedMember && availableBulkMembers.length === 0 ? <p className="empty-state">Профили не найдены</p> : null}
+                </div>
+              </section>
+
+              <section className="duty-staff-bulk-step">
+                <div className="duty-staff-bulk-step-header">
+                  <span>2</span>
+                  <strong>Штатные единицы</strong>
+                </div>
+                <label className="filter-field">
+                  <span>Поиск должности</span>
+                  <input
+                    disabled={isSaving || !bulkSelectedMember}
+                    onChange={(event) => setBulkPositionSearchQuery(event.target.value)}
+                    placeholder="Название должности или подразделение"
+                    type="search"
+                    value={bulkPositionSearchQuery}
+                  />
+                </label>
+                {!bulkSelectedMember ? <p className="empty-state">Сначала выберите профиль состава</p> : null}
+                {bulkSelectedMember ? (
+                  <div className="duty-staff-bulk-positions">
+                    {bulkPositionSections.length === 0 ? <p className="empty-state">Штатные единицы не найдены</p> : null}
+                    {bulkPositionSections.map((section) => (
+                      <section className="duty-position-picker-section" key={section.id}>
+                        <h2>{section.name}</h2>
+                        <div className="duty-staff-position-choice-list">
+                          {section.positions.map((position) => {
+                            const isSelected = bulkSelectedPositionIds.includes(position.id);
+                            const sequence = getPositionSequence(sections, position.id);
+
+                            return (
+                              <label className={position.member ? "duty-staff-position-choice duty-staff-position-choice-occupied" : "duty-staff-position-choice"} key={position.id}>
+                                <input checked={isSelected} disabled={isSaving || Boolean(position.member)} onChange={() => toggleBulkPosition(position)} type="checkbox" />
+                                <span>
+                                  <strong>№ {sequence} · {position.title}</strong>
+                                  <small>{section.name}</small>
+                                </span>
+                                <em>{position.member ? `Занято: ${getMemberPrimaryName(position.member)}` : "Вакантно"}</em>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    ))}
+                  </div>
+                ) : null}
+              </section>
+
+              {bulkAssignMessage ? <p className="draft-message">{bulkAssignMessage}</p> : null}
+            </div>
+            <div className="modal-actions duty-staff-bulk-actions">
+              <button className="command-row interactive-button" disabled={isSaving} onClick={closeBulkAssignDialog} type="button">
+                Отмена
+              </button>
+              <button className="command-row interactive-button primary-command" disabled={isSaving || !bulkSelectedMember || bulkSelectedPositionIds.length === 0} onClick={assignBulkPositions} type="button">
+                Назначить на {getStaffUnitCountLabel(bulkSelectedPositionIds.length)}
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
 

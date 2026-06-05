@@ -4,14 +4,6 @@ import { canonicalDutyStaffPositionIds, canonicalDutyStaffSections } from "@/lib
 
 type StaffListPrismaClient = {
   dutyStaffPosition: {
-    findMany: (args: {
-      select: { dutyMemberId: true; id: true };
-      where: { dutyMemberId: { not: null }; id: { in: string[] } };
-    }) => Promise<Array<{ dutyMemberId: string | null; id: string }>>;
-    updateMany: (args: {
-      data: { assignedAt?: null; dutyMemberId?: null; updatedBy: string };
-      where: { id: { in: string[] } };
-    }) => Promise<unknown>;
     upsert: (args: {
       create: {
         id: string;
@@ -103,51 +95,6 @@ export async function ensureDutyStaffList(prisma: StaffListPrismaClient) {
 
   if (operations.length > 0) {
     await prisma.$transaction(operations);
-  }
-
-  await clearDuplicateDutyStaffAssignments(prisma);
-}
-
-async function clearDuplicateDutyStaffAssignments(prisma: StaffListPrismaClient) {
-  const assignedPositions = await prisma.dutyStaffPosition.findMany({
-    select: {
-      dutyMemberId: true,
-      id: true,
-    },
-    where: {
-      dutyMemberId: { not: null },
-      id: { in: canonicalDutyStaffPositionIds },
-    },
-  });
-  const seenMemberIds = new Set<string>();
-  const duplicatePositionIds: string[] = [];
-
-  for (const positionId of canonicalDutyStaffPositionIds) {
-    const position = assignedPositions.find((record) => record.id === positionId);
-
-    if (!position?.dutyMemberId) {
-      continue;
-    }
-
-    if (seenMemberIds.has(position.dutyMemberId)) {
-      duplicatePositionIds.push(position.id);
-      continue;
-    }
-
-    seenMemberIds.add(position.dutyMemberId);
-  }
-
-  if (duplicatePositionIds.length > 0) {
-    await prisma.dutyStaffPosition.updateMany({
-      data: {
-        assignedAt: null,
-        dutyMemberId: null,
-        updatedBy: "Повторное назначение снято",
-      },
-      where: {
-        id: { in: duplicatePositionIds },
-      },
-    });
   }
 }
 

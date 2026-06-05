@@ -82,24 +82,6 @@ export async function PATCH(request: Request, context: PositionContext) {
       return createStaffListErrorResponse("Доступ к операции запрещён.", 403);
     }
 
-    const existingAssignment = await prisma.dutyStaffPosition
-      .findFirst({
-        select: {
-          id: true,
-        },
-        where: {
-          dutyMemberId: nextDutyMemberId,
-          id: {
-            in: canonicalDutyStaffPositionIds,
-            not: id,
-          },
-        },
-      })
-      .catch(() => null);
-
-    if (existingAssignment) {
-      return createStaffListErrorResponse("Профиль уже назначен на должность.", 409);
-    }
   }
 
   const actorName = getAccessUserDisplayName(auth.accessUser);
