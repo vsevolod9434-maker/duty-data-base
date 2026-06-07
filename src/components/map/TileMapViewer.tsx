@@ -131,6 +131,8 @@ type TileMapViewerProps = {
   focusTarget?: FocusTarget | null;
   labels?: MapLabelDto[];
   markers?: MapMarkerDto[];
+  modeDescription?: string;
+  modeLabel?: string;
   routes?: MapRouteDto[];
   visibleLayers?: string[];
   zones?: MapZoneDto[];
@@ -146,6 +148,7 @@ type TileMapViewerProps = {
   onMarkerEdit?: (marker: MapMarkerDto) => void;
   onMarkerSelect?: (marker: MapMarkerDto) => void;
   onMapClick?: (x: number, y: number) => void;
+  onModeCancel?: () => void;
   onRouteDelete?: (route: MapRouteDto) => void;
   onRouteEdit?: (route: MapRouteDto) => void;
   onRoutePointAdd?: (x: number, y: number) => void;
@@ -161,7 +164,7 @@ const METADATA_URL = "/map/zone/metadata.json";
 const MISSING_MAP_MESSAGE = "Карта не подготовлена. Сформируйте тайлы перед использованием.";
 const ZOOM_STEP = 1.35;
 const MARKER_POPOVER_WIDTH = 336;
-const MARKER_POPOVER_HEIGHT = 380;
+const MARKER_POPOVER_HEIGHT = 300;
 const MARKER_POPOVER_GAP = 14;
 const MARKER_POPOVER_MARGIN = 8;
 
@@ -171,6 +174,10 @@ function getMapStyleFilter(brightness: number, contrast: number) {
 
 function getMapObjectAuthorLabel(author: string | null | undefined) {
   return author?.trim() || "не указано";
+}
+
+function getMapObjectAuthorLine(author: string | null | undefined) {
+  return `Добавил: ${author?.trim() ? getMapObjectAuthorLabel(author) : "не указано"}`;
 }
 
 function getFillPatternId(colorKey: string, patternKey: string) {
@@ -364,11 +371,14 @@ export function TileMapViewer({
   focusTarget = null,
   isPickingPoint = false,
   labels = [],
+  modeDescription,
+  modeLabel = "Просмотр",
   markers = [],
   onLabelDelete,
   onLabelEdit,
   onLabelSelect,
   onMapClick,
+  onModeCancel,
   onMarkerClear,
   onMarkerDelete,
   onMarkerEdit,
@@ -1111,6 +1121,10 @@ export function TileMapViewer({
   }
 
   function handleDoubleClick(event: ReactMouseEvent<HTMLDivElement>) {
+    if (drawingMode) {
+      return;
+    }
+
     if (!viewportRef.current) {
       return;
     }
@@ -1154,7 +1168,7 @@ export function TileMapViewer({
       </div>
 
       <div
-        className={`map-viewer-viewport ${isPickingPoint ? "map-viewer-viewport-picking" : ""} ${drawingMode === "marker" ? "map-viewer-viewport-marker-preview" : ""}`}
+        className={`map-viewer-viewport ${isPickingPoint ? "map-viewer-viewport-picking" : ""} ${drawingMode ? "map-viewer-viewport-drawing" : ""} ${drawingMode === "marker" ? "map-viewer-viewport-marker-preview" : ""}`}
         onDoubleClick={handleDoubleClick}
         onClick={handleViewportClick}
         onPointerDown={handlePointerDown}
@@ -1164,6 +1178,22 @@ export function TileMapViewer({
         onWheel={handleWheel}
         ref={viewportRef}
       >
+        <div
+          className={`map-viewer-mode ${drawingMode ? "map-viewer-mode-active" : ""}`}
+          onClick={(event) => event.stopPropagation()}
+          onDoubleClick={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <div>
+            <strong>{modeLabel}</strong>
+            {modeDescription ? <span>{modeDescription}</span> : null}
+          </div>
+          {onModeCancel ? (
+            <button onClick={onModeCancel} type="button">
+              Отмена
+            </button>
+          ) : null}
+        </div>
         <div className="map-viewer-layer">
           {visibleTiles.map((tile) => (
             // eslint-disable-next-line @next/next/no-img-element -- Тайлы подгружаются по координатам, оптимизация Next Image здесь не нужна.
@@ -1215,10 +1245,18 @@ export function TileMapViewer({
             const sharedZoneProps = {
               className: zoneClassName,
               onClick: (event: ReactMouseEvent<SVGElement>) => {
+                if (drawingMode) {
+                  return;
+                }
+
                 event.stopPropagation();
                 onZoneSelect?.(zone);
               },
-              onPointerDown: (event: ReactPointerEvent<SVGElement>) => event.stopPropagation(),
+              onPointerDown: (event: ReactPointerEvent<SVGElement>) => {
+                if (!drawingMode) {
+                  event.stopPropagation();
+                }
+              },
               style: {
                 filter: getMapStyleFilter(zone.brightness, zone.contrast),
                 fill,
@@ -1261,10 +1299,18 @@ export function TileMapViewer({
                   className="map-route-hit-area"
                   fill="none"
                   onClick={(event) => {
+                    if (drawingMode) {
+                      return;
+                    }
+
                     event.stopPropagation();
                     onRouteSelect?.(route);
                   }}
-                  onPointerDown={(event) => event.stopPropagation()}
+                  onPointerDown={(event) => {
+                    if (!drawingMode) {
+                      event.stopPropagation();
+                    }
+                  }}
                   points={pointValue}
                 />
                 {route.linePattern === "double_line" ? (
@@ -1352,11 +1398,19 @@ export function TileMapViewer({
               className={`map-marker map-marker--${getMapMarkerTypeClassName(marker.type)} ${selectedMarkerId === marker.id ? "map-marker--selected" : ""}`}
               key={marker.id}
               onClick={(event) => {
+                if (drawingMode) {
+                  return;
+                }
+
                 event.stopPropagation();
                 onMarkerSelect?.(marker);
               }}
               onDoubleClick={(event) => event.stopPropagation()}
-              onPointerDown={(event) => event.stopPropagation()}
+              onPointerDown={(event) => {
+                if (!drawingMode) {
+                  event.stopPropagation();
+                }
+              }}
               style={{
                 "--marker-scale": String(Math.max(0.25, (marker.size ?? 100) / 100)),
                 color: getZoneColorPreset(marker.colorKey).marker,
@@ -1393,11 +1447,19 @@ export function TileMapViewer({
               className={`map-label ${selectedLabelId === label.id ? "map-label--selected" : ""}`}
               key={label.id}
               onClick={(event) => {
+                if (drawingMode) {
+                  return;
+                }
+
                 event.stopPropagation();
                 onLabelSelect?.(label);
               }}
               onDoubleClick={(event) => event.stopPropagation()}
-              onPointerDown={(event) => event.stopPropagation()}
+              onPointerDown={(event) => {
+                if (!drawingMode) {
+                  event.stopPropagation();
+                }
+              }}
               style={{
                 "--map-label-scale": String(Math.max(0.55, (label.size ?? 100) / 100)),
                 color: getZoneColorPreset(label.colorKey).marker,
@@ -1469,7 +1531,7 @@ export function TileMapViewer({
               </div>
               <div>
                 <dt>Добавил</dt>
-                <dd>{getMapObjectAuthorLabel(selectedMarkerPopover.marker.createdBy)}</dd>
+                <dd>{getMapObjectAuthorLine(selectedMarkerPopover.marker.createdBy)}</dd>
               </div>
             </dl>
             {selectedMarkerPopover.marker.description ? (
@@ -1523,7 +1585,7 @@ export function TileMapViewer({
               </div>
               <div>
                 <dt>Добавил</dt>
-                <dd>{getMapObjectAuthorLabel(selectedLabelPopover.label.createdBy)}</dd>
+                <dd>{getMapObjectAuthorLine(selectedLabelPopover.label.createdBy)}</dd>
               </div>
             </dl>
             <div className="map-marker-popover-actions">
@@ -1581,7 +1643,7 @@ export function TileMapViewer({
               )}
               <div>
                 <dt>Добавил</dt>
-                <dd>{getMapObjectAuthorLabel(selectedZonePopover.zone.createdBy)}</dd>
+                <dd>{getMapObjectAuthorLine(selectedZonePopover.zone.createdBy)}</dd>
               </div>
             </dl>
             {selectedZonePopover.zone.description ? (
@@ -1629,7 +1691,7 @@ export function TileMapViewer({
               </div>
               <div>
                 <dt>Добавил</dt>
-                <dd>{getMapObjectAuthorLabel(selectedRoutePopover.route.createdBy)}</dd>
+                <dd>{getMapObjectAuthorLine(selectedRoutePopover.route.createdBy)}</dd>
               </div>
             </dl>
             {selectedRoutePopover.route.description ? (

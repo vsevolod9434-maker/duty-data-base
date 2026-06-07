@@ -1066,6 +1066,38 @@ export default function MapPage() {
     };
   }, [drawingMode, zoneDraft]);
 
+  const activeMapMode = useMemo(() => {
+    if (drawingMode === "marker") {
+      return markerDraft?.id
+        ? { description: "Нажмите на карту, чтобы указать новое положение метки.", label: "Перемещение метки" }
+        : { description: "Нажмите на карту, чтобы выбрать место для новой метки.", label: "Выбор точки" };
+    }
+
+    if (drawingMode === "label") {
+      return labelDraft?.id
+        ? { description: "Нажмите на карту, чтобы перенести надпись.", label: "Размещение надписи" }
+        : { description: "Нажмите на карту, чтобы выбрать место для новой надписи.", label: "Создание надписи" };
+    }
+
+    if (drawingMode === "zone") {
+      return { description: "Нажмите на карту, чтобы указать центр круговой зоны.", label: "Создание круга" };
+    }
+
+    if (drawingMode === "zone-polygon") {
+      return { description: "Добавляйте точки полигона. Завершение и отмена доступны в панели.", label: "Создание полигона" };
+    }
+
+    if (drawingMode === "route") {
+      return { description: "Добавляйте точки маршрута. Маршрут не замыкается.", label: "Создание маршрута" };
+    }
+
+    if (markerDraft || labelDraft || zoneDraft || routeDraft) {
+      return { description: "Изменения будут применены только после сохранения формы.", label: "Редактирование" };
+    }
+
+    return { description: "Перемещайте карту перетаскиванием, масштабируйте колесом или кнопками.", label: "Просмотр" };
+  }, [drawingMode, labelDraft, markerDraft, routeDraft, zoneDraft]);
+
   function clearSelection() {
     setSelectedMarkerId(null);
     setSelectedLabelId(null);
@@ -1437,6 +1469,18 @@ export default function MapPage() {
       variant: "warning",
     });
   }
+
+  useEffect(() => {
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape" && hasOpenEditor() && !confirmDialog) {
+        event.preventDefault();
+        requestCloseForms();
+      }
+    }
+
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  });
 
   function handleMapClick(x: number, y: number) {
     if (drawingMode === "marker") {
@@ -1869,6 +1913,11 @@ export default function MapPage() {
   }
 
   function requestDeleteLayer(layer: MapLayerDto) {
+    if (layer.isDefault || layer.name === DEFAULT_MAP_LAYER) {
+      setLayerMessage("Основной слой нельзя удалить.");
+      return;
+    }
+
     if (
       markers.some((marker) => marker.layer === layer.name) ||
       labels.some((label) => label.layer === layer.name) ||
@@ -2012,6 +2061,19 @@ export default function MapPage() {
             <span>Описание</span>
             <textarea disabled={isSaving} maxLength={1000} onChange={(event) => updateMarkerDraft("description", event.target.value)} rows={3} value={markerDraft.description} />
           </label>
+          <div className="map-panel-editor-pick map-form-wide">
+            <button
+              className={`command-row interactive-button ${drawingMode === "marker" ? "map-command-active" : ""}`}
+              disabled={isSaving}
+              onClick={() => {
+                setDrawingMode("marker");
+                setFormMessage("");
+              }}
+              type="button"
+            >
+              {markerDraft.id ? "Переместить на карте" : "Выбрать точку на карте"}
+            </button>
+          </div>
         </div>
 
         {formMessage ? <p className="draft-message">{formMessage}</p> : null}
@@ -2049,6 +2111,19 @@ export default function MapPage() {
             <span>Текст</span>
             <textarea disabled={isSaving} maxLength={200} onChange={(event) => updateLabelDraft("text", event.target.value)} placeholder="Введите текст надписи" rows={3} value={labelDraft.text} />
           </label>
+          <div className="map-panel-editor-pick map-form-wide">
+            <button
+              className={`command-row interactive-button ${drawingMode === "label" ? "map-command-active" : ""}`}
+              disabled={isSaving}
+              onClick={() => {
+                setDrawingMode("label");
+                setFormMessage("");
+              }}
+              type="button"
+            >
+              {labelDraft.id ? "Перенести на карте" : "Выбрать место на карте"}
+            </button>
+          </div>
           <label className="filter-field">
             <span>Слой</span>
             <select disabled={isSaving} onChange={(event) => updateLabelDraft("layer", event.target.value)} value={labelDraft.layer}>
@@ -2144,6 +2219,19 @@ export default function MapPage() {
                     {preset.label}
                   </button>
                 ))}
+              </div>
+              <div className="map-panel-editor-pick map-form-wide">
+                <button
+                  className={`command-row interactive-button ${drawingMode === "zone" ? "map-command-active" : ""}`}
+                  disabled={isSaving}
+                  onClick={() => {
+                    setDrawingMode("zone");
+                    setFormMessage("");
+                  }}
+                  type="button"
+                >
+                  Указать центр на карте
+                </button>
               </div>
             </>
           ) : null}
@@ -2245,7 +2333,7 @@ export default function MapPage() {
           <button className="command-row interactive-button" disabled={isSaving} onClick={requestCloseForms} type="button">
             Отмена
           </button>
-          <button className="primary-command interactive-button" disabled={isSaving} type="submit">
+          <button className="primary-command interactive-button" disabled={isSaving || routeDraft.points.length < 2} type="submit">
             {isSaving ? "Сохранение..." : "Сохранить маршрут"}
           </button>
         </div>
@@ -2345,8 +2433,11 @@ export default function MapPage() {
                 focusTarget={focusTarget}
                 isPickingPoint={drawingMode !== null}
                 labels={viewerLabels}
+                modeDescription={activeMapMode.description}
+                modeLabel={activeMapMode.label}
                 markers={viewerMarkers}
                 onMapClick={handleMapClick}
+                onModeCancel={hasOpenEditor() ? requestCloseForms : undefined}
                 onLabelDelete={requestDeleteLabel}
                 onLabelEdit={openLabelEditForm}
                 onLabelSelect={selectLabel}
@@ -2541,7 +2632,7 @@ export default function MapPage() {
                         {layers.map((layer) => {
                           const persistedLayer = mapLayers.find((mapLayer) => mapLayer.name === layer);
                           const isEditing = persistedLayer ? editingLayerId === persistedLayer.id : false;
-                          const isDefaultLayer = Boolean(persistedLayer?.isDefault);
+                          const isDefaultLayer = layer === DEFAULT_MAP_LAYER || Boolean(persistedLayer?.isDefault);
 
                           return (
                             <div className="map-layer-row" key={layer}>

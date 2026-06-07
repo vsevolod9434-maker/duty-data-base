@@ -6692,6 +6692,83 @@ body::after,
   cursor: grabbing;
 }
 
+.map-viewer-viewport-drawing .map-marker,
+.map-viewer-viewport-drawing .map-label,
+.map-viewer-viewport-drawing .map-zone,
+.map-viewer-viewport-drawing .map-route-hit-area {
+  pointer-events: none;
+}
+
+.map-viewer-mode {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 9;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  max-width: min(29rem, calc(100% - 1.5rem));
+  gap: 0.6rem;
+  align-items: center;
+  border: 1px solid rgba(190, 204, 209, 0.16);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0)),
+    rgba(8, 10, 11, 0.9);
+  box-shadow: inset 3px 0 0 rgba(167, 52, 58, 0.28);
+  color: var(--foreground);
+  padding: 0.48rem 0.55rem;
+  pointer-events: auto;
+}
+
+.map-viewer-mode-active {
+  border-color: rgba(209, 69, 76, 0.36);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0)),
+    rgba(18, 12, 13, 0.94);
+  box-shadow:
+    inset 3px 0 0 rgba(167, 52, 58, 0.56),
+    0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
+.map-viewer-mode div {
+  display: grid;
+  min-width: 0;
+  gap: 0.12rem;
+}
+
+.map-viewer-mode strong {
+  color: var(--foreground-strong);
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.map-viewer-mode span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.map-viewer-mode button {
+  min-height: 1.8rem;
+  border: 1px solid rgba(190, 204, 209, 0.16);
+  background: rgba(17, 20, 21, 0.82);
+  color: rgba(219, 224, 226, 0.92);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 900;
+  padding: 0.3rem 0.52rem;
+  text-transform: uppercase;
+}
+
+.map-viewer-mode button:hover {
+  border-color: rgba(209, 69, 76, 0.42);
+  background: rgba(83, 31, 30, 0.38);
+  color: var(--foreground-strong);
+}
+
 .map-viewer-layer {
   position: absolute;
   inset: 0;
@@ -7093,9 +7170,9 @@ body::after,
   position: absolute;
   z-index: 8;
   display: grid;
-  width: min(21rem, calc(100% - 1.5rem));
+  width: min(20rem, calc(100% - 1.5rem));
   box-sizing: border-box;
-  gap: 0.42rem;
+  gap: 0.36rem;
   border: 1px solid rgba(190, 204, 209, 0.2);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0)),
@@ -7104,7 +7181,7 @@ body::after,
     inset 3px 0 0 rgba(167, 52, 58, 0.38),
     0 14px 32px rgba(0, 0, 0, 0.42);
   color: var(--foreground);
-  padding: 0.58rem;
+  padding: 0.52rem;
   pointer-events: auto;
 }
 
@@ -7143,14 +7220,14 @@ body::after,
 
 .map-marker-popover-details {
   display: grid;
-  gap: 0.22rem;
+  gap: 0.18rem;
   margin: 0;
 }
 
 .map-marker-popover-details div {
   display: grid;
-  grid-template-columns: minmax(4.55rem, 0.5fr) minmax(0, 1fr);
-  gap: 0.4rem;
+  grid-template-columns: minmax(4.1rem, 0.5fr) minmax(0, 1fr);
+  gap: 0.34rem;
 }
 
 .map-marker-popover-details dt {
@@ -7187,6 +7264,11 @@ body::after,
 .map-marker-popover-actions .primary-command {
   min-height: 1.9rem;
   padding: 0.38rem 0.5rem;
+}
+
+.map-marker-popover-actions .primary-command {
+  border-color: rgba(165, 63, 74, 0.42);
+  background: rgba(93, 28, 34, 0.74);
 }
 
 .map-viewer-state {
@@ -7424,6 +7506,10 @@ body::after,
   gap: 0.42rem;
   border-top: 1px solid rgba(190, 204, 209, 0.1);
   padding-top: 0.52rem;
+}
+
+.map-panel-editor-pick {
+  display: grid;
 }
 
 .map-panel-editor-actions .interactive-button {
@@ -8250,6 +8336,13 @@ body::after,
     max-height: 45%;
   }
 
+  .map-viewer-mode {
+    top: 0.5rem;
+    left: 0.5rem;
+    grid-template-columns: minmax(0, 1fr);
+    max-width: calc(100% - 1rem);
+  }
+
   .map-viewer-toolbar {
     grid-template-columns: minmax(0, 1fr);
     gap: 0.55rem;
@@ -8290,6 +8383,19 @@ body::after,
 }
 
 @media (max-width: 520px) {
+  .map-panel-tabs-primary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .map-layer-create-form,
+  .map-layer-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .map-layer-actions {
+    justify-content: flex-start;
+  }
+
   .map-icon-choice-grid,
   .map-color-choice-grid {
     grid-template-columns: minmax(0, 1fr);
