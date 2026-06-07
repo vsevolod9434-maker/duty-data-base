@@ -77,7 +77,7 @@ import {
 } from "@/lib/map-overlays";
 
 type ActivePanel = "markers" | "zones" | "routes" | "labels" | "layers";
-type DrawingMode = "marker" | "zone" | "zone-polygon" | "route" | "label" | null;
+type DrawingMode = "marker" | "marker-copy" | "zone" | "zone-polygon" | "route" | "label" | null;
 type MapPoint = { x: number; y: number };
 type FocusTarget =
   | { type: "point"; x: number; y: number; nonce: number }
@@ -663,6 +663,16 @@ function normalizeLabelDraft(draft: LabelFormDraft) {
   };
 }
 
+function isTextInputTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  const tagName = target.tagName.toLocaleLowerCase("en-US");
+
+  return tagName === "input" || tagName === "textarea" || tagName === "select" || target.isContentEditable;
+}
+
 function getRouteBounds(route: MapRouteDto) {
   return getMapPointsBounds(route.points);
 }
@@ -711,6 +721,9 @@ export default function MapPage() {
   const [drawingMode, setDrawingMode] = useState<DrawingMode>(null);
   const [drawingPoints, setDrawingPoints] = useState<MapPoint[]>([]);
   const [drawingMessage, setDrawingMessage] = useState("");
+  const [copiedMarkerDraft, setCopiedMarkerDraft] = useState<MarkerFormDraft | null>(null);
+  const [markerCopyPlacementDraft, setMarkerCopyPlacementDraft] = useState<MarkerFormDraft | null>(null);
+  const [markerCopyMessage, setMarkerCopyMessage] = useState("");
   const [zoneSearch, setZoneSearch] = useState("");
   const [routeSearch, setRouteSearch] = useState("");
   const [newLayerName, setNewLayerName] = useState("");
@@ -906,6 +919,10 @@ export default function MapPage() {
     return routeDraft?.id ? visibleRoutes.filter((route) => route.id !== routeDraft.id) : visibleRoutes;
   }, [routeDraft?.id, visibleRoutes]);
 
+  const selectedMarker = useMemo(() => {
+    return markers.find((marker) => marker.id === selectedMarkerId && marker.status !== "archived") ?? null;
+  }, [markers, selectedMarkerId]);
+
   const filteredZones = useMemo(() => {
     const query = normalizeSearch(zoneSearch);
 
@@ -996,6 +1013,17 @@ export default function MapPage() {
   }, [drawingMode, drawingPoints, zoneDraft]);
 
   const draftMarkerPreview = useMemo(() => {
+    if (drawingMode === "marker-copy" && markerCopyPlacementDraft) {
+      return {
+        brightness: normalizeStyleDraftValue(markerCopyPlacementDraft.brightness),
+        colorKey: markerCopyPlacementDraft.colorKey,
+        contrast: normalizeStyleDraftValue(markerCopyPlacementDraft.contrast),
+        followCursor: true,
+        size: Math.max(1, Number(markerCopyPlacementDraft.size) || 100),
+        type: markerCopyPlacementDraft.type,
+      };
+    }
+
     if (markerDraft) {
       return {
         brightness: normalizeStyleDraftValue(markerDraft.brightness),
@@ -1021,7 +1049,7 @@ export default function MapPage() {
     }
 
     return null;
-  }, [drawingMode, markerDraft]);
+  }, [drawingMode, markerCopyPlacementDraft, markerDraft]);
 
   const draftLabelPreview = useMemo(() => {
     if (labelDraft) {
@@ -1067,6 +1095,10 @@ export default function MapPage() {
   }, [drawingMode, zoneDraft]);
 
   const activeMapMode = useMemo(() => {
+    if (drawingMode === "marker-copy") {
+      return { description: "Нажмите на карту, чтобы выбрать новое место для скопированной метки.", label: "Разместить копию" };
+    }
+
     if (drawingMode === "marker") {
       return markerDraft?.id
         ? { description: "Нажмите на карту, чтобы указать новое положение метки.", label: "Перемещение метки" }
@@ -1113,6 +1145,7 @@ export default function MapPage() {
     setDrawingMode(null);
     setDrawingPoints([]);
     setDrawingMessage("");
+    setMarkerCopyPlacementDraft(null);
   }
 
   function hasDirtyEditor() {
@@ -1133,7 +1166,7 @@ export default function MapPage() {
   }
 
   function hasOpenEditor() {
-    return Boolean(markerDraft || labelDraft || zoneDraft || routeDraft || drawingMode || drawingPoints.length > 0);
+    return Boolean(markerDraft || labelDraft || zoneDraft || routeDraft || markerCopyPlacementDraft || drawingMode || drawingPoints.length > 0);
   }
 
   function runWithEditorClose(action: () => void) {
@@ -1168,6 +1201,8 @@ export default function MapPage() {
     setDrawingMode(nextMode);
     setDrawingMessage("");
     setDrawingPoints([]);
+    setMarkerCopyPlacementDraft(null);
+    setMarkerCopyMessage("");
     setFormMessage("");
 
     if (nextMode === "marker") {
@@ -1268,6 +1303,88 @@ export default function MapPage() {
 
   function setZoneRadiusPreset(radius: number) {
     setZoneDraft((currentDraft) => (currentDraft ? { ...currentDraft, radius: String(Math.min(5000, Math.max(1, radius))) } : currentDraft));
+  }
+
+  function createMarkerCopyDraft(marker: MapMarkerDto): MarkerFormDraft {
+    const draft = createMarkerDraftFromMarker(marker);
+    const { id: _id, ...copyDraft } = draft;
+
+    void _id;
+
+    return {
+      ...copyDraft,
+      x: "0",
+      y: "0",
+    };
+  }
+
+  function copySelectedMarker() {
+    if (!selectedMarker || hasOpenEditor()) {
+      setMarkerCopyMessage(selectedMarker ? "Завершите текущий режим перед копированием метки." : "Сначала выберите метку для копирования.");
+      return;
+    }
+
+    setCopiedMarkerDraft(createMarkerCopyDraft(selectedMarker));
+    setActivePanel("markers");
+    setMarkerCopyMessage("Метка скопирована. Нажмите Ctrl+V или Cmd+V, чтобы разместить копию.");
+  }
+
+  function startMarkerCopyPlacement() {
+    if (!copiedMarkerDraft) {
+      setMarkerCopyMessage("Сначала выберите метку и нажмите Ctrl+C или Cmd+C.");
+      return;
+    }
+
+    if (hasOpenEditor() && drawingMode !== "marker-copy") {
+      setMarkerCopyMessage("Завершите текущий режим перед размещением копии.");
+      return;
+    }
+
+    clearSelection();
+    setActivePanel("markers");
+    setMarkerDraft(null);
+    setLabelDraft(null);
+    setZoneDraft(null);
+    setRouteDraft(null);
+    setDrawingPoints([]);
+    setDrawingMessage("");
+    setFormMessage("");
+    setMarkerCopyPlacementDraft({ ...copiedMarkerDraft });
+    setDrawingMode("marker-copy");
+    setMarkerCopyMessage("Разместить копию: выберите новое место на карте.");
+  }
+
+  async function createMarkerCopyAtPoint(x: number, y: number) {
+    const sourceDraft = markerCopyPlacementDraft ?? copiedMarkerDraft;
+
+    if (!sourceDraft || isSaving) {
+      return;
+    }
+
+    const nextDraft = {
+      ...sourceDraft,
+      x: String(x),
+      y: String(y),
+    };
+
+    setIsSaving(true);
+    setMarkerCopyMessage("Сохранение копии метки...");
+
+    try {
+      const createdMarker = await createMapMarker(normalizeMarkerDraft(nextDraft));
+      updateMarkersCache((currentMarkers) => replaceCachedRecord(currentMarkers, createdMarker));
+      setSelectedMarkerId(createdMarker.id);
+      setSelectedLabelId(null);
+      setSelectedZoneId(null);
+      setSelectedRouteId(null);
+      setMarkerCopyPlacementDraft(null);
+      setDrawingMode(null);
+      setMarkerCopyMessage("Копия метки размещена и сохранена.");
+    } catch (error) {
+      setMarkerCopyMessage(error instanceof Error ? error.message : "Не удалось разместить копию метки.");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function openMarkerCreateForm(x: number, y: number) {
@@ -1437,6 +1554,7 @@ export default function MapPage() {
     setLabelDraft(null);
     setZoneDraft(null);
     setRouteDraft(null);
+    setMarkerCopyPlacementDraft(null);
     setFormMessage("");
     setDrawingMode(null);
     setDrawingPoints([]);
@@ -1449,6 +1567,12 @@ export default function MapPage() {
 
   function requestCloseForms() {
     if (!hasOpenEditor()) {
+      return;
+    }
+
+    if (drawingMode === "marker-copy") {
+      closeForms();
+      setMarkerCopyMessage("Размещение копии отменено.");
       return;
     }
 
@@ -1482,7 +1606,36 @@ export default function MapPage() {
     return () => document.removeEventListener("keydown", handleEscape);
   });
 
+  useEffect(() => {
+    function handleMarkerClipboardShortcuts(event: KeyboardEvent) {
+      if (isTextInputTarget(event.target) || event.altKey || event.shiftKey || (!event.ctrlKey && !event.metaKey)) {
+        return;
+      }
+
+      const key = event.key.toLocaleLowerCase("en-US");
+
+      if (key === "c") {
+        event.preventDefault();
+        copySelectedMarker();
+        return;
+      }
+
+      if (key === "v") {
+        event.preventDefault();
+        startMarkerCopyPlacement();
+      }
+    }
+
+    document.addEventListener("keydown", handleMarkerClipboardShortcuts);
+    return () => document.removeEventListener("keydown", handleMarkerClipboardShortcuts);
+  });
+
   function handleMapClick(x: number, y: number) {
+    if (drawingMode === "marker-copy") {
+      void createMarkerCopyAtPoint(x, y);
+      return;
+    }
+
     if (drawingMode === "marker") {
       if (markerDraft) {
         updateMarkerDraft("x", String(x));
@@ -2499,6 +2652,20 @@ export default function MapPage() {
                         <button className="primary-command interactive-button" onClick={() => startDrawing("marker", "markers")} type="button">
                           Добавить метку
                         </button>
+                        <div className="map-panel-action-grid">
+                          <button className="command-row interactive-button" disabled={!selectedMarker || hasOpenEditor()} onClick={copySelectedMarker} type="button">
+                            Копировать метку
+                          </button>
+                          <button
+                            className={`command-row interactive-button ${drawingMode === "marker-copy" ? "map-command-active" : ""}`}
+                            disabled={!copiedMarkerDraft || (hasOpenEditor() && drawingMode !== "marker-copy")}
+                            onClick={startMarkerCopyPlacement}
+                            type="button"
+                          >
+                            Разместить копию
+                          </button>
+                        </div>
+                        {markerCopyMessage ? <p className="map-panel-message map-panel-message-strong">{markerCopyMessage}</p> : null}
                         {markers.length > 0 ? (
                           <div className="map-object-list">
                             {markers.map((marker) => (

@@ -78,7 +78,7 @@ type VisibleRoute = {
   points: Array<{ x: number; y: number }>;
 };
 
-type DrawingMode = "marker" | "zone" | "zone-polygon" | "route" | "label" | null;
+type DrawingMode = "marker" | "marker-copy" | "zone" | "zone-polygon" | "route" | "label" | null;
 
 type FocusTarget =
   | { type: "point"; x: number; y: number; nonce: number }
@@ -1168,7 +1168,7 @@ export function TileMapViewer({
       </div>
 
       <div
-        className={`map-viewer-viewport ${isPickingPoint ? "map-viewer-viewport-picking" : ""} ${drawingMode ? "map-viewer-viewport-drawing" : ""} ${drawingMode === "marker" ? "map-viewer-viewport-marker-preview" : ""}`}
+        className={`map-viewer-viewport ${isPickingPoint ? "map-viewer-viewport-picking" : ""} ${drawingMode ? "map-viewer-viewport-drawing" : ""} ${drawingMode === "marker" || drawingMode === "marker-copy" ? "map-viewer-viewport-marker-preview" : ""}`}
         onDoubleClick={handleDoubleClick}
         onClick={handleViewportClick}
         onPointerDown={handlePointerDown}
