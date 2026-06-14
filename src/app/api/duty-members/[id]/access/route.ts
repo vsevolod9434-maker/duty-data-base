@@ -2,6 +2,7 @@ import { requireApiAuth } from "@/lib/auth/require-api-auth";
 import { getPrismaClient } from "@/lib/prisma";
 import {
   canManageDutyAccess,
+  canViewDutyMemberAccessPassword,
   createDutyMemberErrorResponse,
   dutyMemberInclude,
   isHiddenDutyMemberRole,
@@ -82,5 +83,5 @@ export async function PATCH(request: Request, context: DutyMemberAccessContext) 
     return createDutyMemberErrorResponse("Профиль не найден.", 404);
   }
 
-  return Response.json(mapDutyMemberToResponse(updatedMember));
+  return Response.json(mapDutyMemberToResponse(updatedMember, canViewDutyMemberAccessPassword(auth.role)));
 }

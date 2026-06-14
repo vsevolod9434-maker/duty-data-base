@@ -6,6 +6,7 @@ import { getPrismaClient } from "@/lib/prisma";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import {
   buildDutyMemberData,
+  canViewDutyMemberAccessPassword,
   createDutyMemberErrorResponse,
   dutyMemberInclude,
   mapDutyMemberToResponse,
@@ -158,6 +159,7 @@ export async function POST(request: Request) {
           isActive: true,
           login,
           normalizedLogin: loginValidation.normalizedLogin,
+          password: payload.password,
           role,
         },
         select: { id: true },
@@ -188,7 +190,7 @@ export async function POST(request: Request) {
       throw new Error("Created duty member was not found.");
     }
 
-    return Response.json(mapDutyMemberToResponse(member), { status: 201 });
+    return Response.json(mapDutyMemberToResponse(member, canViewDutyMemberAccessPassword(auth.role)), { status: 201 });
   } catch {
     if (createdAuthUserId) {
       await createSupabaseAdminClient().auth.admin.deleteUser(createdAuthUserId).catch(() => null);

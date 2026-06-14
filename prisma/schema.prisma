@@ -302,6 +302,7 @@ model AccessUser {
   authEmail       String         @unique
   login           String
   normalizedLogin String         @unique
+  password        String?
   displayName     String?
   role            AccessUserRole @default(regular)
   isActive        Boolean        @default(true)

@@ -2,6 +2,7 @@ import { requireApiAuth } from "@/lib/auth/require-api-auth";
 import { getPrismaClient } from "@/lib/prisma";
 import {
   buildDutyMemberData,
+  canViewDutyMemberAccessPassword,
   createDutyMemberErrorResponse,
   dutyMemberInclude,
   isHiddenDutyMemberRole,
@@ -35,7 +36,7 @@ export async function GET() {
       orderBy: [{ profileStatus: "asc" }, { fullName: "asc" }],
     });
 
-    return Response.json(members.map(mapDutyMemberToResponse));
+    return Response.json(members.map((member) => mapDutyMemberToResponse(member, canViewDutyMemberAccessPassword(auth.role))));
   } catch {
     return createDutyMemberErrorResponse("Не удалось загрузить состав. Повторите попытку позже.", 500);
   }
@@ -149,5 +150,5 @@ export async function POST(request: Request) {
     return createDutyMemberErrorResponse("Не удалось выполнить операцию.", 500);
   }
 
-  return Response.json(mapDutyMemberToResponse(member), { status: 201 });
+  return Response.json(mapDutyMemberToResponse(member, canViewDutyMemberAccessPassword(auth.role)), { status: 201 });
 }
