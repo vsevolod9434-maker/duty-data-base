@@ -325,6 +325,27 @@ function getSelectableAccessUsers(users: AccessUserOption[]) {
   return users.filter((user) => isDutyMemberVisibleRole(user.role));
 }
 
+function syncAccessUsersWithMember(users: AccessUserOption[], member: DutyMember) {
+  return users.map((user) => {
+    if (user.login === member.access?.login) {
+      return {
+        ...user,
+        accessLevelLabel: member.access.accessLevelLabel,
+        dutyMemberId: member.id,
+        isActive: member.access.isActive,
+        role: member.access.role,
+        roleLabel: member.access.roleLabel,
+      };
+    }
+
+    if (user.dutyMemberId === member.id) {
+      return { ...user, dutyMemberId: null };
+    }
+
+    return user;
+  });
+}
+
 function getPositionAssigneeLabel(member: StaffPositionMember | null) {
   if (!member) {
     return "Вакант";
@@ -358,6 +379,7 @@ function buildMemberPayload(draft: DutyMemberDraft) {
 
   return {
     accessLogin: draft.accessLogin,
+    accessLevel: draft.accessLevel,
     fullName: draft.fullName,
     notes: draft.notes,
     photoUrl: draft.photoUrl,
@@ -695,13 +717,7 @@ export default function DutyMembersPage() {
 
         return getVisibleMembers([savedMember, ...currentMembers]);
       });
-      setAccessUsers((currentUsers) =>
-        currentUsers.map((user) => ({
-          ...user,
-          isActive: user.login === savedMember.access?.login ? (savedMember.access?.isActive ?? false) : user.isActive,
-          dutyMemberId: user.login === savedMember.access?.login ? savedMember.id : user.dutyMemberId === savedMember.id ? null : user.dutyMemberId,
-        })),
-      );
+      setAccessUsers((currentUsers) => syncAccessUsersWithMember(currentUsers, savedMember));
       setSelectedMemberId(savedMember.id);
       closeForm();
     } catch (error) {
@@ -725,6 +741,47 @@ export default function DutyMembersPage() {
     }
 
     return true;
+  }
+
+  function canChangeAccessLevel(member: DutyMember) {
+    return Boolean(canManageTarget(member) && !isExcludedMember(member) && member.access?.isActive);
+  }
+
+  function requestAccessLevelChange(member: DutyMember, accessLevel: "officer" | "regular") {
+    setConfirmDialog({
+      title: accessLevel === "officer" ? "Назначить офицером?" : "Снять офицерский допуск?",
+      message:
+        accessLevel === "officer"
+          ? "Профиль получит офицерский допуск и сможет выполнять офицерские операции в составе."
+          : "Профиль вернётся на базовый допуск и потеряет офицерские операции в составе.",
+      confirmLabel: accessLevel === "officer" ? "Назначить офицером" : "Снять допуск",
+      variant: accessLevel === "officer" ? "default" : "warning",
+      onConfirm: async () => {
+        await changeAccessLevel(member, accessLevel);
+      },
+    });
+  }
+
+  async function changeAccessLevel(member: DutyMember, accessLevel: "officer" | "regular") {
+    setIsSaving(true);
+    setActionMessage("");
+
+    try {
+      const updatedMember = await apiFetchJson<DutyMember>(`/api/duty-members/${member.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...buildMemberPayload(createDraft(member)), accessLevel }),
+      });
+
+      setMembers((currentMembers) => currentMembers.map((currentMember) => (currentMember.id === updatedMember.id ? updatedMember : currentMember)));
+      setAccessUsers((currentUsers) => syncAccessUsersWithMember(currentUsers, updatedMember));
+      setSelectedMemberId(updatedMember.id);
+      setConfirmDialog(null);
+    } catch (error) {
+      setActionMessage(error instanceof Error ? error.message : "Не удалось изменить уровень допуска.");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function requestAccessChange(member: DutyMember, isActive: boolean) {
@@ -753,9 +810,7 @@ export default function DutyMembersPage() {
       });
 
       setMembers((currentMembers) => currentMembers.map((currentMember) => (currentMember.id === updatedMember.id ? updatedMember : currentMember)));
-      setAccessUsers((currentUsers) =>
-        currentUsers.map((user) => (user.login === updatedMember.access?.login ? { ...user, isActive: updatedMember.access?.isActive ?? false } : user)),
-      );
+      setAccessUsers((currentUsers) => syncAccessUsersWithMember(currentUsers, updatedMember));
       setConfirmDialog(null);
     } catch (error) {
       setActionMessage(error instanceof Error ? error.message : "Не удалось выполнить операцию.");
@@ -786,9 +841,7 @@ export default function DutyMembersPage() {
       });
 
       setMembers((currentMembers) => currentMembers.map((currentMember) => (currentMember.id === updatedMember.id ? updatedMember : currentMember)));
-      setAccessUsers((currentUsers) =>
-        currentUsers.map((user) => (user.login === updatedMember.access?.login ? { ...user, isActive: false } : user)),
-      );
+      setAccessUsers((currentUsers) => syncAccessUsersWithMember(currentUsers, updatedMember));
       setSelectedMemberId(updatedMember.id);
       setConfirmDialog(null);
       closeForm();
@@ -937,6 +990,8 @@ export default function DutyMembersPage() {
     }
 
     const normalizedPhotoUrl = draft.photoUrl.trim();
+    const editingMember = editingId ? members.find((member) => member.id === editingId) ?? null : null;
+    const isEditingOwnAccessLevel = Boolean(editingMember?.access?.login === currentUser?.login);
 
     return (
       <div className="pda-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && closeForm()}>
@@ -994,6 +1049,16 @@ export default function DutyMembersPage() {
                       {serviceStatusOptions.map((status) => (
                         <option key={status.value} value={status.value}>
                           {status.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="filter-field">
+                    <span>Уровень допуска</span>
+                    <select disabled={isSaving || isEditingOwnAccessLevel} onChange={(event) => updateDraft("accessLevel", event.target.value)} value={draft.accessLevel}>
+                      {accessLevelOptions.map((accessLevel) => (
+                        <option key={accessLevel.value} value={accessLevel.value}>
+                          {accessLevel.label}
                         </option>
                       ))}
                     </select>
@@ -1189,6 +1254,15 @@ export default function DutyMembersPage() {
                             <button className="command-row interactive-button duty-member-action-button" onClick={() => startEdit(selectedMember)} type="button">
                               Изменить профиль
                             </button>
+                            {!isSelectedMemberExcluded && selectedMember.access?.role !== "officer" ? (
+                              <button className="command-row interactive-button duty-member-action-button" disabled={!canChangeAccessLevel(selectedMember)} onClick={() => requestAccessLevelChange(selectedMember, "officer")} type="button">
+                                Назначить офицером
+                              </button>
+                            ) : !isSelectedMemberExcluded && selectedMember.access?.role === "officer" ? (
+                              <button className="command-row interactive-button duty-member-action-button" disabled={!canChangeAccessLevel(selectedMember)} onClick={() => requestAccessLevelChange(selectedMember, "regular")} type="button">
+                                Снять офицерский допуск
+                              </button>
+                            ) : null}
                             {!isSelectedMemberExcluded && selectedMember.access?.isActive ? (
                               <button className="command-row interactive-button duty-member-action-button" disabled={!canManageTarget(selectedMember)} onClick={() => requestAccessChange(selectedMember, false)} type="button">
                                 Временно заблокировать доступ

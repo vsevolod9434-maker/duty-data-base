@@ -37,6 +37,7 @@ const profileStatuses = new Set<DutyMemberProfileStatus>(["active", "archived"])
 
 export type DutyMemberPayload = {
   accessLogin?: unknown;
+  accessLevel?: unknown;
   callsign?: unknown;
   fullName?: unknown;
   notes?: unknown;
@@ -158,6 +159,18 @@ export function mapDutyMemberToResponse(member: DutyMemberRecord, canViewAccessP
 
 export function canViewDutyMemberAccessPassword(role: AccessUserRole) {
   return role === "system_admin" || role === "officer";
+}
+
+export function getRoleFromDutyAccessLevel(value: unknown): AccessUserRole | null {
+  if (value === "officer") {
+    return "officer";
+  }
+
+  if (value === "regular") {
+    return "regular";
+  }
+
+  return null;
 }
 
 export function buildDutyMemberData(payload: DutyMemberPayload) {

@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto";
-import type { AccessUserRole } from "@/generated/prisma/client";
 import { requireApiAuth } from "@/lib/auth/require-api-auth";
 import { validateLogin } from "@/lib/auth-login";
 import { getPrismaClient } from "@/lib/prisma";
@@ -9,6 +8,7 @@ import {
   canViewDutyMemberAccessPassword,
   createDutyMemberErrorResponse,
   dutyMemberInclude,
+  getRoleFromDutyAccessLevel,
   mapDutyMemberToResponse,
   type DutyMemberPayload,
 } from "../duty-member-route-utils";
@@ -34,18 +34,6 @@ function normalizeOptionalString(value: unknown) {
 
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
-}
-
-function getRoleFromAccessLevel(value: unknown): AccessUserRole | null {
-  if (value === "officer") {
-    return "officer";
-  }
-
-  if (value === "regular") {
-    return "regular";
-  }
-
-  return null;
 }
 
 function createTechnicalAuthEmail(normalizedLogin: string) {
@@ -100,7 +88,8 @@ export async function POST(request: Request) {
     return createDutyMemberErrorResponse("Пароль должен быть от 8 до 128 символов.");
   }
 
-  const role = getRoleFromAccessLevel(payload.accessLevel);
+  const password = payload.password;
+  const role = getRoleFromDutyAccessLevel(payload.accessLevel);
 
   if (!role) {
     return createDutyMemberErrorResponse("Выберите уровень допуска.");
@@ -140,7 +129,7 @@ export async function POST(request: Request) {
     const supabase = createSupabaseAdminClient();
     const { data: createdAuthUser, error } = await supabase.auth.admin.createUser({
       email: authEmail,
-      password: payload.password,
+      password,
       email_confirm: true,
     });
 
@@ -159,7 +148,7 @@ export async function POST(request: Request) {
           isActive: true,
           login,
           normalizedLogin: loginValidation.normalizedLogin,
-          password: payload.password,
+          password,
           role,
         },
         select: { id: true },

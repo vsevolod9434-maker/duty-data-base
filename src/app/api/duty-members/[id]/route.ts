@@ -6,6 +6,7 @@ import {
   canDeleteDutyMember,
   createDutyMemberErrorResponse,
   dutyMemberInclude,
+  getRoleFromDutyAccessLevel,
   isHiddenDutyMemberRole,
   isDutyMemberExcluded,
   mapDutyMemberToResponse,
@@ -115,6 +116,17 @@ export async function PATCH(request: Request, context: DutyMemberContext) {
     return createDutyMemberErrorResponse("Доступ к операции запрещён.", 403);
   }
 
+  const requestedAccessRole =
+    payload.accessLevel === undefined ? accessUser.role : getRoleFromDutyAccessLevel(payload.accessLevel);
+
+  if (!requestedAccessRole) {
+    return createDutyMemberErrorResponse("Выберите уровень допуска.");
+  }
+
+  if (auth.accessUser.id === accessUser.id && requestedAccessRole !== accessUser.role) {
+    return createDutyMemberErrorResponse("Нельзя изменить собственный уровень допуска.", 403);
+  }
+
   if (accessUser) {
     const linkedMember = await prisma.dutyMember
       .findFirst({
@@ -142,6 +154,13 @@ export async function PATCH(request: Request, context: DutyMemberContext) {
 
   const member = await prisma
     .$transaction(async (transaction) => {
+      if (accessUser.role !== requestedAccessRole) {
+        await transaction.accessUser.update({
+          data: { role: requestedAccessRole },
+          where: { id: accessUser.id },
+        });
+      }
+
       const updatedMember = await transaction.dutyMember.update({
         data: nextMemberData,
         include: dutyMemberInclude,
