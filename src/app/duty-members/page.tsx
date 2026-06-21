@@ -767,10 +767,10 @@ export default function DutyMembersPage() {
     setActionMessage("");
 
     try {
-      const updatedMember = await apiFetchJson<DutyMember>(`/api/duty-members/${member.id}`, {
+      const updatedMember = await apiFetchJson<DutyMember>(`/api/duty-members/${member.id}/access`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...buildMemberPayload(createDraft(member)), accessLevel }),
+        body: JSON.stringify({ accessLevel }),
       });
 
       setMembers((currentMembers) => currentMembers.map((currentMember) => (currentMember.id === updatedMember.id ? updatedMember : currentMember)));

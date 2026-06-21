@@ -5,6 +5,7 @@ import {
   canViewDutyMemberAccessPassword,
   createDutyMemberErrorResponse,
   dutyMemberInclude,
+  getRoleFromDutyAccessLevel,
   isHiddenDutyMemberRole,
   isDutyMemberExcluded,
   mapDutyMemberToResponse,
@@ -18,6 +19,7 @@ type DutyMemberAccessContext = {
 };
 
 type AccessPayload = {
+  accessLevel?: unknown;
   isActive?: unknown;
 };
 
@@ -30,7 +32,7 @@ export async function PATCH(request: Request, context: DutyMemberAccessContext) 
 
   const payload = (await request.json().catch(() => null)) as AccessPayload | null;
 
-  if (!payload || typeof payload.isActive !== "boolean") {
+  if (!payload || (payload.accessLevel === undefined && typeof payload.isActive !== "boolean")) {
     return createDutyMemberErrorResponse("Не удалось выполнить операцию.");
   }
 
@@ -56,13 +58,23 @@ export async function PATCH(request: Request, context: DutyMemberAccessContext) 
     return createDutyMemberErrorResponse(permission.message, 403);
   }
 
-  if (isDutyMemberExcluded(member.serviceStatus) && payload.isActive) {
+  if (isDutyMemberExcluded(member.serviceStatus) && (payload.isActive || payload.accessLevel !== undefined)) {
     return createDutyMemberErrorResponse("Доступ к операции запрещён.", 403);
+  }
+
+  const requestedAccessRole =
+    payload.accessLevel === undefined ? undefined : getRoleFromDutyAccessLevel(payload.accessLevel);
+
+  if (payload.accessLevel !== undefined && !requestedAccessRole) {
+    return createDutyMemberErrorResponse("Выберите уровень допуска.");
   }
 
   const accessUpdated = await prisma.accessUser
     .update({
-      data: { isActive: payload.isActive },
+      data: {
+        ...(typeof payload.isActive === "boolean" ? { isActive: payload.isActive } : {}),
+        ...(requestedAccessRole ? { role: requestedAccessRole } : {}),
+      },
       where: { id: member.accessUser!.id },
     })
     .then(() => true)
