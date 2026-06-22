@@ -19,6 +19,7 @@ import {
   type MapRoutePointDto,
   type MapZoneDto,
 } from "@/lib/map-overlays";
+import { withBasePath } from "@/lib/public-path";
 
 type MapMetadata = {
   tileSize: number;
@@ -160,7 +161,7 @@ type TileMapViewerProps = {
   isPickingPoint?: boolean;
 };
 
-const METADATA_URL = "/map/zone/metadata.json";
+const METADATA_URL = withBasePath("/map/zone/metadata.json");
 const MISSING_MAP_MESSAGE = "Карта не подготовлена. Сформируйте тайлы перед использованием.";
 const ZOOM_STEP = 1.35;
 const MARKER_POPOVER_WIDTH = 336;
@@ -575,7 +576,7 @@ export function TileMapViewer({
           height: levelTileHeight * tileScreenScale,
           key: `${tileZoom}-${x}-${y}`,
           left: currentView.offset.x + sourceX * currentView.scale,
-          src: `${metadata.tilesPath}/${tileZoom}/${x}/${y}.png`,
+          src: withBasePath(`${metadata.tilesPath}/${tileZoom}/${x}/${y}.png`),
           top: currentView.offset.y + sourceY * currentView.scale,
           width: levelTileWidth * tileScreenScale,
         });

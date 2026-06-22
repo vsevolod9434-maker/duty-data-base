@@ -17,6 +17,7 @@ import {
   stalkerProfiles as initialStalkerProfiles,
   tasks as initialTasks,
 } from "@/lib/mock-data";
+import { withBasePath } from "@/lib/public-path";
 import type {
   StalkerGroup,
   StalkerGroupMember,
@@ -1439,7 +1440,7 @@ export default function StalkerGroupsPage() {
                       <div className="group-avatar-frame">
                         <img
                           alt="Изображение сталкерской группы"
-                          src={selectedGroup.photoUrl || "/no-data-group.png"}
+                          src={selectedGroup.photoUrl || withBasePath("/no-data-group.png")}
                         />
                       </div>
                       <div className="group-hero-main">
@@ -1596,7 +1597,7 @@ export default function StalkerGroupsPage() {
                                       <img
                                         alt="Стоковое изображение участника группы"
                                         className="member-avatar-placeholder"
-                                        src="/no-data-person.png"
+                                        src={withBasePath("/no-data-person.png")}
                                       />
                                     )}
                                   </div>

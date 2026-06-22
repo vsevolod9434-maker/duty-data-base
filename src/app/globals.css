@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  --font-khand: "Arial Narrow", "Roboto Condensed", "Segoe UI", sans-serif;
   --background: #050607;
   --device: #080a0b;
   --screen: #090b0c;

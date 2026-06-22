@@ -1,13 +1,7 @@
 ﻿import type { Metadata } from "next";
-import { Khand } from "next/font/google";
 import { DutyQueryProvider } from "@/components/providers/DutyQueryProvider";
+import { StaticAuthGate } from "@/components/providers/StaticAuthGate";
 import "./globals.css";
-
-const khand = Khand({
-  subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-khand",
-});
 
 export const metadata: Metadata = {
   title: "Система учёта «Долг»",
@@ -20,9 +14,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru" className={khand.variable}>
+    <html lang="ru">
       <body>
-        <DutyQueryProvider>{children}</DutyQueryProvider>
+        <DutyQueryProvider>
+          <StaticAuthGate>{children}</StaticAuthGate>
+        </DutyQueryProvider>
       </body>
     </html>
   );
