@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useCurrentUserQuery, useDutyQueryClient } from "@/lib/data-cache";
 import { navigation } from "@/lib/navigation";
+import { stripBasePath, withBasePath } from "@/lib/public-path";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type AccessUserResponse = {
@@ -20,7 +21,8 @@ type PdaTopbarProps = {
 };
 
 export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaTopbarProps) {
-  const pathname = usePathname();
+  const rawPathname = usePathname();
+  const pathname = stripBasePath(rawPathname).replace(/\/$/, "") || "/";
   const router = useRouter();
   const queryClient = useDutyQueryClient();
   const currentUserQuery = useCurrentUserQuery();
@@ -118,7 +120,7 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
       <div className="pda-shell-header registry-shell-header">
         <div className="pda-brand registry-brand">
           <span className="pda-brand-mark registry-brand-mark">
-            <Image alt="Эмблема группировки «Долг»" height={42} priority src="/duty-logo.png" width={42} />
+            <Image alt="Эмблема группировки «Долг»" height={42} priority src={withBasePath("/duty-logo.png")} width={42} />
           </span>
           <div className="pda-brand-copy registry-brand-copy">
             <strong>База данных «Долг»</strong>
@@ -156,7 +158,7 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
                           <a
                             aria-current={isSubtabActive ? "page" : undefined}
                             className={`pda-nav-dropdown-option ${isSubtabActive ? "pda-nav-dropdown-option-active" : ""}`}
-                            href={subtab.href}
+                            href={withBasePath(subtab.href)}
                             key={subtab.label}
                             onClick={() => setOpenDropdownLabel(null)}
                             role="menuitem"
@@ -175,7 +177,7 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
               <a
                 aria-current={isActive ? "page" : undefined}
                 className={`pda-tab registry-nav-tab ${isActive ? "pda-tab-active registry-nav-tab-active" : ""}`}
-                href={tab.href}
+                href={withBasePath(tab.href)}
                 key={tab.label}
               >
                 {tab.label}

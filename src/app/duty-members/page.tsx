@@ -9,6 +9,7 @@ import { apiFetchJson } from "@/lib/api-client";
 import type { UserRole } from "@/lib/auth-roles";
 import { cachePolicy, dutyDataKeys, scheduleClientStateSync, TWO_HOURS, useCurrentUserCacheKey, useDutyQueryClient } from "@/lib/data-cache";
 import { compareDutyMembersByRankAndName, isDutyMemberVisibleRole } from "@/lib/duty-members";
+import { withBasePath } from "@/lib/public-path";
 
 type DutyServiceStatus = "active" | "leave" | "wounded" | "missing" | "discharged";
 type DutyMemberProfileStatus = "active" | "archived";
@@ -250,8 +251,9 @@ function getMemberPositionSummary(member: DutyMember) {
 function DutyMemberPhoto({ alt, className = "", src }: { alt: string; className?: string; src: string | null }) {
   const normalizedSrc = src?.trim() ?? "";
   const [failedSrc, setFailedSrc] = useState("");
-  const resolvedSrc = normalizedSrc && failedSrc !== normalizedSrc ? normalizedSrc : "/no-data-person.png";
-  const isPlaceholder = resolvedSrc === "/no-data-person.png";
+  const placeholderSrc = withBasePath("/no-data-person.png");
+  const resolvedSrc = normalizedSrc && failedSrc !== normalizedSrc ? normalizedSrc : placeholderSrc;
+  const isPlaceholder = resolvedSrc === placeholderSrc;
 
   return <img alt={alt} className={isPlaceholder ? `profile-photo-placeholder ${className}`.trim() : className || undefined} onError={() => normalizedSrc && setFailedSrc(normalizedSrc)} src={resolvedSrc} />;
 }

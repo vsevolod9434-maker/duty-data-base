@@ -33,6 +33,7 @@ import {
   tasks as initialTasks,
   tradeOperations as initialTradeOperations,
 } from "@/lib/mock-data";
+import { withBasePath } from "@/lib/public-path";
 import type {
   StalkerAffiliation,
   StalkerGroup,
@@ -2535,7 +2536,7 @@ export default function StalkerProfilesPage() {
                                     <div className="dossier-group-avatar">
                                       <img
                                         alt="Аватар группы"
-                                        src={group.photoUrl || "/no-data-group.png"}
+                                        src={group.photoUrl || withBasePath("/no-data-group.png")}
                                       />
                                     </div>
                                     <div className="dossier-group-copy">

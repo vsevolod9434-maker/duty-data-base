@@ -2,11 +2,20 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { normalizeLogin } from "@/lib/auth-login";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type LoginResponse = {
   ok?: boolean;
   error?: string;
 };
+
+async function createTechnicalAuthEmail(login: string) {
+  const bytes = new TextEncoder().encode(normalizeLogin(login));
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `u-${hash.slice(0, 40)}@duty.local`;
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -34,6 +43,33 @@ export default function LoginPage() {
     setMessage("");
 
     try {
+      if (process.env.NEXT_PUBLIC_STATIC_EXPORT === "true") {
+        const supabase = createSupabaseBrowserClient();
+        const email = await createTechnicalAuthEmail(normalizedLogin);
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+        if (error || !data.user) {
+          setMessage("Не удалось выполнить вход. Проверьте логин и пароль.");
+          return;
+        }
+
+        const { data: accessUser, error: accessError } = await supabase
+          .from("AccessUser")
+          .select("authUserId, isActive")
+          .eq("authUserId", data.user.id)
+          .maybeSingle();
+
+        if (accessError || !accessUser?.isActive) {
+          await supabase.auth.signOut();
+          setMessage("Доступ к системе запрещён.");
+          return;
+        }
+
+        router.replace("/");
+        router.refresh();
+        return;
+      }
+
       const response = await fetch("/api/auth/login", {
         body: JSON.stringify({ login: normalizedLogin, password }),
         headers: { "Content-Type": "application/json" },
