@@ -106,10 +106,6 @@ export async function PATCH(request: Request, context: DutyMemberPasswordContext
       return createDutyMemberErrorResponse(resetPasswordErrorMessage, 400);
     }
 
-    await prisma.accessUser.update({
-      data: { password: payload.newPassword },
-      where: { id: member.accessUser.id },
-    });
   } catch {
     return createDutyMemberErrorResponse(resetPasswordErrorMessage, 500);
   }

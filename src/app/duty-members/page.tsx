@@ -18,7 +18,6 @@ type DutyAccessFilter = "all" | "with_access" | "without_access" | "blocked";
 type DutyMemberAccess = {
   login: string;
   displayName: string | null;
-  password: string | null;
   role: UserRole;
   roleLabel: string;
   accessLevelLabel: string;
@@ -451,7 +450,6 @@ export default function DutyMembersPage() {
   );
   const excludedMembers = useMemo(() => filteredMembers.filter(isExcludedMember), [filteredMembers]);
   const canManage = currentUser?.role === "system_admin" || currentUser?.role === "officer";
-  const canViewAccessPasswords = canManage;
   const isSelectedMemberExcluded = Boolean(selectedMember && isExcludedMember(selectedMember));
   const hasSearchOrFilter = Boolean(searchQuery.trim()) || accessFilter !== "all";
   const isEditing = isCreating || Boolean(editingId);
@@ -971,13 +969,6 @@ export default function DutyMembersPage() {
       });
 
       setActionMessage(response.message);
-      setMembers((currentMembers) =>
-        currentMembers.map((member) =>
-          member.id === resetPasswordState.member.id && member.access
-            ? { ...member, access: { ...member.access, password: resetPasswordState.newPassword } }
-            : member,
-        ),
-      );
       closeResetPassword();
     } catch (error) {
       setResetPasswordMessage(error instanceof Error ? error.message : "Пароль не изменён. Проверьте введённые данные.");
@@ -1305,12 +1296,6 @@ export default function DutyMembersPage() {
                           <span>Уровень допуска</span>
                           <strong>{getAccessLevelLabel(selectedMember)}</strong>
                         </div>
-                        {canViewAccessPasswords ? (
-                          <div className="registry-info-field">
-                            <span>Пароль</span>
-                            <strong>{selectedMember.access?.password || "Пароль не сохранён"}</strong>
-                          </div>
-                        ) : null}
                       </div>
                     </div>
 

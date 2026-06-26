@@ -11,7 +11,6 @@ export const dutyMemberInclude = {
       id: true,
       isActive: true,
       login: true,
-      password: true,
       role: true,
     },
   },
@@ -54,7 +53,6 @@ type AccessUserPreview = {
   id: string;
   isActive: boolean;
   login: string;
-  password: string | null;
   role: AccessUserRole;
 } | null;
 
@@ -122,7 +120,7 @@ export function isHiddenDutyMemberRole(role: AccessUserRole | null | undefined) 
   return role ? !isDutyMemberVisibleRole(role as UserRole) : false;
 }
 
-export function mapDutyMemberToResponse(member: DutyMemberRecord, canViewAccessPassword = false) {
+export function mapDutyMemberToResponse(member: DutyMemberRecord) {
   return {
     id: member.id,
     fullName: member.fullName,
@@ -151,14 +149,9 @@ export function mapDutyMemberToResponse(member: DutyMemberRecord, canViewAccessP
           roleLabel: getRoleLabel(member.accessUser.role as UserRole),
           accessLevelLabel: getDutyAccessLevelLabel(member.accessUser.role as UserRole),
           isActive: isDutyMemberExcluded(member.serviceStatus) ? false : member.accessUser.isActive,
-          password: canViewAccessPassword ? member.accessUser.password : null,
         }
       : null,
   };
-}
-
-export function canViewDutyMemberAccessPassword(role: AccessUserRole) {
-  return role === "system_admin" || role === "officer";
 }
 
 export function getRoleFromDutyAccessLevel(value: unknown): AccessUserRole | null {

@@ -25,29 +25,12 @@ export function normalizeNoteText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-type NoteAccessUser = Pick<AccessUser, "displayName" | "id" | "login" | "role">;
-
-function normalizeComparableValue(value: string | null | undefined) {
-  return value?.trim().toLocaleLowerCase("ru-RU") || "";
-}
+type NoteAccessUser = Pick<AccessUser, "id" | "role">;
 
 export function canManageStalkerNote(note: DatabaseStalkerNote, accessUser: NoteAccessUser) {
   if (accessUser.role === "system_admin" || accessUser.role === "officer") {
     return true;
   }
 
-  if (note.createdByAccessUserId) {
-    return note.createdByAccessUserId === accessUser.id;
-  }
-
-  const authorName = normalizeComparableValue(note.createdBy);
-
-  if (!authorName) {
-    return false;
-  }
-
-  return [accessUser.displayName, accessUser.login]
-    .map((value) => normalizeComparableValue(value))
-    .filter(Boolean)
-    .includes(authorName);
+  return note.createdByAccessUserId === accessUser.id;
 }

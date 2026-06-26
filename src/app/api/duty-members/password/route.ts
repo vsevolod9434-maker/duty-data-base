@@ -86,10 +86,5 @@ export async function PATCH(request: Request) {
     return createDutyMemberErrorResponse(passwordErrorMessage, 400);
   }
 
-  await prisma.accessUser.update({
-    data: { password: payload.newPassword },
-    where: { id: auth.accessUser.id },
-  });
-
   return Response.json({ message: "Пароль изменён." });
 }
