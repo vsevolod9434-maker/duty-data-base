@@ -640,7 +640,6 @@ async function handleDutyMembers(client: SupabaseClient, method: string, init?: 
                 role: memberAccess.role,
                 roleLabel: getRoleLabel(stringValue(memberAccess.role) as UserRole),
                 isActive: memberAccess.isActive,
-                password: null,
               }
             : null,
         };
@@ -661,9 +660,7 @@ async function handleDutyMembers(client: SupabaseClient, method: string, init?: 
   }
 
   if (method === "DELETE" && id) {
-    const { error } = await client.from("DutyMember").delete().eq("id", id);
-    if (error) throw error;
-    return json({ id });
+    return errorResponse(blockedAdminMessage, 501);
   }
 
   if (method === "POST") {

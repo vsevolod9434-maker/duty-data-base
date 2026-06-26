@@ -2,7 +2,6 @@ import { requireApiAuth } from "@/lib/auth/require-api-auth";
 import { getPrismaClient } from "@/lib/prisma";
 import {
   buildDutyMemberData,
-  canViewDutyMemberAccessPassword,
   canDeleteDutyMember,
   createDutyMemberErrorResponse,
   dutyMemberInclude,
@@ -41,7 +40,7 @@ export async function GET(_request: Request, context: DutyMemberContext) {
     return createDutyMemberErrorResponse("Профиль не найден.", 404);
   }
 
-  return Response.json(mapDutyMemberToResponse(member, canViewDutyMemberAccessPassword(auth.role)));
+  return Response.json(mapDutyMemberToResponse(member));
 }
 
 export async function PATCH(request: Request, context: DutyMemberContext) {
@@ -196,7 +195,7 @@ export async function PATCH(request: Request, context: DutyMemberContext) {
     return createDutyMemberErrorResponse("Не удалось выполнить операцию.", 500);
   }
 
-  return Response.json(mapDutyMemberToResponse(member, canViewDutyMemberAccessPassword(auth.role)));
+  return Response.json(mapDutyMemberToResponse(member));
 }
 
 export async function DELETE(_request: Request, context: DutyMemberContext) {
@@ -261,5 +260,5 @@ export async function DELETE(_request: Request, context: DutyMemberContext) {
     return createDutyMemberErrorResponse("Не удалось выполнить операцию.", 500);
   }
 
-  return Response.json(mapDutyMemberToResponse(excludedMember, canViewDutyMemberAccessPassword(auth.role)));
+  return Response.json(mapDutyMemberToResponse(excludedMember));
 }

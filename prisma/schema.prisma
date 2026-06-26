@@ -298,11 +298,10 @@ model ActivityLog {
 
 model AccessUser {
   id              String         @id @default(cuid())
-  authUserId      String         @unique
+  authUserId      String         @unique @db.Uuid
   authEmail       String         @unique
   login           String
   normalizedLogin String         @unique
-  password        String?
   displayName     String?
   role            AccessUserRole @default(regular)
   isActive        Boolean        @default(true)

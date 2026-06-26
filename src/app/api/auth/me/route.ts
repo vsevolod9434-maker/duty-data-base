@@ -22,8 +22,7 @@ export async function GET() {
   }
 
   const prisma = getPrismaClient();
-  const authEmail = user.email?.trim();
-  const accessUser = await prisma.accessUser.findFirst({
+  const accessUser = await prisma.accessUser.findUnique({
     select: {
       id: true,
       displayName: true,
@@ -31,13 +30,9 @@ export async function GET() {
       login: true,
       role: true,
     },
-    where: authEmail
-      ? {
-          OR: [{ authUserId: user.id }, { authEmail }],
-        }
-      : {
-          authUserId: user.id,
-        },
+    where: {
+      authUserId: user.id,
+    },
   });
 
   if (!accessUser || !accessUser.isActive) {

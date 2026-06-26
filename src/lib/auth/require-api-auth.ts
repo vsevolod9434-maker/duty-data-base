@@ -57,8 +57,7 @@ export async function requireApiAuth(): Promise<ApiAuthResult> {
   }
 
   const prisma = getPrismaClient();
-  const authEmail = user.email?.trim();
-  const accessUser = await prisma.accessUser.findFirst({
+  const accessUser = await prisma.accessUser.findUnique({
     select: {
       displayName: true,
       id: true,
@@ -66,13 +65,9 @@ export async function requireApiAuth(): Promise<ApiAuthResult> {
       login: true,
       role: true,
     },
-    where: authEmail
-      ? {
-          OR: [{ authUserId: user.id }, { authEmail }],
-        }
-      : {
-          authUserId: user.id,
-        },
+    where: {
+      authUserId: user.id,
+    },
   });
 
   if (!accessUser || !accessUser.isActive) {
