@@ -7,6 +7,12 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const buildRoot = path.join(root, ".github-pages-build");
 const sourceRoot = path.join(buildRoot, "src");
+const minimalNextEnv = `/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+
+// NOTE: This file is generated for the temporary GitHub Pages build.
+// See https://nextjs.org/docs/app/api-reference/config/typescript for more information.
+`;
 
 function run(command, args, options = {}) {
   return new Promise((resolve, reject) => {
@@ -38,7 +44,6 @@ async function copyProject() {
 
   for (const file of [
     "next.config.ts",
-    "next-env.d.ts",
     "package.json",
     "package-lock.json",
     "postcss.config.mjs",
@@ -46,6 +51,8 @@ async function copyProject() {
   ]) {
     await cp(path.join(root, file), path.join(buildRoot, file));
   }
+
+  await writeFile(path.join(buildRoot, "next-env.d.ts"), minimalNextEnv);
 
   await cp(path.join(root, "public"), path.join(buildRoot, "public"), { recursive: true });
   await cp(path.join(root, "src"), sourceRoot, {
