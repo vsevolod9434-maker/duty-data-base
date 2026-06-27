@@ -17,6 +17,7 @@ import {
   stalkerProfiles as initialStalkerProfiles,
   tasks as initialTasks,
 } from "@/lib/mock-data";
+import { isStaticExportEnabled, transactionalImportMessage } from "@/lib/static-hosting";
 import { withBasePath } from "@/lib/public-path";
 import type {
   StalkerGroup,
@@ -1046,6 +1047,11 @@ export default function StalkerGroupsPage() {
       return;
     }
 
+    if (isStaticExportEnabled) {
+      setGroupActionMessage(transactionalImportMessage);
+      return;
+    }
+
     setIsGroupImporting(true);
     setGroupActionMessage("");
 
@@ -1385,8 +1391,9 @@ export default function StalkerGroupsPage() {
                     <span>Можно импортировать {localImportGroups.length} записей в базу учёта. </span>
                     <button
                       className="primary-command"
-                      disabled={isGroupImporting}
+                      disabled={isGroupImporting || isStaticExportEnabled}
                       onClick={importLocalGroups}
+                      title={isStaticExportEnabled ? transactionalImportMessage : undefined}
                       type="button"
                     >
                       {isGroupImporting ? "Импорт..." : "Импортировать записи"}

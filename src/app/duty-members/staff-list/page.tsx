@@ -8,6 +8,7 @@ import { apiFetchJson } from "@/lib/api-client";
 import type { UserRole } from "@/lib/auth-roles";
 import { cachePolicy, dutyDataKeys, scheduleClientStateSync, TWO_HOURS, useCurrentUserCacheKey, useDutyQueryClient } from "@/lib/data-cache";
 import { compareDutyMembersByRankAndName } from "@/lib/duty-members";
+import { backendOnlyOperationMessage, isStaticExportEnabled } from "@/lib/static-hosting";
 
 type DutyMemberAccess = {
   displayName?: string | null;
@@ -181,6 +182,7 @@ export default function DutyStaffListPage() {
   const [confirmDialog, setConfirmDialog] = useState<ConfirmState | null>(null);
 
   const canManage = currentUser?.role === "system_admin" || currentUser?.role === "officer";
+  const canUseBackendAdmin = Boolean(canManage && !isStaticExportEnabled);
   const staffTotals = useMemo(() => getStaffTotals(sections), [sections]);
   const filteredSections = useMemo(() => getFilteredSections(sections, staffFilter), [sections, staffFilter]);
   const availableMembers = useMemo(
@@ -331,6 +333,11 @@ export default function DutyStaffListPage() {
   }, [currentUserKey, members, queryClient]);
 
   function openAssignDialog(position: StaffPosition) {
+    if (isStaticExportEnabled) {
+      setMessage(backendOnlyOperationMessage);
+      return;
+    }
+
     setAssigningPosition(position);
     setMemberSearchQuery("");
     setMessage("");
@@ -346,6 +353,11 @@ export default function DutyStaffListPage() {
   }
 
   function openBulkAssignDialog() {
+    if (isStaticExportEnabled) {
+      setMessage(backendOnlyOperationMessage);
+      return;
+    }
+
     setIsBulkAssignOpen(true);
     setBulkMemberSearchQuery("");
     setBulkSelectedMember(null);
@@ -383,6 +395,11 @@ export default function DutyStaffListPage() {
   }
 
   async function assignBulkPositions() {
+    if (isStaticExportEnabled) {
+      setBulkAssignMessage(backendOnlyOperationMessage);
+      return;
+    }
+
     if (!bulkSelectedMember) {
       setBulkAssignMessage("Выберите профиль состава.");
       return;
@@ -419,6 +436,13 @@ export default function DutyStaffListPage() {
   }
 
   async function assignPosition(position: StaffPosition, dutyMemberId: string | null) {
+    if (isStaticExportEnabled) {
+      setMessage(backendOnlyOperationMessage);
+      setConfirmDialog(null);
+      closeAssignDialog();
+      return;
+    }
+
     setIsSaving(true);
     setMessage("");
 
@@ -525,10 +549,11 @@ export default function DutyStaffListPage() {
                 ))}
               </div>
               {canManage ? (
-                <button className="duty-staff-action-button duty-staff-bulk-open-button" disabled={isSaving} onClick={openBulkAssignDialog} type="button">
+                <button className="duty-staff-action-button duty-staff-bulk-open-button" disabled={isSaving || !canUseBackendAdmin} onClick={openBulkAssignDialog} type="button">
                   Массовое назначение
                 </button>
               ) : null}
+              {canManage && isStaticExportEnabled ? <p className="draft-message duty-staff-page-message">{backendOnlyOperationMessage}</p> : null}
               {message ? <p className="draft-message duty-staff-page-message">{message}</p> : null}
             </div>
 
@@ -587,10 +612,10 @@ export default function DutyStaffListPage() {
 
                               {canManage ? (
                                 <div className="duty-staff-card-actions">
-                                  <button className="duty-staff-action-button" disabled={isSaving} onClick={() => openAssignDialog(position)} type="button">
+                                  <button className="duty-staff-action-button" disabled={isSaving || !canUseBackendAdmin} onClick={() => openAssignDialog(position)} type="button">
                                     {position.member ? "Сменить" : "Назначить"}
                                   </button>
-                                  <button className="duty-staff-action-button duty-staff-action-muted" disabled={isSaving || !position.member} onClick={() => requestRelease(position)} type="button">
+                                  <button className="duty-staff-action-button duty-staff-action-muted" disabled={isSaving || !canUseBackendAdmin || !position.member} onClick={() => requestRelease(position)} type="button">
                                     Снять
                                   </button>
                                 </div>

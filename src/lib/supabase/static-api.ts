@@ -5,12 +5,12 @@ import { getRoleLabel, type UserRole } from "@/lib/auth-roles";
 import { normalizeLogin } from "@/lib/auth-login";
 import { isStaticSupabaseApiRequest } from "@/lib/supabase/static-api-routing";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { backendOnlyOperationMessage, transactionalImportMessage } from "@/lib/static-hosting";
 
 type JsonRecord = Record<string, unknown>;
 
 const staticExportEnabled = process.env.NEXT_PUBLIC_STATIC_EXPORT === "true";
-const blockedAdminMessage =
-  "Операция требует защищённого серверного обработчика и недоступна на статическом хостинге GitHub Pages.";
+const blockedAdminMessage = backendOnlyOperationMessage;
 
 function json(data: unknown, status = 200) {
   return Response.json(data, { status });
@@ -819,10 +819,7 @@ export async function staticSupabaseFetch(input: RequestInfo | URL, init?: Reque
       return errorResponse(blockedAdminMessage, 501);
     }
     if (path.endsWith("/import") || path === "/api/apartments/defaults") {
-      return errorResponse(
-        "Массовый импорт и автоматическое создание записей требуют транзакционного серверного обработчика.",
-        501,
-      );
+      return errorResponse(transactionalImportMessage, 501);
     }
 
     const notesMatch = path.match(/^\/api\/stalkers\/([^/]+)\/notes(?:\/([^/]+))?$/);

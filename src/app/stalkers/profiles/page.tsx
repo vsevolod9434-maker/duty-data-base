@@ -33,6 +33,7 @@ import {
   tasks as initialTasks,
   tradeOperations as initialTradeOperations,
 } from "@/lib/mock-data";
+import { isStaticExportEnabled, transactionalImportMessage } from "@/lib/static-hosting";
 import { withBasePath } from "@/lib/public-path";
 import type {
   StalkerAffiliation,
@@ -1463,6 +1464,11 @@ export default function StalkerProfilesPage() {
       return;
     }
 
+    if (isStaticExportEnabled) {
+      setProfileActionMessage(transactionalImportMessage);
+      return;
+    }
+
     setIsImportingProfiles(true);
     setProfileActionMessage("");
 
@@ -2312,8 +2318,9 @@ export default function StalkerProfilesPage() {
                     <span>Можно импортировать {localImportProfiles.length} записей в базу учёта. </span>
                     <button
                       className="primary-command"
-                      disabled={isImportingProfiles}
+                      disabled={isImportingProfiles || isStaticExportEnabled}
                       onClick={importLocalProfiles}
+                      title={isStaticExportEnabled ? transactionalImportMessage : undefined}
                       type="button"
                     >
                       {isImportingProfiles ? "Импорт..." : "Импортировать записи"}

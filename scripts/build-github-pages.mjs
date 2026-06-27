@@ -7,12 +7,23 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const buildRoot = path.join(root, ".github-pages-build");
 const sourceRoot = path.join(buildRoot, "src");
+const fallbackBasePath = "/duty-data-base";
 const minimalNextEnv = `/// <reference types="next" />
 /// <reference types="next/image-types/global" />
 
 // NOTE: This file is generated for the temporary GitHub Pages build.
 // See https://nextjs.org/docs/app/api-reference/config/typescript for more information.
 `;
+
+function resolveBasePath() {
+  const configuredBasePath = process.env.NEXT_PUBLIC_BASE_PATH?.trim();
+  if (configuredBasePath) {
+    return configuredBasePath;
+  }
+
+  const repositoryName = process.env.GITHUB_REPOSITORY?.split("/").pop()?.trim();
+  return repositoryName ? `/${repositoryName}` : fallbackBasePath;
+}
 
 function run(command, args, options = {}) {
   return new Promise((resolve, reject) => {
@@ -21,6 +32,7 @@ function run(command, args, options = {}) {
       env: {
         ...process.env,
         GITHUB_PAGES: "true",
+        NEXT_PUBLIC_BASE_PATH: resolveBasePath(),
         NEXT_PUBLIC_STATIC_EXPORT: "true",
       },
       stdio: "inherit",

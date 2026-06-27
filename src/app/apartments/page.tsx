@@ -11,6 +11,7 @@ import { apiFetchJson } from "@/lib/api-client";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Pagination } from "@/components/ui/Pagination";
 import { cachePolicy, dutyDataKeys, scheduleClientStateSync, useCurrentUserCacheKey, useDutyQueryClient } from "@/lib/data-cache";
+import { isStaticExportEnabled, transactionalImportMessage } from "@/lib/static-hosting";
 import {
   apartmentPaymentStatusLabels,
   apartmentStatusLabels,
@@ -963,6 +964,11 @@ export default function ApartmentsPage() {
       return;
     }
 
+    if (isStaticExportEnabled) {
+      setApartmentActionMessage(transactionalImportMessage);
+      return;
+    }
+
     setIsApartmentImporting(true);
     setApartmentActionMessage("");
 
@@ -995,6 +1001,11 @@ export default function ApartmentsPage() {
   }
 
   async function createDefaultServerApartments() {
+    if (isStaticExportEnabled) {
+      setApartmentActionMessage(transactionalImportMessage);
+      return;
+    }
+
     setIsApartmentInitializing(true);
     setApartmentActionMessage("");
 
@@ -1051,8 +1062,9 @@ export default function ApartmentsPage() {
             <span>Можно импортировать {localImportApartments.length} записей в базу учёта. </span>
             <button
               className="primary-command"
-              disabled={isApartmentImporting}
+              disabled={isApartmentImporting || isStaticExportEnabled}
               onClick={importLocalApartments}
+              title={isStaticExportEnabled ? transactionalImportMessage : undefined}
               type="button"
             >
               {isApartmentImporting ? "Импорт..." : "Импортировать записи"}
@@ -1066,8 +1078,9 @@ export default function ApartmentsPage() {
             <span>Для нормальной работы раздела создайте три базовые квартиры.</span>
             <button
               className="primary-command"
-              disabled={isApartmentInitializing}
+              disabled={isApartmentInitializing || isStaticExportEnabled}
               onClick={createDefaultServerApartments}
+              title={isStaticExportEnabled ? transactionalImportMessage : undefined}
               type="button"
             >
               {isApartmentInitializing ? "Создание..." : "Создать базовые квартиры"}

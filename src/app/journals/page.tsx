@@ -36,6 +36,7 @@ import {
   tasks as initialTasks,
   tradeOperations as initialTradeOperations,
 } from "@/lib/mock-data";
+import { isStaticExportEnabled, transactionalImportMessage } from "@/lib/static-hosting";
 import type {
   StalkerGroup,
   StalkerProfile,
@@ -675,6 +676,11 @@ export default function JournalsPage() {
 
   async function importLocalTasks() {
     setJournalImportMessage("");
+    if (isStaticExportEnabled) {
+      setJournalImportMessage(transactionalImportMessage);
+      return;
+    }
+
     try {
       const result = await importTasks(localImportTasks);
       setTasks(result.tasks);
@@ -691,6 +697,11 @@ export default function JournalsPage() {
 
   async function importLocalTradeOperations() {
     setJournalImportMessage("");
+    if (isStaticExportEnabled) {
+      setJournalImportMessage(transactionalImportMessage);
+      return;
+    }
+
     try {
       const result = await importTradeOperations(localImportTradeOperations);
       setTradeOperations(result.tradeOperations);
@@ -707,6 +718,11 @@ export default function JournalsPage() {
 
   async function importLocalViolations() {
     setJournalImportMessage("");
+    if (isStaticExportEnabled) {
+      setJournalImportMessage(transactionalImportMessage);
+      return;
+    }
+
     try {
       const result = await importViolations(localImportViolations);
       setViolations(result.violations);
@@ -2116,17 +2132,17 @@ export default function JournalsPage() {
               {localImportTasks.length > 0 || localImportTradeOperations.length > 0 || localImportViolations.length > 0 ? (
                 <div className="apartment-import-panel">
                   {localImportTasks.length > 0 ? (
-                    <button className="command-row" onClick={importLocalTasks} type="button">
+                    <button className="command-row" disabled={isStaticExportEnabled} onClick={importLocalTasks} title={isStaticExportEnabled ? transactionalImportMessage : undefined} type="button">
                       Найдены записи заданий для импорта. Импортировать записи
                     </button>
                   ) : null}
                   {localImportTradeOperations.length > 0 ? (
-                    <button className="command-row" onClick={importLocalTradeOperations} type="button">
+                    <button className="command-row" disabled={isStaticExportEnabled} onClick={importLocalTradeOperations} title={isStaticExportEnabled ? transactionalImportMessage : undefined} type="button">
                       Найдены торговые операции для импорта. Импортировать записи
                     </button>
                   ) : null}
                   {localImportViolations.length > 0 ? (
-                    <button className="command-row" onClick={importLocalViolations} type="button">
+                    <button className="command-row" disabled={isStaticExportEnabled} onClick={importLocalViolations} title={isStaticExportEnabled ? transactionalImportMessage : undefined} type="button">
                       Найдены нарушения для импорта. Импортировать записи
                     </button>
                   ) : null}
