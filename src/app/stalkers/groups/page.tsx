@@ -1398,6 +1398,7 @@ export default function StalkerGroupsPage() {
                     >
                       {isGroupImporting ? "Импорт..." : "Импортировать записи"}
                     </button>
+                    {isStaticExportEnabled ? <span>{transactionalImportMessage}</span> : null}
                   </div>
                 ) : null}
 

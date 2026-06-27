@@ -2325,6 +2325,7 @@ export default function StalkerProfilesPage() {
                     >
                       {isImportingProfiles ? "Импорт..." : "Импортировать записи"}
                     </button>
+                    {isStaticExportEnabled ? <span>{transactionalImportMessage}</span> : null}
                   </div>
                 ) : null}
 

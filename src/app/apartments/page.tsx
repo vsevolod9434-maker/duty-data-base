@@ -1069,6 +1069,7 @@ export default function ApartmentsPage() {
             >
               {isApartmentImporting ? "Импорт..." : "Импортировать записи"}
             </button>
+            {isStaticExportEnabled ? <span>{transactionalImportMessage}</span> : null}
           </div>
         ) : null}
 
@@ -1085,6 +1086,7 @@ export default function ApartmentsPage() {
             >
               {isApartmentInitializing ? "Создание..." : "Создать базовые квартиры"}
             </button>
+            {isStaticExportEnabled ? <span>{transactionalImportMessage}</span> : null}
           </div>
         ) : null}
 

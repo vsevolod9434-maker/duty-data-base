@@ -1201,9 +1201,18 @@ export default function DutyMembersPage() {
                     </label>
                   </div>
                   {canManage ? (
-                    <button className="primary-command interactive-button duty-member-add-button" disabled={isStaticExportEnabled} onClick={startCreate} type="button">
-                      Добавить пользователя
-                    </button>
+                    <>
+                      <button
+                        className="primary-command interactive-button duty-member-add-button"
+                        disabled={isStaticExportEnabled}
+                        onClick={startCreate}
+                        title={isStaticExportEnabled ? backendOnlyOperationMessage : undefined}
+                        type="button"
+                      >
+                        Добавить пользователя
+                      </button>
+                      {isStaticExportEnabled ? <p className="draft-message">{backendOnlyOperationMessage}</p> : null}
+                    </>
                   ) : null}
                 </div>
 

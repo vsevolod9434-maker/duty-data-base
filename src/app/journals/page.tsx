@@ -2146,6 +2146,7 @@ export default function JournalsPage() {
                       Найдены нарушения для импорта. Импортировать записи
                     </button>
                   ) : null}
+                  {isStaticExportEnabled ? <p className="draft-message">{transactionalImportMessage}</p> : null}
                 </div>
               ) : null}
 
