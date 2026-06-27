@@ -87,3 +87,23 @@ npm run build:pages
 ```powershell
 npm run build
 ```
+
+## Вход на GitHub Pages
+
+Статический сайт не вызывает `/api/auth/login`. Вход выполняется напрямую через
+Supabase Auth:
+
+1. браузер очищает локальную Supabase-сессию перед новой попыткой входа;
+2. введённый email используется как Supabase Auth email;
+3. введённый внутренний `login` или `displayName` сначала резолвится в
+   `AccessUser.authEmail`;
+4. после `signInWithPassword` профиль заново читается по `auth.uid()`.
+
+Для входа по внутреннему `login`/`displayName` примените в Supabase отдельный SQL:
+
+```text
+supabase/prelogin-auth-lookup.sql
+```
+
+Если этот SQL не применён, на GitHub Pages используйте вход по реальному
+`AccessUser.authEmail`.

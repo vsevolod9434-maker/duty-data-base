@@ -3,6 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getRoleLabel, type UserRole } from "@/lib/auth-roles";
 import { normalizeLogin } from "@/lib/auth-login";
+import { isStaticSupabaseApiRequest } from "@/lib/supabase/static-api-routing";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type JsonRecord = Record<string, unknown>;
@@ -793,8 +794,7 @@ export function shouldUseStaticSupabaseApi(input: RequestInfo | URL) {
     return false;
   }
 
-  const value = typeof input === "string" ? input : input instanceof URL ? input.pathname : input.url;
-  return value.startsWith("/api/");
+  return isStaticSupabaseApiRequest(input);
 }
 
 export async function staticSupabaseFetch(input: RequestInfo | URL, init?: RequestInit) {

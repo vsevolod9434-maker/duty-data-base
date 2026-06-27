@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { stripBasePath } from "@/lib/public-path";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { clearStaticAuthState, getStaticAccessUserProfile } from "@/lib/supabase/static-auth";
 
 export function StaticAuthGate({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -24,12 +25,12 @@ export function StaticAuthGate({ children }: { children: ReactNode }) {
       let hasAccess = false;
 
       if (user) {
-        const { data: accessUser } = await supabase
-          .from("AccessUser")
-          .select("isActive")
-          .eq("authUserId", user.id)
-          .maybeSingle();
+        const accessUser = await getStaticAccessUserProfile(supabase, user.id);
         hasAccess = accessUser?.isActive === true;
+
+        if (!hasAccess) {
+          await clearStaticAuthState(supabase);
+        }
       }
 
       if (isCancelled) return;
