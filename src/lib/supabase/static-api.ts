@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getRoleLabel, type UserRole } from "@/lib/auth-roles";
 import { normalizeLogin } from "@/lib/auth-login";
 import { isStaticSupabaseApiRequest } from "@/lib/supabase/static-api-routing";
+import { invokeAccessAdminFunction } from "@/lib/supabase/access-admin-client";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { backendOnlyOperationMessage, transactionalImportMessage } from "@/lib/static-hosting";
 
@@ -812,6 +813,44 @@ export async function staticSupabaseFetch(input: RequestInfo | URL, init?: Reque
     if (path.startsWith("/api/duty-members/staff-list/positions")) {
       return errorResponse(blockedAdminMessage, 501);
     }
+
+    if (path === "/api/duty-members/users" && method === "POST") {
+      return await invokeAccessAdminFunction({
+        action: "createDutyMemberUser",
+        payload: await requestBody(init),
+      });
+    }
+
+    const dutyMemberPasswordMatch = path.match(/^\/api\/duty-members\/([^/]+)\/password$/);
+    if (dutyMemberPasswordMatch && method === "PATCH") {
+      const payload = asRecord(await requestBody(init));
+      return await invokeAccessAdminFunction({
+        action: "resetPassword",
+        memberId: decodeURIComponent(dutyMemberPasswordMatch[1]),
+        newPassword: stringValue(payload.newPassword),
+        repeatPassword: stringValue(payload.repeatPassword),
+      });
+    }
+
+    const dutyMemberAccessMatch = path.match(/^\/api\/duty-members\/([^/]+)\/access$/);
+    if (dutyMemberAccessMatch && method === "PATCH") {
+      const payload = asRecord(await requestBody(init));
+      return await invokeAccessAdminFunction({
+        action: "updateAccess",
+        memberId: decodeURIComponent(dutyMemberAccessMatch[1]),
+        ...(payload.accessLevel === "officer" || payload.accessLevel === "regular" ? { accessLevel: payload.accessLevel } : {}),
+        ...(typeof payload.isActive === "boolean" ? { isActive: payload.isActive } : {}),
+      });
+    }
+
+    const dutyMemberDeleteMatch = path.match(/^\/api\/duty-members\/([^/]+)$/);
+    if (dutyMemberDeleteMatch && method === "DELETE") {
+      return await invokeAccessAdminFunction({
+        action: "excludeDutyMember",
+        memberId: decodeURIComponent(dutyMemberDeleteMatch[1]),
+      });
+    }
+
     if (path === "/api/duty-members/users" || path.endsWith("/password") || path === "/api/duty-members/password") {
       return errorResponse(blockedAdminMessage, 501);
     }
