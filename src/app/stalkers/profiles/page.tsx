@@ -1352,7 +1352,7 @@ export default function StalkerProfilesPage() {
           currentProfiles.map((profile) => (profile.id === editingProfileId ? updatedProfile : profile)),
         );
         setProfileListTab(updatedProfile.status);
-        setTableMessage("Профиль обновлён в базе данных.");
+        setTableMessage("Профиль обновлён в реестре.");
         addActivityLogEntry({
           type: "stalker",
           title: `Изменён профиль сталкера: ${profileTitle}`,
@@ -1365,7 +1365,7 @@ export default function StalkerProfilesPage() {
         setProfiles((currentProfiles) => [newProfile, ...currentProfiles]);
         setSelectedProfileId(newProfile.id);
         setProfileListTab(newProfile.status);
-        setTableMessage("Профиль сохранён в базе данных.");
+        setTableMessage("Профиль внесён в реестр.");
         addActivityLogEntry({
           type: "stalker",
           title: `Создан профиль сталкера: ${profileTitle}`,
@@ -1646,7 +1646,7 @@ export default function StalkerProfilesPage() {
 
     setTasks((currentTasks) => [newTask, ...currentTasks]);
     closeTaskDialog();
-    setTaskMessage("Задание сохранено в базе данных.");
+    setTaskMessage("Задание закреплено в рабочем журнале.");
     addActivityLogEntry({
       type: "task",
       title: `Выдано задание из профиля: ${description}`,
@@ -1737,7 +1737,7 @@ export default function StalkerProfilesPage() {
     }
 
     setTradeOperations((currentOperations) => [newOperation, ...currentOperations]);
-    setTradeMessage(tradeDraft.type === "sale" ? "Продажа сохранена в базе данных." : "Покупка сохранена в базе данных.");
+    setTradeMessage(tradeDraft.type === "sale" ? "Продажа закреплена в рабочем журнале." : "Покупка закреплена в рабочем журнале.");
     setActiveProfileTab(tradeDraft.type === "sale" ? "Продажи" : "Покупки");
     closeTradeModal();
     addActivityLogEntry({
@@ -1823,7 +1823,7 @@ export default function StalkerProfilesPage() {
     }
 
     setViolations((currentViolations) => [newViolation, ...currentViolations]);
-    setViolationMessage("Нарушение сохранено в базе данных.");
+    setViolationMessage("Нарушение внесено в служебный журнал.");
     setActiveProfileTab("Нарушения");
     closeViolationModal();
     addActivityLogEntry({
@@ -2811,7 +2811,7 @@ export default function StalkerProfilesPage() {
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>{editingProfileId ? "Редактирование профиля" : "Создание профиля сталкера"}</h1>
-                <p>Профиль сохраняется в базе данных</p>
+                <p>Профиль будет внесён в реестр</p>
               </div>
             </div>
 
@@ -3077,7 +3077,7 @@ export default function StalkerProfilesPage() {
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>Редактирование задания</h1>
-                <p>Изменения сохраняются в базе данных</p>
+                <p>Изменения будут закреплены в реестре</p>
               </div>
             </div>
 
@@ -3151,7 +3151,7 @@ export default function StalkerProfilesPage() {
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>Засчитать выполнение задания</h1>
-                <p>Статус выполнения сохранится в базе данных после подтверждения</p>
+                <p>Статус выполнения будет закреплён в журнале после подтверждения</p>
               </div>
             </div>
 

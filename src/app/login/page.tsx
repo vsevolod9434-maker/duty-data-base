@@ -23,7 +23,7 @@ export default function LoginPage() {
     const normalizedLogin = login.trim();
 
     if (!normalizedLogin) {
-      setMessage("Введите логин или email.");
+      setMessage("Введите логин или служебный идентификатор.");
       return;
     }
 
@@ -78,12 +78,12 @@ export default function LoginPage() {
 
           <form className="login-form" onSubmit={handleSubmit}>
             <label>
-              <span>Логин или email</span>
+              <span>Логин или служебный идентификатор</span>
               <input
                 autoComplete="username"
                 disabled={isLoading}
                 onChange={(event) => setLogin(event.target.value)}
-                placeholder="Введите логин или email"
+                placeholder="Введите логин или служебный идентификатор"
                 type="text"
                 value={login}
               />

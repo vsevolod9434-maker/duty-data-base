@@ -1364,10 +1364,10 @@ export default function JournalsPage() {
 
     if (tradeDraft.type === "sale") {
       setSalePage(1);
-      setSaleTableMessage("Продажа оформлена и сохранена в базе данных.");
+      setSaleTableMessage("Продажа оформлена и закреплена в журнале.");
     } else {
       setPurchasePage(1);
-      setPurchaseTableMessage("Покупка оформлена и сохранена в базе данных.");
+      setPurchaseTableMessage("Покупка оформлена и закреплена в журнале.");
     }
 
     addActivityLogEntry({
@@ -1492,7 +1492,7 @@ export default function JournalsPage() {
 
     setViolations((currentViolations) => [newViolation, ...currentViolations]);
     setViolationPage(1);
-    setViolationTableMessage("Нарушение оформлено и сохранено в базе данных.");
+    setViolationTableMessage("Нарушение оформлено и внесено в служебный журнал.");
     addActivityLogEntry({
       type: "stalker",
       title: `Оформлено нарушение: ${description}`,
@@ -1728,7 +1728,7 @@ export default function JournalsPage() {
     setTasks((currentTasks) => [newTask, ...currentTasks]);
     setTaskStatusFilter("active");
     setTaskPage(1);
-    setTaskTableMessage("Задание создано и сохранено в базе данных.");
+    setTaskTableMessage("Задание создано и закреплено в рабочем журнале.");
     addActivityLogEntry({
       type: "task",
       title: getTaskActivityTitle(newTask, "created"),
@@ -2209,7 +2209,7 @@ export default function JournalsPage() {
                 <p>
                   {isEditingTask
                     ? "Исполнитель и статус задания сохраняются без изменений"
-                    : "Запись будет добавлена в общий журнал заданий и сохранена в базе данных"}
+                    : "Запись будет добавлена в общий журнал заданий и закреплена в реестре"}
                 </p>
               </div>
             </div>
@@ -2534,7 +2534,7 @@ export default function JournalsPage() {
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>{isEditingViolation ? "Редактирование нарушения" : "Оформление нарушения"}</h1>
-                <p>Запись будет добавлена в общий журнал нарушений и сохранена в базе данных</p>
+                <p>Запись будет добавлена в общий журнал нарушений и закреплена в реестре</p>
               </div>
             </div>
 

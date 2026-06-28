@@ -19,7 +19,7 @@ export function StaticAuthGate({ children }: { children: ReactNode }) {
   const [isAllowed, setIsAllowed] = useState(!isStaticExport);
   const configurationError =
     isStaticExport && !hasStaticSupabaseConfig
-      ? "Публичные переменные Supabase не настроены. Проверьте GitHub Actions Secrets для статической публикации."
+      ? "Канал служебного допуска не настроен. Обратитесь к дежурному штаба."
       : "";
 
   useEffect(() => {

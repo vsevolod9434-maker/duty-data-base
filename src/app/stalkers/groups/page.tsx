@@ -940,7 +940,7 @@ export default function StalkerGroupsPage() {
         currentGroups.map((group) => (group.id === updatedGroup.id ? updatedGroup : group)),
       );
       setGroupListTab(updatedGroup.status);
-      setTableMessage("Группа обновлена в базе данных.");
+      setTableMessage("Группа обновлена в реестре.");
       addActivityLogEntry({
         type: "group",
         title: `Изменена группа: ${name}`,
@@ -1679,7 +1679,7 @@ export default function StalkerGroupsPage() {
             <div className="section-header modal-header">
               <div className="min-w-0">
                 <h1>{editingGroupId ? "Редактирование группы" : "Создание группы"}</h1>
-                <p>Группа сохраняется в базе данных</p>
+                <p>Группа будет закреплена в реестре</p>
               </div>
             </div>
 

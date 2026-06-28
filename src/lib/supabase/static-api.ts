@@ -237,7 +237,7 @@ async function handleSimpleCollection(
     return json(formatSimpleRow(table, data), 201);
   }
 
-  return errorResponse("Метод не поддерживается.", 405);
+  return errorResponse("Приказ не распознан.", 405);
 }
 
 async function handleSimpleItem(
@@ -288,7 +288,7 @@ async function handleSimpleItem(
     return json(data);
   }
 
-  return errorResponse("Метод не поддерживается.", 405);
+  return errorResponse("Приказ не распознан.", 405);
 }
 
 async function handleGroups(client: SupabaseClient, method: string, init?: RequestInit, id?: string) {
@@ -348,7 +348,7 @@ async function handleGroups(client: SupabaseClient, method: string, init?: Reque
     return json(data, method === "POST" ? 201 : 200);
   }
 
-  return errorResponse("Метод не поддерживается.", 405);
+  return errorResponse("Приказ не распознан.", 405);
 }
 
 async function handleApartments(client: SupabaseClient, method: string, init?: RequestInit, id?: string) {
@@ -415,7 +415,7 @@ async function handleApartments(client: SupabaseClient, method: string, init?: R
     return json(data, method === "POST" ? 201 : 200);
   }
 
-  return errorResponse("Метод не поддерживается.", 405);
+  return errorResponse("Приказ не распознан.", 405);
 }
 
 async function handleTradeOperations(client: SupabaseClient, method: string, init?: RequestInit, id?: string) {
@@ -474,7 +474,7 @@ async function handleTradeOperations(client: SupabaseClient, method: string, ini
     return json(data, method === "POST" ? 201 : 200);
   }
 
-  return errorResponse("Метод не поддерживается.", 405);
+  return errorResponse("Приказ не распознан.", 405);
 }
 
 async function handleMapOverlay(
@@ -533,7 +533,7 @@ async function handleMapOverlay(
     return json(data, method === "POST" ? 201 : 200);
   }
 
-  return errorResponse("Метод не поддерживается.", 405);
+  return errorResponse("Приказ не распознан.", 405);
 }
 
 async function handleMapLayers(client: SupabaseClient, method: string, init?: RequestInit, id?: string) {
@@ -582,7 +582,7 @@ async function handleMapLayers(client: SupabaseClient, method: string, init?: Re
     return json({ id });
   }
 
-  return errorResponse("Метод не поддерживается.", 405);
+  return errorResponse("Приказ не распознан.", 405);
 }
 
 async function handleCalculatorCatalog(client: SupabaseClient) {
@@ -672,7 +672,7 @@ async function handleDutyMembers(client: SupabaseClient, method: string, init?: 
     void accessUser;
   }
 
-  return errorResponse("Метод не поддерживается.", 405);
+  return errorResponse("Приказ не распознан.", 405);
 }
 
 async function handleAccessUsers(client: SupabaseClient) {
@@ -786,7 +786,7 @@ async function handleNotes(
     return json({ id: noteId });
   }
 
-  return errorResponse("Метод не поддерживается.", 405);
+  return errorResponse("Приказ не распознан.", 405);
 }
 
 export function shouldUseStaticSupabaseApi(input: RequestInfo | URL) {
@@ -864,9 +864,9 @@ export async function staticSupabaseFetch(input: RequestInfo | URL, init?: Reque
     const dutyMemberMatch = path.match(/^\/api\/duty-members(?:\/([^/]+))?$/);
     if (dutyMemberMatch) return await handleDutyMembers(client, method, init, dutyMemberMatch[1] ? decodeURIComponent(dutyMemberMatch[1]) : undefined);
 
-    return errorResponse("Этот API-маршрут не адаптирован для статического хостинга.", 501);
+    return errorResponse("Этот приказ недоступен в текущем режиме допуска.", 501);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Не удалось выполнить операцию через Supabase.";
+    const message = error instanceof Error ? error.message : "Не удалось провести операцию через канал учёта.";
     return errorResponse(message, message.includes("вход") ? 401 : 400);
   }
 }

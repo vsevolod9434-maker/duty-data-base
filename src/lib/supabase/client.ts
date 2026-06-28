@@ -8,7 +8,7 @@ export function createSupabaseBrowserClient() {
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabasePublishableKey) {
-    throw new Error("Supabase public environment variables are not configured.");
+    throw new Error("Канал служебного допуска не настроен.");
   }
 
   browserClient ??= createBrowserClient(supabaseUrl, supabasePublishableKey);
