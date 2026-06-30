@@ -22,7 +22,22 @@ export type StaticAccessUserProfile = {
   isActive: boolean;
 };
 
+export type StaticAccessProfileResult =
+  | { status: "ok"; profile: StaticAccessUserProfile }
+  | { status: "unauthenticated" }
+  | { status: "not_found" }
+  | { status: "inactive"; profile: StaticAccessUserProfile }
+  | { status: "error"; message?: string };
+
+export type StaticAuthGateDecision =
+  | { action: "allow" }
+  | { action: "redirect_home" }
+  | { action: "redirect_login"; clearSession: boolean }
+  | { action: "retry"; message: string };
+
 type RpcAuthEmailResult = string | { authEmail?: string | null } | Array<string | { authEmail?: string | null }>;
+
+const staticAccessRetryMessage = "Канал допуска временно не отвечает. Повторите проверку.";
 
 function normalizeEmail(email: string) {
   return email.trim().toLocaleLowerCase("en-US");
@@ -136,18 +151,60 @@ export async function clearStaticAuthState(client: SupabaseClient) {
   await client.auth.signOut({ scope: "local" }).catch(() => undefined);
 }
 
-export async function getStaticAccessUserProfile(client: SupabaseClient, authUserId: string) {
-  const { data, error } = await client
-    .from("AccessUser")
-    .select("id, login, displayName, role, isActive, authUserId")
-    .eq("authUserId", authUserId)
-    .maybeSingle();
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : undefined;
+}
 
-  if (error || !data) {
-    return null;
+export async function getStaticAccessProfileResult(client: SupabaseClient, authUserId: string | null | undefined): Promise<StaticAccessProfileResult> {
+  if (!authUserId) {
+    return { status: "unauthenticated" };
   }
 
-  return data as StaticAccessUserProfile;
+  try {
+    const { data, error } = await client
+      .from("AccessUser")
+      .select("id, login, displayName, role, isActive, authUserId")
+      .eq("authUserId", authUserId)
+      .maybeSingle();
+
+    if (error) {
+      return { message: error.message, status: "error" };
+    }
+
+    if (!data) {
+      return { status: "not_found" };
+    }
+
+    const profile = data as StaticAccessUserProfile;
+
+    if (!profile.isActive) {
+      return { profile, status: "inactive" };
+    }
+
+    return { profile, status: "ok" };
+  } catch (error) {
+    return { message: errorMessage(error), status: "error" };
+  }
+}
+
+export function getStaticAuthGateDecision(profileResult: StaticAccessProfileResult, isLoginPage: boolean): StaticAuthGateDecision {
+  if (profileResult.status === "ok") {
+    return isLoginPage ? { action: "redirect_home" } : { action: "allow" };
+  }
+
+  if (profileResult.status === "error") {
+    return { action: "retry", message: staticAccessRetryMessage };
+  }
+
+  if (profileResult.status === "unauthenticated" && isLoginPage) {
+    return { action: "allow" };
+  }
+
+  return { action: "redirect_login", clearSession: true };
+}
+
+export function isCurrentStaticAuthCheck(checkId: number, latestCheckId: number, isMounted: boolean) {
+  return isMounted && checkId === latestCheckId;
 }
 
 export async function signInStaticAccessUser(client: SupabaseClient, identifier: string, password: string) {
@@ -164,11 +221,17 @@ export async function signInStaticAccessUser(client: SupabaseClient, identifier:
     throw new Error(staticLoginErrorMessage);
   }
 
-  const accessUser = await getStaticAccessUserProfile(client, user.id);
-  if (!accessUser?.isActive) {
+  const profileResult = await getStaticAccessProfileResult(client, user.id);
+  if (profileResult.status === "ok") {
+    return profileResult.profile;
+  }
+
+  if (profileResult.status === "error") {
+    throw new Error(staticAccessRetryMessage);
+  }
+
+  if (profileResult.status === "inactive" || profileResult.status === "not_found" || profileResult.status === "unauthenticated") {
     await clearStaticAuthState(client);
     throw new Error(staticAccessDeniedMessage);
   }
-
-  return accessUser;
 }
