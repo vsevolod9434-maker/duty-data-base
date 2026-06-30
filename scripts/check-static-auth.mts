@@ -292,4 +292,11 @@ const loginPageSource = readFileSync("src/app/login/page.tsx", "utf8");
 assert.equal(loginPageSource.includes("createTechnicalAuthEmail"), false);
 assert.equal(loginPageSource.includes("@duty.local"), false);
 
+const staticAuthGateSource = readFileSync("src/components/providers/StaticAuthGate.tsx", "utf8");
+assert.equal(
+  staticAuthGateSource.includes("router.replace(withBasePath("),
+  false,
+  "Next router redirects must use app-relative paths to avoid double basePath on GitHub Pages",
+);
+
 console.log("Static auth checks passed.");

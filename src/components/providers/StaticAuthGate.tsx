@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 import { usePathname, useRouter } from "next/navigation";
-import { stripBasePath, withBasePath } from "@/lib/public-path";
+import { stripBasePath } from "@/lib/public-path";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   clearStaticAuthState,
@@ -89,7 +89,7 @@ export function StaticAuthGate({ children }: { children: ReactNode }) {
 
       if (decision.action === "redirect_home") {
         setGateState({ status: "allowed" });
-        router.replace(withBasePath("/"));
+        router.replace("/");
         return;
       }
 
@@ -110,7 +110,7 @@ export function StaticAuthGate({ children }: { children: ReactNode }) {
       }
 
       setGateState({ status: "checking" });
-      router.replace(withBasePath("/login"));
+      router.replace("/login");
     },
     [isCurrentRun, isLoginPage, router],
   );
@@ -186,7 +186,7 @@ export function StaticAuthGate({ children }: { children: ReactNode }) {
           setGateState({ status: "allowed" });
         } else {
           setGateState({ status: "checking" });
-          router.replace(withBasePath("/login"));
+          router.replace("/login");
         }
         return;
       }
