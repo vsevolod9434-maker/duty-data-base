@@ -1,5 +1,3 @@
-import { withBasePath } from "@/lib/public-path";
-
 type ApiErrorPayload = {
   error?: unknown;
   message?: unknown;
@@ -10,7 +8,7 @@ const FORBIDDEN_MESSAGE = "Доступ к операции запрещён.";
 
 function redirectToLogin() {
   if (typeof window !== "undefined") {
-    window.location.assign(withBasePath("/login"));
+    window.location.assign("/login");
   }
 }
 
