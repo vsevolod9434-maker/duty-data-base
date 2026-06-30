@@ -6,7 +6,15 @@ const require = createRequire(import.meta.url);
 const staticAuth = require("../src/lib/supabase/static-auth") as typeof import("../src/lib/supabase/static-auth");
 const staticApiRouting = require("../src/lib/supabase/static-api-routing") as typeof import("../src/lib/supabase/static-api-routing");
 
-const { resolveStaticAuthEmail, signInStaticAccessUser, staticLoginErrorMessage } = staticAuth;
+const {
+  clearStaticAuthState,
+  getStaticAccessProfileResult,
+  getStaticAuthGateDecision,
+  isCurrentStaticAuthCheck,
+  resolveStaticAuthEmail,
+  signInStaticAccessUser,
+  staticLoginErrorMessage,
+} = staticAuth;
 const { isStaticSupabaseApiRequest } = staticApiRouting;
 
 type StaticAccessUserProfile = {
@@ -31,6 +39,8 @@ type AccessUserRow = {
 
 type MockClientOptions = {
   profile?: StaticAccessUserProfile | null;
+  profileError?: Error | null;
+  profileThrows?: boolean;
   rpcData?: unknown;
   rpcError?: Error | null;
   signInError?: Error | null;
@@ -65,6 +75,14 @@ function createMockClient(options: MockClientOptions) {
         }
 
         if (typeof filters.authUserId === "string") {
+          if (options.profileThrows) {
+            throw new Error("network is down");
+          }
+
+          if (options.profileError) {
+            return { data: null, error: options.profileError };
+          }
+
           return {
             data: options.profile && options.profile.authUserId === filters.authUserId ? options.profile : null,
             error: null,
@@ -117,6 +135,12 @@ const activeProfile: StaticAccessUserProfile = {
   isActive: true,
   login: "operator",
   role: "regular",
+};
+
+const inactiveProfile: StaticAccessUserProfile = {
+  ...activeProfile,
+  id: "access-user-inactive",
+  isActive: false,
 };
 
 {
@@ -172,6 +196,20 @@ const activeProfile: StaticAccessUserProfile = {
 
 {
   const client = createMockClient({
+    profileError: new Error("temporary Supabase failure"),
+    rpcData: "real-auth@example.test",
+  });
+
+  await assert.rejects(() => signInStaticAccessUser(client as never, "operator", "password"), /Канал допуска временно не отвечает/);
+  assert.equal(
+    client.calls.filter((call) => call.type === "signOut").length,
+    1,
+    "temporary profile lookup errors must not clear the freshly issued session",
+  );
+}
+
+{
+  const client = createMockClient({
     profile: activeProfile,
     rpcData: "real-auth@example.test",
   });
@@ -185,6 +223,65 @@ const activeProfile: StaticAccessUserProfile = {
     accessUserSelects.every((call) => !String((call.payload as { columns?: string }).columns).includes("password")),
     "static auth must not request AccessUser.password",
   );
+}
+
+{
+  const client = createMockClient({
+    profileError: new Error("network error"),
+  });
+  const result = await getStaticAccessProfileResult(client as never, "auth-user-1");
+  assert.deepEqual(result, { message: "network error", status: "error" });
+  assert.deepEqual(getStaticAuthGateDecision(result, false), {
+    action: "retry",
+    message: "Канал допуска временно не отвечает. Повторите проверку.",
+  });
+  assert.equal(client.calls.some((call) => call.type === "signOut"), false);
+}
+
+{
+  const client = createMockClient({
+    profileThrows: true,
+  });
+  const result = await getStaticAccessProfileResult(client as never, "auth-user-1");
+  assert.equal(result.status, "error");
+  assert.deepEqual(getStaticAuthGateDecision(result, false), {
+    action: "retry",
+    message: "Канал допуска временно не отвечает. Повторите проверку.",
+  });
+}
+
+{
+  const client = createMockClient({
+    profile: null,
+  });
+  const result = await getStaticAccessProfileResult(client as never, "auth-user-1");
+  assert.deepEqual(result, { status: "not_found" });
+  assert.deepEqual(getStaticAuthGateDecision(result, false), { action: "redirect_login", clearSession: true });
+  assert.deepEqual(getStaticAuthGateDecision(result, true), { action: "redirect_login", clearSession: true });
+}
+
+{
+  const client = createMockClient({
+    profile: inactiveProfile,
+  });
+  const result = await getStaticAccessProfileResult(client as never, "auth-user-1");
+  assert.deepEqual(result, { profile: inactiveProfile, status: "inactive" });
+  assert.deepEqual(getStaticAuthGateDecision(result, false), { action: "redirect_login", clearSession: true });
+}
+
+assert.deepEqual(getStaticAuthGateDecision({ status: "unauthenticated" }, false), {
+  action: "redirect_login",
+  clearSession: true,
+});
+assert.deepEqual(getStaticAuthGateDecision({ status: "unauthenticated" }, true), { action: "allow" });
+assert.equal(isCurrentStaticAuthCheck(2, 2, true), true);
+assert.equal(isCurrentStaticAuthCheck(1, 2, true), false);
+assert.equal(isCurrentStaticAuthCheck(2, 2, false), false);
+
+{
+  const client = createMockClient({});
+  await clearStaticAuthState(client as never);
+  assert.equal(client.calls.filter((call) => call.type === "signOut").length, 1);
 }
 
 assert.equal(isStaticSupabaseApiRequest("/api/auth/me"), true);
