@@ -70,8 +70,6 @@ type CreatedRecords = {
   memberId?: string | null;
 };
 
-const dutyMemberSelect =
-  "id, fullName, callsign, rank, position, unit, serviceStatus, profileStatus, notes, photoUrl, createdAt, updatedAt, accessUser:AccessUser(id, authUserId, login, displayName, role, isActive), staffPositions:DutyStaffPosition(id, title, sortOrder, section:DutyStaffSection(id, name, sortOrder))";
 const createdDutyMemberSelect =
   "id, fullName, callsign, rank, position, unit, serviceStatus, profileStatus, notes, photoUrl, createdAt, updatedAt, accessUser:AccessUser(id, authUserId, login, displayName, role, isActive)";
 
@@ -308,20 +306,6 @@ function mapDutyMember(member: DutyMemberRow) {
   };
 }
 
-async function findDutyMember(context: EdgeAuthContext, memberId: string) {
-  const { data, error } = await context.getServiceClient()
-    .from("DutyMember")
-    .select(dutyMemberSelect)
-    .eq("id", memberId)
-    .maybeSingle();
-
-  if (error || !data) {
-    return null;
-  }
-
-  return data as DutyMemberRow;
-}
-
 async function findCreatedDutyMember(context: EdgeAuthContext, memberId: string) {
   const { data, error } = await context.getServiceClient()
     .from("DutyMember")
@@ -333,6 +317,15 @@ async function findCreatedDutyMember(context: EdgeAuthContext, memberId: string)
     data: data ? (data as DutyMemberRow) : null,
     error,
   };
+}
+
+async function findAccessAdminDutyMember(context: EdgeAuthContext, memberId: string) {
+  return await findCreatedDutyMember(context, memberId);
+}
+
+function memberLookupErrorResponse(request: Request, action: string, error: unknown) {
+  logEdgeError(`access-admin:${action}:memberLookup`, error);
+  return errorResponse(request, "MEMBER_LOOKUP_FAILED", "Не удалось проверить профиль состава.", 500);
 }
 
 function requireSystemAdmin(request: Request, context: EdgeAuthContext) {
@@ -612,7 +605,9 @@ async function updateAccess(request: Request, context: EdgeAuthContext, body: Ex
     return errorResponse(request, "INVALID_PAYLOAD", "Не удалось выполнить приказ.", 400);
   }
 
-  const member = await findDutyMember(context, body.memberId);
+  const { data: member, error: memberLookupError } = await findAccessAdminDutyMember(context, body.memberId);
+  if (memberLookupError) return memberLookupErrorResponse(request, "updateAccess", memberLookupError);
+
   const targetError = assertTargetManageable(request, context, member);
   if (targetError) return targetError;
 
@@ -642,10 +637,9 @@ async function updateAccess(request: Request, context: EdgeAuthContext, body: Ex
     return errorResponse(request, "UPDATE_FAILED", "Не удалось выполнить приказ.", 500);
   }
 
-  const updatedMember = await findDutyMember(context, body.memberId);
-  if (!updatedMember) {
-    return errorResponse(request, "NOT_FOUND", "Профиль не найден.", 404);
-  }
+  const { data: updatedMember, error: updatedLookupError } = await findAccessAdminDutyMember(context, body.memberId);
+  if (updatedLookupError) return memberLookupErrorResponse(request, "updateAccess", updatedLookupError);
+  if (!updatedMember) return errorResponse(request, "NOT_FOUND", "Профиль не найден.", 404);
 
   return jsonResponse(request, mapDutyMember(updatedMember));
 }
@@ -671,7 +665,9 @@ async function resetPassword(request: Request, context: EdgeAuthContext, body: E
     return errorResponse(request, "INVALID_PAYLOAD", "Новый пароль должен быть от 8 до 128 символов.", 400);
   }
 
-  const member = await findDutyMember(context, body.memberId);
+  const { data: member, error: memberLookupError } = await findAccessAdminDutyMember(context, body.memberId);
+  if (memberLookupError) return memberLookupErrorResponse(request, "resetPassword", memberLookupError);
+
   const targetError = assertTargetManageable(request, context, member);
   if (targetError) return targetError;
 
@@ -699,7 +695,9 @@ async function excludeDutyMember(request: Request, context: EdgeAuthContext, bod
     return errorResponse(request, "INVALID_PAYLOAD", "Профиль не найден.", 400);
   }
 
-  const member = await findDutyMember(context, body.memberId);
+  const { data: member, error: memberLookupError } = await findAccessAdminDutyMember(context, body.memberId);
+  if (memberLookupError) return memberLookupErrorResponse(request, "excludeDutyMember", memberLookupError);
+
   const targetError = assertTargetManageable(request, context, member);
   if (targetError) return targetError;
 
@@ -733,10 +731,9 @@ async function excludeDutyMember(request: Request, context: EdgeAuthContext, bod
     return errorResponse(request, "UPDATE_FAILED", "Не удалось выполнить приказ.", 500);
   }
 
-  const updatedMember = await findDutyMember(context, body.memberId);
-  if (!updatedMember) {
-    return errorResponse(request, "NOT_FOUND", "Профиль не найден.", 404);
-  }
+  const { data: updatedMember, error: updatedLookupError } = await findAccessAdminDutyMember(context, body.memberId);
+  if (updatedLookupError) return memberLookupErrorResponse(request, "excludeDutyMember", updatedLookupError);
+  if (!updatedMember) return errorResponse(request, "NOT_FOUND", "Профиль не найден.", 404);
 
   return jsonResponse(request, mapDutyMember(updatedMember));
 }
