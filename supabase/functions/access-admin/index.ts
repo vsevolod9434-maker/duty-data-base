@@ -91,6 +91,55 @@ function createTextId(prefix: string) {
   return `${prefix}_${crypto.randomUUID().replaceAll("-", "")}`;
 }
 
+function readServiceRoleRestConfig() {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")?.replace(/\/+$/, "");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("Service-role duplicate check is not configured.");
+  }
+
+  return { serviceRoleKey, supabaseUrl };
+}
+
+async function findAccessUserIdWithServiceRole(column: "authEmail" | "normalizedLogin", value: string) {
+  const { serviceRoleKey, supabaseUrl } = readServiceRoleRestConfig();
+  const url = new URL(`${supabaseUrl}/rest/v1/AccessUser`);
+  url.searchParams.set("select", "id");
+  url.searchParams.set(column, `eq.${value}`);
+  url.searchParams.set("limit", "1");
+
+  const response = await fetch(url, {
+    headers: {
+      Accept: "application/json",
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+    },
+  });
+
+  const rawBody = await response.text();
+  const parsedBody = rawBody ? (JSON.parse(rawBody) as unknown) : null;
+
+  if (!response.ok) {
+    const errorBody = asRecord(parsedBody);
+    throw {
+      code: typeof errorBody.code === "string" ? errorBody.code : undefined,
+      constraint: typeof errorBody.constraint === "string" ? errorBody.constraint : undefined,
+      message:
+        typeof errorBody.message === "string"
+          ? errorBody.message
+          : `Service-role duplicate check failed with HTTP ${response.status}.`,
+    };
+  }
+
+  if (!Array.isArray(parsedBody)) {
+    throw new Error("Service-role duplicate check returned an unexpected response.");
+  }
+
+  const firstRow = asRecord(parsedBody[0]);
+  return typeof firstRow.id === "string" ? { id: firstRow.id } : null;
+}
+
 function maskIdentifier(value: string) {
   const trimmed = value.trim();
   if (trimmed.length <= 4) return "***";
@@ -326,14 +375,11 @@ async function createDutyMemberUser(request: Request, context: EdgeAuthContext, 
   }
 
   const serviceClient = context.getServiceClient();
-  const { data: existingAccessUser, error: existingLoginError } = await serviceClient
-    .from("AccessUser")
-    .select("id")
-    .eq("normalizedLogin", loginValidation.normalizedLogin)
-    .maybeSingle();
-
-  if (existingLoginError) {
-    logCreateStageError(requestId, "CHECK_DUPLICATE_LOGIN", existingLoginError, {
+  let existingAccessUser: { id: string } | null = null;
+  try {
+    existingAccessUser = await findAccessUserIdWithServiceRole("normalizedLogin", loginValidation.normalizedLogin);
+  } catch (error) {
+    logCreateStageError(requestId, "CHECK_DUPLICATE_LOGIN", error, {
       login: loginValidation.login,
       role,
     });
@@ -345,14 +391,11 @@ async function createDutyMemberUser(request: Request, context: EdgeAuthContext, 
   }
 
   const authEmail = await createTechnicalAuthEmail(loginValidation.normalizedLogin);
-  const { data: existingAuthEmail, error: existingEmailError } = await serviceClient
-    .from("AccessUser")
-    .select("id")
-    .eq("authEmail", authEmail)
-    .maybeSingle();
-
-  if (existingEmailError) {
-    logCreateStageError(requestId, "CHECK_DUPLICATE_EMAIL", existingEmailError, {
+  let existingAuthEmail: { id: string } | null = null;
+  try {
+    existingAuthEmail = await findAccessUserIdWithServiceRole("authEmail", authEmail);
+  } catch (error) {
+    logCreateStageError(requestId, "CHECK_DUPLICATE_EMAIL", error, {
       login: loginValidation.login,
       role,
     });
