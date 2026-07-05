@@ -96,10 +96,42 @@ function readServiceRoleRestConfig() {
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
   if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("Service-role duplicate check is not configured.");
+    throw {
+      code: "SERVICE_ROLE_KEY_MISSING",
+      message: "Service-role duplicate check is not configured.",
+    };
+  }
+
+  if (serviceRoleKey.startsWith("sb_publishable_")) {
+    throw {
+      code: "SERVICE_ROLE_KEY_INVALID",
+      message: "SUPABASE_SERVICE_ROLE_KEY must not contain a publishable key.",
+    };
+  }
+
+  const keyRole = readSupabaseJwtRole(serviceRoleKey);
+  if (keyRole && keyRole !== "service_role") {
+    throw {
+      code: "SERVICE_ROLE_KEY_INVALID",
+      message: "SUPABASE_SERVICE_ROLE_KEY must contain a service_role key.",
+    };
   }
 
   return { serviceRoleKey, supabaseUrl };
+}
+
+function readSupabaseJwtRole(key: string) {
+  const [, payload] = key.split(".");
+  if (!payload) return null;
+
+  try {
+    const paddedPayload = payload.padEnd(payload.length + ((4 - (payload.length % 4)) % 4), "=");
+    const decodedPayload = atob(paddedPayload.replaceAll("-", "+").replaceAll("_", "/"));
+    const record = asRecord(JSON.parse(decodedPayload));
+    return typeof record.role === "string" ? record.role : null;
+  } catch {
+    return null;
+  }
 }
 
 async function findAccessUserIdWithServiceRole(column: "authEmail" | "normalizedLogin", value: string) {
@@ -153,6 +185,11 @@ function safeErrorInfo(error: unknown) {
     constraint: typeof record.constraint === "string" ? record.constraint : undefined,
     message: error instanceof Error ? error.message : typeof record.message === "string" ? record.message : String(error),
   };
+}
+
+function serviceRoleCheckStage(error: unknown, fallbackStage: string) {
+  const info = safeErrorInfo(error);
+  return info.code?.startsWith("SERVICE_ROLE_KEY_") ? "CHECK_SERVICE_ROLE_KEY" : fallbackStage;
 }
 
 function logCreateStageError(
@@ -379,7 +416,7 @@ async function createDutyMemberUser(request: Request, context: EdgeAuthContext, 
   try {
     existingAccessUser = await findAccessUserIdWithServiceRole("normalizedLogin", loginValidation.normalizedLogin);
   } catch (error) {
-    logCreateStageError(requestId, "CHECK_DUPLICATE_LOGIN", error, {
+    logCreateStageError(requestId, serviceRoleCheckStage(error, "CHECK_DUPLICATE_LOGIN"), error, {
       login: loginValidation.login,
       role,
     });
@@ -395,7 +432,7 @@ async function createDutyMemberUser(request: Request, context: EdgeAuthContext, 
   try {
     existingAuthEmail = await findAccessUserIdWithServiceRole("authEmail", authEmail);
   } catch (error) {
-    logCreateStageError(requestId, "CHECK_DUPLICATE_EMAIL", error, {
+    logCreateStageError(requestId, serviceRoleCheckStage(error, "CHECK_DUPLICATE_EMAIL"), error, {
       login: loginValidation.login,
       role,
     });
