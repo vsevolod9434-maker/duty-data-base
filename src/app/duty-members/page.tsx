@@ -11,6 +11,14 @@ import { cachePolicy, dutyDataKeys, scheduleClientStateSync, TWO_HOURS, useCurre
 import { compareDutyMembersByRankAndName, isDutyMemberVisibleRole } from "@/lib/duty-members";
 import { withBasePath } from "@/lib/public-path";
 import { backendOnlyOperationMessage, isStaticExportEnabled } from "@/lib/static-hosting";
+import {
+  accessAdminClosedMessage,
+  createDutyMemberUser as createDutyMemberUserViaAccessAdmin,
+  excludeDutyMember as excludeDutyMemberViaAccessAdmin,
+  isAccessAdminFunctionConfigured,
+  resetDutyMemberPassword,
+  updateDutyMemberAccess,
+} from "@/lib/supabase/access-admin-client";
 
 type DutyServiceStatus = "active" | "leave" | "wounded" | "missing" | "discharged";
 type DutyMemberProfileStatus = "active" | "archived";
@@ -328,8 +336,10 @@ function getSelectableAccessUsers(users: AccessUserOption[]) {
 }
 
 function syncAccessUsersWithMember(users: AccessUserOption[], member: DutyMember) {
-  return users.map((user) => {
+  let hasSyncedAccessUser = false;
+  const syncedUsers = users.map((user) => {
     if (user.login === member.access?.login) {
+      hasSyncedAccessUser = true;
       return {
         ...user,
         accessLevelLabel: member.access.accessLevelLabel,
@@ -346,6 +356,23 @@ function syncAccessUsersWithMember(users: AccessUserOption[], member: DutyMember
 
     return user;
   });
+
+  if (!member.access || hasSyncedAccessUser) {
+    return syncedUsers;
+  }
+
+  return [
+    {
+      accessLevelLabel: member.access.accessLevelLabel,
+      displayName: member.access.displayName,
+      dutyMemberId: member.id,
+      isActive: member.access.isActive,
+      login: member.access.login,
+      role: member.access.role,
+      roleLabel: member.access.roleLabel,
+    },
+    ...syncedUsers,
+  ];
 }
 
 function getPositionAssigneeLabel(member: StaffPositionMember | null) {
@@ -451,7 +478,10 @@ export default function DutyMembersPage() {
   );
   const excludedMembers = useMemo(() => filteredMembers.filter(isExcludedMember), [filteredMembers]);
   const canManage = currentUser?.role === "system_admin" || currentUser?.role === "officer";
+  const canUseAccessAdmin = Boolean(canManage && isAccessAdminFunctionConfigured());
+  const canCreateDutyMemberUser = Boolean(canManage && (!isStaticExportEnabled || canUseAccessAdmin));
   const canUseBackendAdmin = Boolean(canManage && !isStaticExportEnabled);
+  const shouldShowAccessAdminFallback = Boolean(canManage && isStaticExportEnabled && !canUseAccessAdmin);
   const isSelectedMemberExcluded = Boolean(selectedMember && isExcludedMember(selectedMember));
   const hasSearchOrFilter = Boolean(searchQuery.trim()) || accessFilter !== "all";
   const isEditing = isCreating || Boolean(editingId);
@@ -461,6 +491,10 @@ export default function DutyMembersPage() {
   const availableAccessUsers = useMemo(
     () => accessUsers.filter((user) => isDutyMemberVisibleRole(user.role) && (!user.dutyMemberId || user.dutyMemberId === editingId)),
     [accessUsers, editingId],
+  );
+  const availableCreateAccessLevelOptions = useMemo(
+    () => (currentUser?.role === "officer" ? accessLevelOptions.filter((accessLevel) => accessLevel.value === "regular") : accessLevelOptions),
+    [currentUser?.role],
   );
 
   const membersQuery = useQuery({
@@ -636,14 +670,14 @@ export default function DutyMembersPage() {
   }
 
   function startCreate() {
-    if (isStaticExportEnabled) {
-      setActionMessage(backendOnlyOperationMessage);
+    if (!canCreateDutyMemberUser) {
+      setActionMessage(accessAdminClosedMessage);
       return;
     }
 
     setIsCreating(true);
     setEditingId(null);
-    setDraft(emptyDraft);
+    setDraft(currentUser?.role === "officer" ? { ...emptyDraft, accessLevel: "regular" } : emptyDraft);
     setActionMessage("");
   }
 
@@ -674,8 +708,13 @@ export default function DutyMembersPage() {
       return;
     }
 
-    if (isStaticExportEnabled) {
-      setActionMessage(backendOnlyOperationMessage);
+    if (isStaticExportEnabled && (!isCreating || !canUseAccessAdmin)) {
+      setActionMessage(isCreating ? accessAdminClosedMessage : backendOnlyOperationMessage);
+      return;
+    }
+
+    if (isCreating && currentUser?.role === "officer" && draft.accessLevel !== "regular") {
+      setActionMessage("Недостаточно допуска для этого приказа.");
       return;
     }
 
@@ -718,14 +757,17 @@ export default function DutyMembersPage() {
     setActionMessage("");
 
     try {
-      const savedMember = await apiFetchJson<DutyMember>(
-        editingId ? `/api/duty-members/${editingId}` : "/api/duty-members/users",
-        {
-          method: editingId ? "PATCH" : "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(editingId ? buildMemberPayload(draft) : buildCreateUserPayload(draft)),
-        },
-      );
+      const savedMember =
+        isStaticExportEnabled && isCreating
+          ? await createDutyMemberUserViaAccessAdmin(buildCreateUserPayload(draft))
+          : await apiFetchJson<DutyMember>(
+              editingId ? `/api/duty-members/${editingId}` : "/api/duty-members/users",
+              {
+                method: editingId ? "PATCH" : "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(editingId ? buildMemberPayload(draft) : buildCreateUserPayload(draft)),
+              },
+            );
 
       setMembers((currentMembers) => {
         if (editingId) {
@@ -737,6 +779,7 @@ export default function DutyMembersPage() {
       setAccessUsers((currentUsers) => syncAccessUsersWithMember(currentUsers, savedMember));
       setSelectedMemberId(savedMember.id);
       closeForm();
+      setActionMessage(isCreating ? "Профиль состава создан. Доступ выдан." : "");
     } catch (error) {
       setActionMessage(error instanceof Error ? error.message : "Не удалось сохранить профиль.");
     } finally {
@@ -745,10 +788,6 @@ export default function DutyMembersPage() {
   }
 
   function canManageTarget(member: DutyMember) {
-    if (isStaticExportEnabled) {
-      return false;
-    }
-
     if (!canManage || !currentUser) {
       return false;
     }
@@ -757,15 +796,39 @@ export default function DutyMembersPage() {
       return false;
     }
 
-    if (currentUser.role === "officer" && member.access?.role === "system_admin") {
+    if (!member.access || member.access.role === "system_admin") {
       return false;
     }
 
     return true;
   }
 
+  function canUseAccessAdminAction() {
+    return !isStaticExportEnabled || canUseAccessAdmin;
+  }
+
+  function canResetPasswordTarget(member: DutyMember) {
+    if (!canUseAccessAdminAction() || !canManageTarget(member) || isExcludedMember(member) || !member.access?.isActive) {
+      return false;
+    }
+
+    if (currentUser?.role === "system_admin") {
+      return true;
+    }
+
+    return currentUser?.role === "officer" && (member.access.role === "regular" || member.access.role === "manager");
+  }
+
+  function canUpdateAccessTarget(member: DutyMember) {
+    return Boolean(canUseAccessAdminAction() && currentUser?.role === "system_admin" && canManageTarget(member));
+  }
+
+  function canExcludeTarget(member: DutyMember) {
+    return Boolean(canUpdateAccessTarget(member) && !isExcludedMember(member));
+  }
+
   function canChangeAccessLevel(member: DutyMember) {
-    return Boolean(canManageTarget(member) && !isExcludedMember(member) && member.access?.isActive);
+    return Boolean(canUpdateAccessTarget(member) && !isExcludedMember(member) && member.access?.isActive);
   }
 
   function requestAccessLevelChange(member: DutyMember, accessLevel: "officer" | "regular") {
@@ -784,8 +847,8 @@ export default function DutyMembersPage() {
   }
 
   async function changeAccessLevel(member: DutyMember, accessLevel: "officer" | "regular") {
-    if (isStaticExportEnabled) {
-      setActionMessage(backendOnlyOperationMessage);
+    if (isStaticExportEnabled && !canUseAccessAdmin) {
+      setActionMessage(accessAdminClosedMessage);
       setConfirmDialog(null);
       return;
     }
@@ -794,15 +857,18 @@ export default function DutyMembersPage() {
     setActionMessage("");
 
     try {
-      const updatedMember = await apiFetchJson<DutyMember>(`/api/duty-members/${member.id}/access`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessLevel }),
-      });
+      const updatedMember = isStaticExportEnabled
+        ? await updateDutyMemberAccess(member.id, { accessLevel })
+        : await apiFetchJson<DutyMember>(`/api/duty-members/${member.id}/access`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ accessLevel }),
+          });
 
       setMembers((currentMembers) => currentMembers.map((currentMember) => (currentMember.id === updatedMember.id ? updatedMember : currentMember)));
       setAccessUsers((currentUsers) => syncAccessUsersWithMember(currentUsers, updatedMember));
       setSelectedMemberId(updatedMember.id);
+      setActionMessage("Уровень допуска обновлён.");
       setConfirmDialog(null);
     } catch (error) {
       setActionMessage(error instanceof Error ? error.message : "Не удалось изменить уровень допуска.");
@@ -826,8 +892,8 @@ export default function DutyMembersPage() {
   }
 
   async function changeAccess(member: DutyMember, isActive: boolean) {
-    if (isStaticExportEnabled) {
-      setActionMessage(backendOnlyOperationMessage);
+    if (isStaticExportEnabled && !canUseAccessAdmin) {
+      setActionMessage(accessAdminClosedMessage);
       setConfirmDialog(null);
       return;
     }
@@ -836,14 +902,17 @@ export default function DutyMembersPage() {
     setActionMessage("");
 
     try {
-      const updatedMember = await apiFetchJson<DutyMember>(`/api/duty-members/${member.id}/access`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive }),
-      });
+      const updatedMember = isStaticExportEnabled
+        ? await updateDutyMemberAccess(member.id, { isActive })
+        : await apiFetchJson<DutyMember>(`/api/duty-members/${member.id}/access`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ isActive }),
+          });
 
       setMembers((currentMembers) => currentMembers.map((currentMember) => (currentMember.id === updatedMember.id ? updatedMember : currentMember)));
       setAccessUsers((currentUsers) => syncAccessUsersWithMember(currentUsers, updatedMember));
+      setActionMessage(isActive ? "Уровень допуска обновлён." : "Доступ профиля заблокирован.");
       setConfirmDialog(null);
     } catch (error) {
       setActionMessage(error instanceof Error ? error.message : "Не удалось выполнить операцию.");
@@ -865,8 +934,8 @@ export default function DutyMembersPage() {
   }
 
   async function excludeMember(member: DutyMember) {
-    if (isStaticExportEnabled) {
-      setActionMessage(backendOnlyOperationMessage);
+    if (isStaticExportEnabled && !canUseAccessAdmin) {
+      setActionMessage(accessAdminClosedMessage);
       setConfirmDialog(null);
       return;
     }
@@ -875,15 +944,18 @@ export default function DutyMembersPage() {
     setActionMessage("");
 
     try {
-      const updatedMember = await apiFetchJson<DutyMember>(`/api/duty-members/${member.id}`, {
-        method: "DELETE",
-      });
+      const updatedMember = isStaticExportEnabled
+        ? await excludeDutyMemberViaAccessAdmin(member.id)
+        : await apiFetchJson<DutyMember>(`/api/duty-members/${member.id}`, {
+            method: "DELETE",
+          });
 
       setMembers((currentMembers) => currentMembers.map((currentMember) => (currentMember.id === updatedMember.id ? updatedMember : currentMember)));
       setAccessUsers((currentUsers) => syncAccessUsersWithMember(currentUsers, updatedMember));
       setSelectedMemberId(updatedMember.id);
       setConfirmDialog(null);
       closeForm();
+      setActionMessage("Профиль исключён из состава. Доступ закрыт.");
     } catch (error) {
       setActionMessage(error instanceof Error ? error.message : "Не удалось выполнить операцию.");
     } finally {
@@ -892,8 +964,8 @@ export default function DutyMembersPage() {
   }
 
   function openResetPassword(member: DutyMember) {
-    if (isStaticExportEnabled) {
-      setActionMessage(backendOnlyOperationMessage);
+    if (!canResetPasswordTarget(member)) {
+      setActionMessage(isStaticExportEnabled && !canUseAccessAdmin ? accessAdminClosedMessage : "Недостаточно допуска для этого приказа.");
       return;
     }
 
@@ -1006,8 +1078,8 @@ export default function DutyMembersPage() {
       return;
     }
 
-    if (isStaticExportEnabled) {
-      setResetPasswordMessage(backendOnlyOperationMessage);
+    if (isStaticExportEnabled && !canUseAccessAdmin) {
+      setResetPasswordMessage(accessAdminClosedMessage);
       return;
     }
 
@@ -1020,16 +1092,20 @@ export default function DutyMembersPage() {
     setResetPasswordMessage("");
 
     try {
-      const response = await apiFetchJson<{ message: string }>(`/api/duty-members/${resetPasswordState.member.id}/password`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          newPassword: resetPasswordState.newPassword,
-          repeatPassword: resetPasswordState.repeatPassword,
-        }),
-      });
+      if (isStaticExportEnabled) {
+        await resetDutyMemberPassword(resetPasswordState.member.id, resetPasswordState.newPassword, resetPasswordState.repeatPassword);
+      } else {
+        await apiFetchJson<{ message: string }>(`/api/duty-members/${resetPasswordState.member.id}/password`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            newPassword: resetPasswordState.newPassword,
+            repeatPassword: resetPasswordState.repeatPassword,
+          }),
+        });
+      }
 
-      setActionMessage(response.message);
+      setActionMessage("Пароль заменён. Передайте новый пароль адресату лично.");
       closeResetPassword();
     } catch (error) {
       setResetPasswordMessage(error instanceof Error ? error.message : "Пароль не изменён. Проверьте введённые данные.");
@@ -1088,7 +1164,7 @@ export default function DutyMembersPage() {
                 <label className="filter-field">
                   <span>Уровень допуска</span>
                   <select disabled={isSaving} onChange={(event) => updateDraft("accessLevel", event.target.value)} value={draft.accessLevel}>
-                    {accessLevelOptions.map((accessLevel) => (
+                    {availableCreateAccessLevelOptions.map((accessLevel) => (
                       <option key={accessLevel.value} value={accessLevel.value}>
                         {accessLevel.label}
                       </option>
@@ -1204,14 +1280,14 @@ export default function DutyMembersPage() {
                     <>
                       <button
                         className="primary-command interactive-button duty-member-add-button"
-                        disabled={isStaticExportEnabled}
+                        disabled={!canCreateDutyMemberUser}
                         onClick={startCreate}
-                        title={isStaticExportEnabled ? backendOnlyOperationMessage : undefined}
+                        title={!canCreateDutyMemberUser ? accessAdminClosedMessage : undefined}
                         type="button"
                       >
                         Добавить пользователя
                       </button>
-                      {isStaticExportEnabled ? <p className="draft-message">{backendOnlyOperationMessage}</p> : null}
+                      {shouldShowAccessAdminFallback ? <p className="draft-message">{accessAdminClosedMessage}</p> : null}
                     </>
                   ) : null}
                 </div>
@@ -1314,37 +1390,37 @@ export default function DutyMembersPage() {
 
                         {canManage ? (
                           <div className="duty-member-hero-actions">
-                            {isStaticExportEnabled ? <span className="registry-status-badge-muted">{backendOnlyOperationMessage}</span> : null}
+                            {shouldShowAccessAdminFallback ? <span className="registry-status-badge-muted">{accessAdminClosedMessage}</span> : null}
                             <button className="command-row interactive-button duty-member-action-button" disabled={isStaticExportEnabled} onClick={() => startEdit(selectedMember)} type="button">
                               Изменить профиль
                             </button>
-                            {!isSelectedMemberExcluded && selectedMember.access?.role !== "officer" ? (
+                            {currentUser?.role === "system_admin" && !isSelectedMemberExcluded && selectedMember.access?.role !== "officer" ? (
                               <button className="command-row interactive-button duty-member-action-button" disabled={!canChangeAccessLevel(selectedMember)} onClick={() => requestAccessLevelChange(selectedMember, "officer")} type="button">
                                 Назначить офицером
                               </button>
-                            ) : !isSelectedMemberExcluded && selectedMember.access?.role === "officer" ? (
+                            ) : currentUser?.role === "system_admin" && !isSelectedMemberExcluded && selectedMember.access?.role === "officer" ? (
                               <button className="command-row interactive-button duty-member-action-button" disabled={!canChangeAccessLevel(selectedMember)} onClick={() => requestAccessLevelChange(selectedMember, "regular")} type="button">
                                 Снять офицерский допуск
                               </button>
                             ) : null}
-                            {!isSelectedMemberExcluded && selectedMember.access?.isActive ? (
-                              <button className="command-row interactive-button duty-member-action-button" disabled={!canManageTarget(selectedMember)} onClick={() => requestAccessChange(selectedMember, false)} type="button">
+                            {currentUser?.role === "system_admin" && !isSelectedMemberExcluded && selectedMember.access?.isActive ? (
+                              <button className="command-row interactive-button duty-member-action-button" disabled={!canUpdateAccessTarget(selectedMember)} onClick={() => requestAccessChange(selectedMember, false)} type="button">
                                 Временно заблокировать доступ
                               </button>
-                            ) : !isSelectedMemberExcluded && selectedMember.access ? (
-                              <button className="command-row interactive-button duty-member-action-button" disabled={!canManageTarget(selectedMember)} onClick={() => requestAccessChange(selectedMember, true)} type="button">
+                            ) : currentUser?.role === "system_admin" && !isSelectedMemberExcluded && selectedMember.access ? (
+                              <button className="command-row interactive-button duty-member-action-button" disabled={!canUpdateAccessTarget(selectedMember)} onClick={() => requestAccessChange(selectedMember, true)} type="button">
                                 Восстановить доступ
                               </button>
                             ) : !isSelectedMemberExcluded ? (
                               <span className="registry-status-badge-muted">Доступ не назначен</span>
                             ) : null}
                             {!isSelectedMemberExcluded ? (
-                              <button className="command-row interactive-button duty-member-action-button" disabled={!canManageTarget(selectedMember)} onClick={() => openResetPassword(selectedMember)} type="button">
+                              <button className="command-row interactive-button duty-member-action-button" disabled={!canResetPasswordTarget(selectedMember)} onClick={() => openResetPassword(selectedMember)} type="button">
                                 Сбросить пароль
                               </button>
                             ) : null}
-                            {!isSelectedMemberExcluded ? (
-                              <button className="primary-command interactive-button duty-member-action-button duty-member-danger-action" disabled={!canManageTarget(selectedMember)} onClick={() => requestExclude(selectedMember)} type="button">
+                            {currentUser?.role === "system_admin" && !isSelectedMemberExcluded ? (
+                              <button className="primary-command interactive-button duty-member-action-button duty-member-danger-action" disabled={!canExcludeTarget(selectedMember)} onClick={() => requestExclude(selectedMember)} type="button">
                                 Исключить из состава
                               </button>
                             ) : null}
