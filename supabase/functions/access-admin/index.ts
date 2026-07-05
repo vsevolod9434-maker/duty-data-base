@@ -59,6 +59,8 @@ type CreateStageCode =
   | "DUPLICATE_EMAIL"
   | "AUTH_CREATE_FAILED"
   | "DUTY_MEMBER_CREATE_FAILED"
+  | "DUTY_MEMBER_INSERT_FAILED"
+  | "DUTY_MEMBER_SELECT_FAILED"
   | "ACCESS_USER_CREATE_FAILED"
   | "CLEANUP_FAILED";
 
@@ -70,6 +72,8 @@ type CreatedRecords = {
 
 const dutyMemberSelect =
   "id, fullName, callsign, rank, position, unit, serviceStatus, profileStatus, notes, photoUrl, createdAt, updatedAt, accessUser:AccessUser(id, authUserId, login, displayName, role, isActive), staffPositions:DutyStaffPosition(id, title, sortOrder, section:DutyStaffSection(id, name, sortOrder))";
+const createdDutyMemberSelect =
+  "id, fullName, callsign, rank, position, unit, serviceStatus, profileStatus, notes, photoUrl, createdAt, updatedAt, accessUser:AccessUser(id, authUserId, login, displayName, role, isActive)";
 
 const serviceStatuses = new Set<DutyServiceStatus>(["active", "leave", "wounded", "missing", "discharged"]);
 
@@ -318,6 +322,19 @@ async function findDutyMember(context: EdgeAuthContext, memberId: string) {
   return data as DutyMemberRow;
 }
 
+async function findCreatedDutyMember(context: EdgeAuthContext, memberId: string) {
+  const { data, error } = await context.getServiceClient()
+    .from("DutyMember")
+    .select(createdDutyMemberSelect)
+    .eq("id", memberId)
+    .maybeSingle();
+
+  return {
+    data: data ? (data as DutyMemberRow) : null,
+    error,
+  };
+}
+
 function requireSystemAdmin(request: Request, context: EdgeAuthContext) {
   if (context.accessUser.role !== "system_admin") {
     return errorResponse(request, "FORBIDDEN", "Доступ к приказу запрещён.", 403);
@@ -520,24 +537,23 @@ async function createDutyMemberUser(request: Request, context: EdgeAuthContext, 
     });
 
     if (memberError) {
-      logCreateStageError(requestId, "DUTY_MEMBER_CREATE_FAILED", memberError, {
+      logCreateStageError(requestId, "DUTY_MEMBER_INSERT_FAILED", memberError, {
         login: loginValidation.login,
         role,
       });
       const cleanupCode = await cleanupCreatedDutyMemberUser(serviceClient, { accessUserId: createdAccessUserId, authUserId });
       return createStageErrorResponse(
         request,
-        cleanupCode ?? "DUTY_MEMBER_CREATE_FAILED",
+        cleanupCode ?? "DUTY_MEMBER_INSERT_FAILED",
         "Не удалось создать профиль состава.",
         500,
       );
     }
 
     createdMemberId = memberId;
-    const member = await findDutyMember(context, memberId);
-    if (!member) {
-      const missingMemberError = new Error("Created DutyMember was not found.");
-      logCreateStageError(requestId, "DUTY_MEMBER_CREATE_FAILED", missingMemberError, {
+    const { data: member, error: memberSelectError } = await findCreatedDutyMember(context, memberId);
+    if (memberSelectError || !member) {
+      logCreateStageError(requestId, "DUTY_MEMBER_SELECT_FAILED", memberSelectError ?? new Error("Created DutyMember was not found."), {
         login: loginValidation.login,
         role,
       });
@@ -548,7 +564,7 @@ async function createDutyMemberUser(request: Request, context: EdgeAuthContext, 
       });
       return createStageErrorResponse(
         request,
-        cleanupCode ?? "DUTY_MEMBER_CREATE_FAILED",
+        cleanupCode ?? "DUTY_MEMBER_SELECT_FAILED",
         "Не удалось создать профиль состава.",
         500,
       );
