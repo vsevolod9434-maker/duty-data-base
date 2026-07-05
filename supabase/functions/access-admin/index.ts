@@ -53,6 +53,21 @@ type DutyMemberRow = {
   }> | null;
 };
 
+type CreateStageCode =
+  | "VALIDATION_FAILED"
+  | "DUPLICATE_LOGIN"
+  | "DUPLICATE_EMAIL"
+  | "AUTH_CREATE_FAILED"
+  | "DUTY_MEMBER_CREATE_FAILED"
+  | "ACCESS_USER_CREATE_FAILED"
+  | "CLEANUP_FAILED";
+
+type CreatedRecords = {
+  accessUserId?: string | null;
+  authUserId?: string | null;
+  memberId?: string | null;
+};
+
 const dutyMemberSelect =
   "id, fullName, callsign, rank, position, unit, serviceStatus, profileStatus, notes, photoUrl, createdAt, updatedAt, accessUser:AccessUser(id, authUserId, login, displayName, role, isActive), staffPositions:DutyStaffPosition(id, title, sortOrder, section:DutyStaffSection(id, name, sortOrder))";
 
@@ -70,6 +85,46 @@ function optionalString(value: unknown) {
 
 function requiredString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function createTextId(prefix: string) {
+  return `${prefix}_${crypto.randomUUID().replaceAll("-", "")}`;
+}
+
+function maskIdentifier(value: string) {
+  const trimmed = value.trim();
+  if (trimmed.length <= 4) return "***";
+  return `${trimmed.slice(0, 2)}***${trimmed.slice(-2)}`;
+}
+
+function safeErrorInfo(error: unknown) {
+  const record = error && typeof error === "object" ? (error as Record<string, unknown>) : {};
+  return {
+    code: typeof record.code === "string" ? record.code : undefined,
+    constraint: typeof record.constraint === "string" ? record.constraint : undefined,
+    message: error instanceof Error ? error.message : typeof record.message === "string" ? record.message : String(error),
+  };
+}
+
+function logCreateStageError(
+  requestId: string,
+  stage: string,
+  error: unknown,
+  details: { login?: string; role?: AccessUserRole } = {},
+) {
+  const info = safeErrorInfo(error);
+  console.error(
+    JSON.stringify({
+      action: "createDutyMemberUser",
+      code: info.code,
+      constraint: info.constraint,
+      login: details.login ? maskIdentifier(details.login) : undefined,
+      message: info.message,
+      requestId,
+      role: details.role,
+      stage,
+    }),
+  );
 }
 
 function normalizeLogin(login: string) {
@@ -205,35 +260,65 @@ function buildDutyMemberData(payload: Record<string, unknown>) {
   };
 }
 
+async function cleanupCreatedDutyMemberUser(serviceClient: EdgeAuthContext["userClient"], records: CreatedRecords) {
+  let cleanupFailed = false;
+
+  if (records.memberId) {
+    const { error } = await serviceClient.from("DutyMember").delete().eq("id", records.memberId);
+    cleanupFailed ||= Boolean(error);
+  }
+
+  if (records.accessUserId) {
+    const { error } = await serviceClient.from("AccessUser").delete().eq("id", records.accessUserId);
+    cleanupFailed ||= Boolean(error);
+  } else if (records.authUserId) {
+    const { error } = await serviceClient.from("AccessUser").delete().eq("authUserId", records.authUserId);
+    cleanupFailed ||= Boolean(error);
+  }
+
+  if (records.authUserId) {
+    const { error } = await serviceClient.auth.admin.deleteUser(records.authUserId);
+    cleanupFailed ||= Boolean(error);
+  }
+
+  return cleanupFailed ? "CLEANUP_FAILED" : null;
+}
+
+function createStageErrorResponse(request: Request, code: CreateStageCode, message: string, status: number) {
+  return errorResponse(request, code, message, status);
+}
+
 async function createDutyMemberUser(request: Request, context: EdgeAuthContext, payload: Record<string, unknown>) {
+  const requestId = crypto.randomUUID();
+
   if (!isAccessOfficer(context.accessUser.role)) {
     return errorResponse(request, "FORBIDDEN", "Доступ к приказу запрещён.", 403);
   }
 
   const loginValidation = validateLogin(payload.login);
   if (!loginValidation.ok) {
-    return errorResponse(request, "INVALID_PAYLOAD", loginValidation.message, 400);
+    return createStageErrorResponse(request, "VALIDATION_FAILED", loginValidation.message, 400);
   }
 
   if (typeof payload.password !== "string" || !payload.password) {
-    return errorResponse(request, "INVALID_PAYLOAD", "Введите пароль.", 400);
+    return createStageErrorResponse(request, "VALIDATION_FAILED", "Введите пароль.", 400);
   }
 
   if (typeof payload.repeatPassword !== "string" || !payload.repeatPassword) {
-    return errorResponse(request, "INVALID_PAYLOAD", "Повторите пароль.", 400);
+    return createStageErrorResponse(request, "VALIDATION_FAILED", "Повторите пароль.", 400);
   }
 
   if (payload.password !== payload.repeatPassword) {
-    return errorResponse(request, "INVALID_PAYLOAD", "Пароль и повтор не совпадают.", 400);
+    return createStageErrorResponse(request, "VALIDATION_FAILED", "Пароль и повтор не совпадают.", 400);
   }
 
   if (payload.password.length < 8 || payload.password.length > 128) {
-    return errorResponse(request, "INVALID_PAYLOAD", "Пароль должен быть от 8 до 128 символов.", 400);
+    return createStageErrorResponse(request, "VALIDATION_FAILED", "Пароль должен быть от 8 до 128 символов.", 400);
   }
 
   const role = roleFromAccessLevel(payload.accessLevel);
   if (!role) {
-    return errorResponse(request, "INVALID_PAYLOAD", "Выберите уровень допуска.", 400);
+    return createStageErrorResponse(request, "VALIDATION_FAILED", "Выберите уровень допуска.", 400);
   }
 
   if (context.accessUser.role === "officer" && role !== "regular") {
@@ -241,25 +326,55 @@ async function createDutyMemberUser(request: Request, context: EdgeAuthContext, 
   }
 
   const serviceClient = context.getServiceClient();
-  const { data: existingAccessUser } = await serviceClient
+  const { data: existingAccessUser, error: existingLoginError } = await serviceClient
     .from("AccessUser")
     .select("id")
     .eq("normalizedLogin", loginValidation.normalizedLogin)
     .maybeSingle();
 
+  if (existingLoginError) {
+    logCreateStageError(requestId, "CHECK_DUPLICATE_LOGIN", existingLoginError, {
+      login: loginValidation.login,
+      role,
+    });
+    return createStageErrorResponse(request, "ACCESS_USER_CREATE_FAILED", "Не удалось проверить учетную запись.", 500);
+  }
+
   if (existingAccessUser) {
-    return errorResponse(request, "CONFLICT", "Пользователь с таким логином уже существует.", 409);
+    return createStageErrorResponse(request, "DUPLICATE_LOGIN", "Пользователь с таким логином уже существует.", 409);
   }
 
   const authEmail = await createTechnicalAuthEmail(loginValidation.normalizedLogin);
+  const { data: existingAuthEmail, error: existingEmailError } = await serviceClient
+    .from("AccessUser")
+    .select("id")
+    .eq("authEmail", authEmail)
+    .maybeSingle();
+
+  if (existingEmailError) {
+    logCreateStageError(requestId, "CHECK_DUPLICATE_EMAIL", existingEmailError, {
+      login: loginValidation.login,
+      role,
+    });
+    return createStageErrorResponse(request, "ACCESS_USER_CREATE_FAILED", "Не удалось проверить учетную запись.", 500);
+  }
+
+  if (existingAuthEmail) {
+    return createStageErrorResponse(request, "DUPLICATE_EMAIL", "Учетная запись уже существует.", 409);
+  }
+
   const displayName = optionalString(payload.displayName);
   const memberData = buildDutyMemberData({
     ...payload,
+    accessLogin: loginValidation.login,
     serviceStatus: "active",
   });
   const now = new Date().toISOString();
+  const accessUserId = createTextId("access");
   const memberId = crypto.randomUUID();
   let authUserId: string | null = null;
+  let createdAccessUserId: string | null = null;
+  let createdMemberId: string | null = null;
 
   try {
     const { data: createdUser, error: createUserError } = await serviceClient.auth.admin.createUser({
@@ -269,6 +384,10 @@ async function createDutyMemberUser(request: Request, context: EdgeAuthContext, 
     });
 
     if (createUserError || !createdUser.user?.id) {
+      logCreateStageError(requestId, "AUTH_CREATE_FAILED", createUserError ?? new Error("Auth user id is missing."), {
+        login: loginValidation.login,
+        role,
+      });
       return errorResponse(request, "AUTH_CREATE_FAILED", "Не удалось создать служебный допуск.", 400);
     }
 
@@ -277,27 +396,42 @@ async function createDutyMemberUser(request: Request, context: EdgeAuthContext, 
     const { data: accessUser, error: accessUserError } = await serviceClient
       .from("AccessUser")
       .insert({
+        id: accessUserId,
         authEmail,
         authUserId,
+        createdAt: now,
         displayName,
         isActive: true,
         login: loginValidation.login,
         normalizedLogin: loginValidation.normalizedLogin,
         role,
+        updatedAt: now,
       })
       .select("id")
       .single();
 
     if (accessUserError || !accessUser?.id) {
-      throw accessUserError ?? new Error("AccessUser insert failed.");
+      logCreateStageError(requestId, "ACCESS_USER_CREATE_FAILED", accessUserError ?? new Error("AccessUser insert failed."), {
+        login: loginValidation.login,
+        role,
+      });
+      const cleanupCode = await cleanupCreatedDutyMemberUser(serviceClient, { authUserId });
+      return createStageErrorResponse(
+        request,
+        cleanupCode ?? "ACCESS_USER_CREATE_FAILED",
+        "Не удалось создать учетную запись.",
+        500,
+      );
     }
 
+    createdAccessUserId = accessUser.id;
     const fullName = memberData.fullName || displayName || loginValidation.login;
     const { error: memberError } = await serviceClient.from("DutyMember").insert({
       id: memberId,
       ...memberData,
       accessUserId: accessUser.id,
-      callSign: memberData.callsign,
+      callSign: null,
+      callsign: null,
       createdAt: now,
       fullName,
       profileStatus: "active",
@@ -306,24 +440,54 @@ async function createDutyMemberUser(request: Request, context: EdgeAuthContext, 
     });
 
     if (memberError) {
-      throw memberError;
+      logCreateStageError(requestId, "DUTY_MEMBER_CREATE_FAILED", memberError, {
+        login: loginValidation.login,
+        role,
+      });
+      const cleanupCode = await cleanupCreatedDutyMemberUser(serviceClient, { accessUserId: createdAccessUserId, authUserId });
+      return createStageErrorResponse(
+        request,
+        cleanupCode ?? "DUTY_MEMBER_CREATE_FAILED",
+        "Не удалось создать профиль состава.",
+        500,
+      );
     }
 
+    createdMemberId = memberId;
     const member = await findDutyMember(context, memberId);
     if (!member) {
-      throw new Error("Created DutyMember was not found.");
+      const missingMemberError = new Error("Created DutyMember was not found.");
+      logCreateStageError(requestId, "DUTY_MEMBER_CREATE_FAILED", missingMemberError, {
+        login: loginValidation.login,
+        role,
+      });
+      const cleanupCode = await cleanupCreatedDutyMemberUser(serviceClient, {
+        accessUserId: createdAccessUserId,
+        authUserId,
+        memberId: createdMemberId,
+      });
+      return createStageErrorResponse(
+        request,
+        cleanupCode ?? "DUTY_MEMBER_CREATE_FAILED",
+        "Не удалось создать профиль состава.",
+        500,
+      );
     }
 
     return jsonResponse(request, mapDutyMember(member), 201);
   } catch (error) {
-    logEdgeError("access-admin:createDutyMemberUser", error);
+    logCreateStageError(requestId, "DUTY_MEMBER_CREATE_FAILED", error, {
+      login: loginValidation.login,
+      role,
+    });
 
-    if (authUserId) {
-      await serviceClient.from("AccessUser").delete().eq("authUserId", authUserId).catch(() => undefined);
-      await serviceClient.auth.admin.deleteUser(authUserId).catch(() => undefined);
-    }
+    const cleanupCode = await cleanupCreatedDutyMemberUser(serviceClient, {
+      accessUserId: createdAccessUserId,
+      authUserId,
+      memberId: createdMemberId,
+    });
 
-    return errorResponse(request, "CREATE_FAILED", "Не удалось создать профиль состава.", 500);
+    return createStageErrorResponse(request, cleanupCode ?? "DUTY_MEMBER_CREATE_FAILED", "Не удалось создать профиль состава.", 500);
   }
 }
 
