@@ -23,6 +23,11 @@ type AccessAdminRequest =
       isActive?: boolean;
     }
   | {
+      action: "updateDutyMemberProfile";
+      memberId: string;
+      payload: Record<string, unknown>;
+    }
+  | {
       action: "excludeDutyMember";
       memberId: string;
     };
@@ -328,8 +333,8 @@ function memberLookupErrorResponse(request: Request, action: string, error: unkn
   return errorResponse(request, "MEMBER_LOOKUP_FAILED", "Не удалось проверить профиль состава.", 500);
 }
 
-function requireSystemAdmin(request: Request, context: EdgeAuthContext) {
-  if (context.accessUser.role !== "system_admin") {
+function requireAccessOfficer(request: Request, context: EdgeAuthContext) {
+  if (!isAccessOfficer(context.accessUser.role)) {
     return errorResponse(request, "FORBIDDEN", "Доступ к приказу запрещён.", 403);
   }
 
@@ -417,8 +422,8 @@ async function createDutyMemberUser(request: Request, context: EdgeAuthContext, 
     return createStageErrorResponse(request, "VALIDATION_FAILED", "Выберите уровень допуска.", 400);
   }
 
-  if (context.accessUser.role === "officer" && role !== "regular") {
-    return errorResponse(request, "FORBIDDEN", "Офицер может выдать только базовый допуск.", 403);
+  if (role === "system_admin") {
+    return errorResponse(request, "FORBIDDEN", "Доступ к приказу запрещён.", 403);
   }
 
   const serviceClient = context.getServiceClient();
@@ -581,7 +586,7 @@ async function createDutyMemberUser(request: Request, context: EdgeAuthContext, 
 }
 
 function assertTargetManageable(request: Request, context: EdgeAuthContext, member: DutyMemberRow | null) {
-  if (!member?.accessUser || member.accessUser.role === "system_admin") {
+  if (!member?.accessUser) {
     return errorResponse(request, "NOT_FOUND", "Профиль не найден.", 404);
   }
 
@@ -594,8 +599,8 @@ function assertTargetManageable(request: Request, context: EdgeAuthContext, memb
 }
 
 async function updateAccess(request: Request, context: EdgeAuthContext, body: Extract<AccessAdminRequest, { action: "updateAccess" }>) {
-  const systemAdminError = requireSystemAdmin(request, context);
-  if (systemAdminError) return systemAdminError;
+  const accessOfficerError = requireAccessOfficer(request, context);
+  if (accessOfficerError) return accessOfficerError;
 
   if (typeof body.memberId !== "string" || !body.memberId) {
     return errorResponse(request, "INVALID_PAYLOAD", "Профиль не найден.", 400);
@@ -639,6 +644,76 @@ async function updateAccess(request: Request, context: EdgeAuthContext, body: Ex
 
   const { data: updatedMember, error: updatedLookupError } = await findAccessAdminDutyMember(context, body.memberId);
   if (updatedLookupError) return memberLookupErrorResponse(request, "updateAccess", updatedLookupError);
+  if (!updatedMember) return errorResponse(request, "NOT_FOUND", "Профиль не найден.", 404);
+
+  return jsonResponse(request, mapDutyMember(updatedMember));
+}
+
+async function updateDutyMemberProfile(
+  request: Request,
+  context: EdgeAuthContext,
+  body: Extract<AccessAdminRequest, { action: "updateDutyMemberProfile" }>,
+) {
+  const accessOfficerError = requireAccessOfficer(request, context);
+  if (accessOfficerError) return accessOfficerError;
+
+  if (typeof body.memberId !== "string" || !body.memberId) {
+    return errorResponse(request, "INVALID_PAYLOAD", "Профиль не найден.", 400);
+  }
+
+  const payload = asRecord(body.payload);
+  const memberData = buildDutyMemberData(payload);
+
+  if (!memberData.fullName) {
+    return errorResponse(request, "INVALID_PAYLOAD", "Укажите ФИО.", 400);
+  }
+
+  const { data: member, error: memberLookupError } = await findAccessAdminDutyMember(context, body.memberId);
+  if (memberLookupError) return memberLookupErrorResponse(request, "updateDutyMemberProfile", memberLookupError);
+
+  const targetError = assertTargetManageable(request, context, member);
+  if (targetError) return targetError;
+
+  if (!member?.accessUser) {
+    return errorResponse(request, "NOT_FOUND", "Профиль не найден.", 404);
+  }
+
+  const serviceClient = context.getServiceClient();
+
+  if (memberData.serviceStatus === "discharged" && member.accessUser.isActive) {
+    const { error: accessError } = await serviceClient
+      .from("AccessUser")
+      .update({ isActive: false })
+      .eq("id", member.accessUser.id);
+
+    if (accessError) {
+      logEdgeError("access-admin:updateDutyMemberProfile:access", accessError);
+      return errorResponse(request, "UPDATE_FAILED", "Не удалось выполнить приказ.", 500);
+    }
+  }
+
+  const { error } = await serviceClient
+    .from("DutyMember")
+    .update({
+      callSign: memberData.callsign,
+      callsign: memberData.callsign,
+      fullName: memberData.fullName,
+      notes: memberData.notes,
+      photoUrl: memberData.photoUrl,
+      profileStatus: memberData.profileStatus,
+      rank: memberData.rank,
+      serviceStatus: memberData.serviceStatus,
+      updatedAt: new Date().toISOString(),
+    })
+    .eq("id", body.memberId);
+
+  if (error) {
+    logEdgeError("access-admin:updateDutyMemberProfile", error);
+    return errorResponse(request, "UPDATE_FAILED", "Не удалось выполнить приказ.", 500);
+  }
+
+  const { data: updatedMember, error: updatedLookupError } = await findAccessAdminDutyMember(context, body.memberId);
+  if (updatedLookupError) return memberLookupErrorResponse(request, "updateDutyMemberProfile", updatedLookupError);
   if (!updatedMember) return errorResponse(request, "NOT_FOUND", "Профиль не найден.", 404);
 
   return jsonResponse(request, mapDutyMember(updatedMember));
@@ -688,8 +763,8 @@ async function resetPassword(request: Request, context: EdgeAuthContext, body: E
 }
 
 async function excludeDutyMember(request: Request, context: EdgeAuthContext, body: Extract<AccessAdminRequest, { action: "excludeDutyMember" }>) {
-  const systemAdminError = requireSystemAdmin(request, context);
-  if (systemAdminError) return systemAdminError;
+  const accessOfficerError = requireAccessOfficer(request, context);
+  if (accessOfficerError) return accessOfficerError;
 
   if (typeof body.memberId !== "string" || !body.memberId) {
     return errorResponse(request, "INVALID_PAYLOAD", "Профиль не найден.", 400);
@@ -762,6 +837,8 @@ Deno.serve(async (request) => {
         return await resetPassword(request, auth, body as Extract<AccessAdminRequest, { action: "resetPassword" }>);
       case "updateAccess":
         return await updateAccess(request, auth, body as Extract<AccessAdminRequest, { action: "updateAccess" }>);
+      case "updateDutyMemberProfile":
+        return await updateDutyMemberProfile(request, auth, body as Extract<AccessAdminRequest, { action: "updateDutyMemberProfile" }>);
       case "excludeDutyMember":
         return await excludeDutyMember(request, auth, body as Extract<AccessAdminRequest, { action: "excludeDutyMember" }>);
       default:

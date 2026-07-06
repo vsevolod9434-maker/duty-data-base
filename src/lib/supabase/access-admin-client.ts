@@ -47,6 +47,15 @@ export type CreateDutyMemberUserPayload = {
   repeatPassword: string;
 };
 
+export type UpdateDutyMemberProfilePayload = {
+  callsign: string;
+  fullName: string;
+  notes: string;
+  photoUrl: string;
+  rank: string;
+  serviceStatus: DutyServiceStatus;
+};
+
 type AccessAdminRequest =
   | {
       action: "createDutyMemberUser";
@@ -63,6 +72,11 @@ type AccessAdminRequest =
       memberId: string;
       accessLevel?: DutyAccessLevel;
       isActive?: boolean;
+    }
+  | {
+      action: "updateDutyMemberProfile";
+      memberId: string;
+      payload: UpdateDutyMemberProfilePayload;
     }
   | {
       action: "excludeDutyMember";
@@ -186,6 +200,14 @@ export function updateDutyMemberAccess(
     action: "updateAccess",
     memberId,
     ...accessPatch,
+  });
+}
+
+export function updateDutyMemberProfile(memberId: string, payload: UpdateDutyMemberProfilePayload) {
+  return callAccessAdmin<AccessAdminDutyMember>({
+    action: "updateDutyMemberProfile",
+    memberId,
+    payload,
   });
 }
 

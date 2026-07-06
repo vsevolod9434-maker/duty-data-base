@@ -139,9 +139,5 @@ export function canManageTargetAccess(
     return { ok: false as const, message: "Доступ к приказу запрещён." };
   }
 
-  if (actor.role === "officer" && target.role !== "regular" && target.role !== "manager") {
-    return { ok: false as const, message: "Доступ к приказу запрещён." };
-  }
-
   return { ok: true as const };
 }
