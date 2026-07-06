@@ -612,8 +612,7 @@ async function handleCalculatorCatalog(client: SupabaseClient) {
 
 async function handleDutyMembers(client: SupabaseClient, method: string, init?: RequestInit, id?: string) {
   const accessUser = await assertAuthenticated(client);
-  const select =
-    "*, accessUser:AccessUser(id, login, displayName, role, isActive), staffPositions:DutyStaffPosition(id, title, sortOrder, section:DutyStaffSection(id, name, sortOrder))";
+  const select = "*, accessUser:AccessUser(id, login, displayName, role, isActive)";
 
   if (method === "GET" && !id) {
     const rows = await selectRows(client, "DutyMember", select, "createdAt");
@@ -623,17 +622,7 @@ async function handleDutyMembers(client: SupabaseClient, method: string, init?: 
         const memberAccess = asRecord(member.accessUser);
         return {
           ...member,
-          positions: asArray(member.staffPositions).map((position) => {
-            const positionRecord = asRecord(position);
-            const section = asRecord(positionRecord.section);
-            return {
-              id: positionRecord.id,
-              title: positionRecord.title,
-              sectionId: section.id,
-              sectionName: section.name,
-              sortOrder: positionRecord.sortOrder,
-            };
-          }),
+          positions: [],
           access: member.accessUser
             ? {
                 login: memberAccess.login,
@@ -679,56 +668,6 @@ async function handleAccessUsers(client: SupabaseClient) {
   await assertAuthenticated(client);
   return json(
     await selectRows(client, "AccessUser", "id, login, displayName, role, isActive", "login", true),
-  );
-}
-
-async function handleStaffList(client: SupabaseClient) {
-  await assertAuthenticated(client);
-  const sections = await selectRows(
-    client,
-    "DutyStaffSection",
-    "*, positions:DutyStaffPosition(*, dutyMember:DutyMember(id, fullName, callsign, rank, serviceStatus, accessUser:AccessUser(login, displayName, role, isActive)))",
-    "sortOrder",
-    true,
-  );
-
-  return json(
-    sections.map((section) => {
-      const sectionRecord = asRecord(section);
-      return {
-        ...sectionRecord,
-        positions: asArray(sectionRecord.positions)
-          .map((position) => {
-            const positionRecord = asRecord(position);
-            const member = asRecord(positionRecord.dutyMember);
-            const memberAccess = asRecord(member.accessUser);
-            return {
-              id: positionRecord.id,
-              title: positionRecord.title,
-              sortOrder: positionRecord.sortOrder,
-              assignedAt: positionRecord.assignedAt,
-              assignedBy: positionRecord.assignedBy,
-              updatedBy: positionRecord.updatedBy,
-              member: positionRecord.dutyMember
-                ? {
-                    id: member.id,
-                    fullName: member.fullName,
-                    callsign: member.callsign,
-                    rank: member.rank,
-                    serviceStatus: member.serviceStatus,
-                    access: member.accessUser
-                      ? {
-                          ...memberAccess,
-                          roleLabel: getRoleLabel(stringValue(memberAccess.role) as UserRole),
-                        }
-                      : null,
-                  }
-                : null,
-            };
-          })
-          .sort((left, right) => Number(left.sortOrder) - Number(right.sortOrder)),
-      };
-    }),
   );
 }
 
@@ -808,10 +747,6 @@ export async function staticSupabaseFetch(input: RequestInfo | URL, init?: Reque
     if (path === "/api/auth/me") return await handleCurrentUser(client);
     if (path === "/api/calculator/catalog") return await handleCalculatorCatalog(client);
     if (path === "/api/duty-members/access-users") return await handleAccessUsers(client);
-    if (path === "/api/duty-members/staff-list") return await handleStaffList(client);
-    if (path.startsWith("/api/duty-members/staff-list/positions")) {
-      return errorResponse(blockedAdminMessage, 501);
-    }
     if (path === "/api/duty-members/users" || path.endsWith("/password") || path === "/api/duty-members/password") {
       return errorResponse(blockedAdminMessage, 501);
     }
