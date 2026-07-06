@@ -3,12 +3,14 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { signInStaticAccessUser, staticLoginErrorMessage } from "@/lib/supabase/static-auth";
+import { signInStaticAccessUser } from "@/lib/supabase/static-auth";
 
 type LoginResponse = {
   ok?: boolean;
   error?: string;
 };
+
+const loginErrorMessage = "Доступ не подтверждён. Проверьте логин и пароль.";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,7 +25,7 @@ export default function LoginPage() {
     const normalizedLogin = login.trim();
 
     if (!normalizedLogin) {
-      setMessage("Введите логин или служебный идентификатор.");
+      setMessage("Введите логин.");
       return;
     }
 
@@ -53,14 +55,14 @@ export default function LoginPage() {
       const payload = (await response.json().catch(() => null)) as LoginResponse | null;
 
       if (!response.ok || !payload?.ok) {
-        setMessage(payload?.error || staticLoginErrorMessage);
+        setMessage(loginErrorMessage);
         return;
       }
 
       router.replace("/");
       router.refresh();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : staticLoginErrorMessage);
+    } catch {
+      setMessage(loginErrorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -68,22 +70,45 @@ export default function LoginPage() {
 
   return (
     <main className="login-page">
+      <div className="login-page-grid" aria-hidden="true" />
       <section className="login-shell">
-        <div className="login-card animate-panel-in">
-          <div className="login-card-header">
+        <aside className="login-briefing animate-panel-in" aria-label="Сводка допуска">
+          <div className="login-briefing-topline">
+            <span className="login-status-dot" />
+            <span>Пост допуска</span>
+          </div>
+          <div className="login-briefing-copy">
             <span className="login-kicker">Внутренняя база группировки «Долг»</span>
-            <h1>Вход в систему учёта</h1>
-            <p>Доступ разрешён только допущенному личному составу.</p>
+            <h1>Служебный реестр</h1>
+            <p>Вход открыт только личному составу с подтверждённым допуском.</p>
+          </div>
+          <dl className="login-status-list">
+            <div>
+              <dt>Контур</dt>
+              <dd>Учёт состава и операций</dd>
+            </div>
+            <div>
+              <dt>Режим</dt>
+              <dd>Закрытый доступ</dd>
+            </div>
+          </dl>
+        </aside>
+
+        <div className="login-card animate-panel-in" aria-labelledby="login-title">
+          <div className="login-card-header">
+            <span className="login-kicker">Авторизация</span>
+            <h2 id="login-title">Вход в реестр</h2>
+            <p>Введите данные допуска, выданные штабом.</p>
           </div>
 
           <form className="login-form" onSubmit={handleSubmit}>
             <label>
-              <span>Логин или служебный идентификатор</span>
+              <span>Логин</span>
               <input
                 autoComplete="username"
                 disabled={isLoading}
                 onChange={(event) => setLogin(event.target.value)}
-                placeholder="Введите логин или служебный идентификатор"
+                placeholder="Введите логин"
                 type="text"
                 value={login}
               />
@@ -104,7 +129,7 @@ export default function LoginPage() {
             {message ? <p className="login-error">{message}</p> : null}
 
             <button className="login-submit interactive-button" disabled={isLoading} type="submit">
-              {isLoading ? "Проверка доступа..." : "Войти"}
+              {isLoading ? "Проверка допуска..." : "Войти"}
             </button>
           </form>
         </div>
