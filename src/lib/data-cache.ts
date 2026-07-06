@@ -21,7 +21,6 @@ export const cachePolicy = {
   apartments: TEN_MINUTES,
   dutyMembers: ONE_HOUR,
   dutyAccessUsers: ONE_HOUR,
-  staffList: ONE_HOUR,
   calculatorCatalog: ONE_HOUR,
   currentUser: 5 * ONE_MINUTE,
 } as const;
@@ -44,7 +43,6 @@ export const dutyDataKeys = {
   violations: (userKey: string) => ["duty-data", userKey, "journals", "violations"] as const,
   dutyMembers: (userKey: string) => ["duty-data", userKey, "duty-members"] as const,
   dutyAccessUsers: (userKey: string) => ["duty-data", userKey, "duty-members", "access-users"] as const,
-  staffList: (userKey: string) => ["duty-data", userKey, "duty-members", "staff-list"] as const,
 };
 
 export function createDutyQueryClient() {
