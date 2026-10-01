@@ -7,43 +7,13 @@ on:
     branches: ["main"]
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  refresh-security-lock:
-    if: github.event_name == 'pull_request' && github.head_ref == 'test/supabase-sql-invariants'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout PR branch
-        uses: actions/checkout@v4
-        with:
-          ref: test/supabase-sql-invariants
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Refresh vulnerable production dependencies
-        run: npm install next@16.3.8 sharp@0.35.5 --save
-
-      - name: Commit refreshed lockfile
-        run: |
-          if git diff --quiet -- package.json package-lock.json; then
-            echo "Dependency files are already current."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json package-lock.json
-          git commit -m "Update Next.js and Sharp security fixes"
-          git push origin HEAD:test/supabase-sql-invariants
-
   validate:
     runs-on: ubuntu-latest
     env:
