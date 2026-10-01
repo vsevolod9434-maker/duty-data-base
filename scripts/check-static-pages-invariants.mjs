@@ -69,6 +69,20 @@ assert.equal(
   "Access-admin responses must include current staff-position relations.",
 );
 
+const stalkerUtilsSource = readFileSync("src/lib/stalker-utils.ts", "utf8");
+assert.equal(
+  stalkerUtilsSource.includes("window.localStorage.setItem(key"),
+  false,
+  "Legacy operational collections must not be persisted back to localStorage.",
+);
+
+const staticAuthGateSourceForStorage = readFileSync("src/components/providers/StaticAuthGate.tsx", "utf8");
+assert.equal(
+  staticAuthGateSourceForStorage.includes("clearLegacyStoredCollections();"),
+  true,
+  "App startup must purge legacy browser-side operational collections.",
+);
+
 const accessAdminRpcSource = readFileSync("supabase/access-admin-rpc.sql", "utf8");
 for (const fragment of [
   'update public."AccessUser"',
