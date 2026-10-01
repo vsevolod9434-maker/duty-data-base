@@ -4,7 +4,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getRoleLabel, type UserRole } from "@/lib/auth-roles";
 import { getDutyAccessLevelLabel } from "@/lib/duty-members";
 import { DEFAULT_MAP_LAYER, normalizeMapLayerKey, normalizeMapLayerName } from "@/lib/map-layers";
-import { normalizeLogin } from "@/lib/auth-login";
 import { isStaticSupabaseApiRequest } from "@/lib/supabase/static-api-routing";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { backendOnlyOperationMessage, transactionalImportMessage } from "@/lib/static-hosting";
