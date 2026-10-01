@@ -483,6 +483,7 @@ to authenticated
 with check (
   private.is_active_access_user()
   and "isDefault" = false
+  and "normalizedName" <> 'основной слой'
 );
 
 create policy duty_pages_update
@@ -496,6 +497,7 @@ using (
 with check (
   private.is_active_access_user()
   and "isDefault" = false
+  and "normalizedName" <> 'основной слой'
 );
 
 create policy duty_pages_delete
