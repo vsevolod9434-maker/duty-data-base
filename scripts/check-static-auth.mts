@@ -34,6 +34,7 @@ type MockClientOptions = {
   rpcData?: unknown;
   rpcError?: Error | null;
   signInError?: Error | null;
+  signInThrows?: boolean;
   userId?: string;
 };
 
@@ -86,6 +87,9 @@ function createMockClient(options: MockClientOptions) {
       },
       async signInWithPassword(credentials: { email: string; password: string }) {
         calls.push({ type: "signInWithPassword", payload: credentials });
+        if (options.signInThrows) {
+          throw new Error("network fetch failed");
+        }
         if (options.signInError) {
           return { data: { user: null }, error: options.signInError };
         }
@@ -157,6 +161,32 @@ const inactiveProfile: StaticAccessUserProfile = {
     false,
     "pre-login resolution must never query AccessUser directly with the anonymous client",
   );
+}
+
+{
+  const unavailableError = Object.assign(new Error("service unavailable"), { status: 503 });
+  const client = createMockClient({
+    rpcError: unavailableError,
+  });
+
+  await assert.rejects(
+    () => resolveStaticAuthEmail(client as never, "operator"),
+    /Канал допуска временно не отвечает/,
+  );
+}
+
+{
+  const client = createMockClient({
+    profile: activeProfile,
+    rpcData: "real-auth@example.test",
+    signInThrows: true,
+  });
+
+  await assert.rejects(
+    () => signInStaticAccessUser(client as never, "operator", "password"),
+    /Канал допуска временно не отвечает/,
+  );
+  assert.equal(client.calls.filter((call) => call.type === "signOut").length, 2);
 }
 
 {
