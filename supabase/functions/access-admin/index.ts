@@ -422,7 +422,7 @@ async function createDutyMemberUser(request: Request, context: EdgeAuthContext, 
     return createStageErrorResponse(request, "VALIDATION_FAILED", "Выберите уровень допуска.", 400);
   }
 
-  if (role === "system_admin") {
+  if (role === "system_admin" || (context.accessUser.role === "officer" && role === "officer")) {
     return errorResponse(request, "FORBIDDEN", "Доступ к приказу запрещён.", 403);
   }
 
@@ -627,6 +627,10 @@ async function updateAccess(request: Request, context: EdgeAuthContext, body: Ex
   const requestedRole = body.accessLevel === undefined ? undefined : roleFromAccessLevel(body.accessLevel);
   if (body.accessLevel !== undefined && !requestedRole) {
     return errorResponse(request, "INVALID_PAYLOAD", "Выберите уровень допуска.", 400);
+  }
+
+  if (context.accessUser.role === "officer" && requestedRole === "officer") {
+    return errorResponse(request, "FORBIDDEN", "Доступ к приказу запрещён.", 403);
   }
 
   const { error } = await context.getServiceClient()
