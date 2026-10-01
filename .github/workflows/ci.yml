@@ -30,9 +30,11 @@ jobs:
           cache: npm
 
       - name: Apply non-breaking production audit fixes
+        env:
+          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/postgres
         run: |
           npm ci
-          npm audit fix --omit=dev
+          npm audit fix --omit=dev || true
 
       - name: Commit safe audit fixes
         run: |
