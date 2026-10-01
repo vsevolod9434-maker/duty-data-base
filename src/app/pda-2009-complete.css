@@ -1,0 +1,1959 @@
+/*
+ * PDA / КПК 2009 — complete interface pass.
+ * Stage 2: normalizes all inner workspaces, records, forms, tooltips and map controls.
+ * No component logic or page layout is changed.
+ * Rollback this stage by removing its import from layout.tsx.
+ */
+
+/* ---------- shared workstation surfaces ---------- */
+
+.pda-screen :is(
+  .profiles-page,
+  .groups-page,
+  .apartments-page,
+  .journals-page,
+  .calculator-page,
+  .duty-members-page,
+  .map-page-screen,
+  .profiles-workspace-panel,
+  .groups-workspace-panel,
+  .apartments-workspace-panel,
+  .journals-shell,
+  .calculator-shell,
+  .duty-members-shell,
+  .map-page-shell,
+  .journals-content,
+  .calculator-content,
+  .duty-members-content,
+  .map-page-content
+) {
+  background: transparent;
+}
+
+.pda-screen :is(
+  .profiles-workspace-panel,
+  .groups-workspace-panel,
+  .apartments-workspace-panel,
+  .journals-panel,
+  .calculator-catalog-panel,
+  .calculator-cart-panel,
+  .duty-members-list-panel,
+  .duty-member-detail-panel,
+  .registry-panel,
+  .section-panel,
+  .map-side-panel,
+  .map-panel-editor
+) {
+  border-color: #363a3c;
+}
+
+.pda-screen :is(
+  .profiles-list-column,
+  .groups-list-column,
+  .apartments-list-column,
+  .apartments-detail-column,
+  .detail-host-column,
+  .journals-detail,
+  .calculator-catalog-panel,
+  .calculator-cart-panel,
+  .duty-members-list-panel,
+  .duty-member-detail-panel
+) {
+  min-width: 0;
+}
+
+/* ---------- headers, dividers, labels ---------- */
+
+.pda-screen :is(
+  .column-header,
+  .list-column-header,
+  .list-header-block,
+  .apartments-list-header,
+  .calculator-panel-header,
+  .map-side-panel-head,
+  .duty-member-list-head,
+  .profile-column-heading,
+  .block-heading-row,
+  .work-block-header,
+  .apartment-profile-header,
+  .apartment-notes-header,
+  .stalker-notes-header,
+  .task-section-header,
+  .map-form-header,
+  .map-panel-editor-head
+) {
+  border-bottom: 1px solid #383c3e;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,0) 68%),
+    #131517;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.035),
+    inset 0 -1px 0 rgba(0,0,0,.72);
+}
+
+.pda-screen :is(
+  .column-header,
+  .list-column-header,
+  .list-header-block,
+  .apartments-list-header,
+  .calculator-panel-header,
+  .map-side-panel-head,
+  .duty-member-list-head,
+  .profile-column-heading,
+  .block-heading-row,
+  .work-block-header,
+  .apartment-profile-header,
+  .apartment-notes-header,
+  .stalker-notes-header,
+  .task-section-header,
+  .map-form-header,
+  .map-panel-editor-head
+) h1,
+.pda-screen :is(
+  .column-header,
+  .list-column-header,
+  .list-header-block,
+  .apartments-list-header,
+  .calculator-panel-header,
+  .map-side-panel-head,
+  .duty-member-list-head,
+  .profile-column-heading,
+  .block-heading-row,
+  .work-block-header,
+  .apartment-profile-header,
+  .apartment-notes-header,
+  .stalker-notes-header,
+  .task-section-header,
+  .map-form-header,
+  .map-panel-editor-head
+) h2,
+.pda-screen :is(
+  .column-header,
+  .list-column-header,
+  .list-header-block,
+  .apartments-list-header,
+  .calculator-panel-header,
+  .map-side-panel-head,
+  .duty-member-list-head,
+  .profile-column-heading,
+  .block-heading-row,
+  .work-block-header,
+  .apartment-profile-header,
+  .apartment-notes-header,
+  .stalker-notes-header,
+  .task-section-header,
+  .map-form-header,
+  .map-panel-editor-head
+) h3 {
+  color: #e1e4e4;
+  font-family: "Arial Narrow", "Roboto Condensed", "Segoe UI", sans-serif;
+  font-weight: 700;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 #000;
+}
+
+.pda-screen :is(
+  .filter-label-row,
+  .form-section-heading,
+  .dossier-cell-heading,
+  .calculator-category-label,
+  .apartment-list-metric-label,
+  .profile-photo-title,
+  .map-visual-select-label,
+  .map-form-section-head,
+  .duty-member-list-section-heading
+) {
+  color: #9ea3a5;
+  font-family: Consolas, "Lucida Console", monospace;
+  font-size: .70rem;
+  font-weight: 700;
+  letter-spacing: .065em;
+  text-transform: uppercase;
+}
+
+.pda-screen :is(
+  .form-section-heading,
+  .dossier-cell-heading,
+  .map-form-section-head,
+  .duty-member-list-section-heading
+)::before {
+  content: "//";
+  margin-right: .42rem;
+  color: #a1272d;
+  letter-spacing: -.08em;
+}
+
+/* ---------- command / filter rails ---------- */
+
+.pda-screen :is(
+  .filter-bar,
+  .journal-filter-bar,
+  .calculator-filters,
+  .duty-member-search-filter-row,
+  .duty-members-list-controls,
+  .group-search-controls,
+  .group-member-search-block,
+  .dossier-records-toolbar,
+  .group-records-toolbar,
+  .journal-toolbar,
+  .profile-badges,
+  .profile-hero-actions,
+  .group-hero-actions,
+  .apartment-profile-controls,
+  .apartment-notes-actions,
+  .task-actions,
+  .modal-actions,
+  .map-form-actions,
+  .map-panel-editor-actions,
+  .map-route-builder-actions,
+  .map-route-drawing-actions
+) {
+  border-color: #303436;
+}
+
+.pda-screen :is(
+  .filter-bar,
+  .journal-filter-bar,
+  .calculator-filters,
+  .duty-member-search-filter-row,
+  .duty-members-list-controls,
+  .group-search-controls,
+  .group-member-search-block,
+  .dossier-records-toolbar,
+  .group-records-toolbar,
+  .journal-toolbar
+) {
+  border: 1px solid #313537;
+  border-radius: 1px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.022), transparent),
+    #0e1011;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.028),
+    inset 0 -1px 0 rgba(0,0,0,.68);
+}
+
+.pda-screen .filter-field {
+  color: #aeb2b3;
+}
+
+.pda-screen .filter-field > span,
+.pda-screen .filter-field > label {
+  color: #94999a;
+  font-family: Consolas, "Lucida Console", monospace;
+  font-size: .69rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+/* ---------- generic cards and record cells ---------- */
+
+.pda-screen :is(
+  .profile-list-item,
+  .profile-case-card,
+  .profile-record-card,
+  .dossier-group-card,
+  .group-list-card,
+  .group-case-card,
+  .group-member-row,
+  .group-search-result,
+  .apartment-list-card,
+  .apartment-case-card,
+  .apartment-hero-card,
+  .apartment-tenant-row,
+  .apartment-payment-card,
+  .task-item,
+  .task-record-card,
+  .trade-record-card,
+  .violation-record-card,
+  .calculator-catalog-card,
+  .calculator-cart-card,
+  .duty-member-detail-card,
+  .entity-search-result,
+  .entity-selected-row,
+  .stalker-note-card,
+  .relation-row,
+  .detailed-member-row
+) {
+  position: relative;
+  border: 1px solid #303436;
+  border-radius: 1px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.018), transparent 2.5rem),
+    #101213;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.025),
+    inset 0 -1px 0 rgba(0,0,0,.65);
+}
+
+.pda-screen :is(
+  .profile-list-item,
+  .dossier-group-card-clickable,
+  .group-list-card,
+  .group-search-result,
+  .apartment-list-card,
+  .calculator-catalog-card,
+  .entity-search-result
+):hover {
+  border-color: #5a4043;
+  background:
+    linear-gradient(90deg, rgba(151,31,37,.16), transparent 48%),
+    linear-gradient(180deg, rgba(255,255,255,.02), transparent 2.5rem),
+    #141617;
+  box-shadow:
+    inset 3px 0 0 #76191e,
+    inset 0 1px 0 rgba(255,255,255,.035);
+}
+
+.pda-screen :is(
+  .profile-list-item-active,
+  .apartment-list-card-active,
+  .groups-record-tab-active,
+  .profile-section-tab-active
+) {
+  border-color: #65383b !important;
+  background:
+    linear-gradient(90deg, rgba(159,31,37,.28), rgba(159,31,37,.07) 56%, transparent),
+    #161819 !important;
+  box-shadow:
+    inset 3px 0 0 #cf3038,
+    inset 0 1px 0 rgba(255,255,255,.035) !important;
+}
+
+.pda-screen :is(
+  .profile-case-card,
+  .group-case-card,
+  .apartment-case-card,
+  .profile-record-card,
+  .task-record-card,
+  .trade-record-card,
+  .violation-record-card
+) {
+  border-left-color: #555a5c;
+}
+
+.pda-screen :is(
+  .profile-record-emphasis,
+  .profile-record-alert,
+  .trade-record-sale-badge,
+  .violation-record-card
+) {
+  border-left-color: #842128;
+}
+
+/* ---------- dossier / profile / group detail ---------- */
+
+.pda-screen :is(
+  .profile-hero,
+  .group-hero-card,
+  .apartment-hero-card,
+  .duty-member-profile
+) {
+  position: relative;
+  border: 1px solid #3b3f41;
+  border-top-color: #575b5d;
+  border-radius: 1px;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.028), transparent 38%),
+    linear-gradient(180deg, #17191b, #0f1112);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.045),
+    inset 4px 0 0 #681419,
+    0 5px 12px rgba(0,0,0,.2);
+}
+
+.pda-screen :is(
+  .profile-hero,
+  .group-hero-card,
+  .apartment-hero-card,
+  .duty-member-profile
+)::after {
+  content: "";
+  position: absolute;
+  top: .55rem;
+  right: .55rem;
+  width: 5px;
+  height: 5px;
+  border: 1px solid #4c5052;
+  border-radius: 50%;
+  background: #0b0c0d;
+  box-shadow: inset 0 0 0 1px #000;
+  opacity: .7;
+  pointer-events: none;
+}
+
+.pda-screen :is(
+  .profile-hero-title,
+  .group-list-name,
+  .profile-list-name,
+  .profile-case-title,
+  .apartment-profile-title,
+  .apartment-list-card-title-row,
+  .duty-member-list-name
+) {
+  color: #e4e6e6;
+  font-family: "Arial Narrow", "Roboto Condensed", "Segoe UI", sans-serif;
+  font-weight: 700;
+  letter-spacing: .025em;
+}
+
+.pda-screen :is(
+  .profile-hero-subtitle,
+  .profile-list-meta,
+  .group-list-meta,
+  .dossier-context-cell-meta,
+  .stalker-note-meta,
+  .apartment-payment-notes,
+  .apartment-hero-notes,
+  .group-hero-note,
+  .profile-hero-note,
+  .duty-member-hero-lines,
+  .duty-member-list-copy
+) {
+  color: #8d9294;
+}
+
+.pda-screen :is(
+  .profile-hero-note,
+  .group-hero-note,
+  .apartment-hero-notes,
+  .duty-member-notes
+) {
+  border-left: 2px solid #5d171b;
+  background: rgba(0,0,0,.16);
+}
+
+.pda-screen :is(
+  .profile-quick-facts,
+  .dossier-context-strip,
+  .apartment-summary-facts,
+  .task-meta-strip,
+  .profile-record-facts,
+  .task-record-facts,
+  .trade-record-facts,
+  .violation-record-facts
+) {
+  border: 1px solid #2e3234;
+  border-radius: 0;
+  background: #0b0d0e;
+  box-shadow: inset 0 2px 5px rgba(0,0,0,.42);
+}
+
+.pda-screen :is(
+  .profile-quick-facts,
+  .dossier-context-strip,
+  .apartment-summary-facts,
+  .task-meta-strip
+) > * {
+  border-color: #2b2f31 !important;
+}
+
+.pda-screen :is(
+  .profile-column,
+  .dossier-context-cell,
+  .dossier-service-grid > *,
+  .registry-info-field,
+  .info-field
+) {
+  border-color: #2d3133;
+}
+
+/* ---------- photo / avatar hardware ---------- */
+
+.pda-screen :is(
+  .profile-photo-frame,
+  .profile-hero-photo,
+  .group-avatar-frame,
+  .dossier-group-avatar,
+  .member-avatar,
+  .duty-member-hero-photo,
+  .duty-member-photo-preview
+) {
+  border: 1px solid #4b4f51;
+  border-radius: 1px;
+  background:
+    linear-gradient(135deg, #25282a, #0b0d0e 68%);
+  box-shadow:
+    inset 0 0 0 2px #090a0b,
+    inset 0 1px 0 rgba(255,255,255,.06),
+    0 2px 5px rgba(0,0,0,.3);
+}
+
+.pda-screen :is(
+  .profile-photo-frame,
+  .profile-hero-photo,
+  .group-avatar-frame,
+  .dossier-group-avatar,
+  .member-avatar,
+  .duty-member-hero-photo
+) img {
+  filter: saturate(.72) contrast(1.05) brightness(.92);
+}
+
+.pda-screen :is(
+  .profile-photo-overlay,
+  .member-avatar-placeholder,
+  .profile-photo-state
+) {
+  background: rgba(6,7,7,.86);
+  color: #8d9294;
+  font-family: Consolas, "Lucida Console", monospace;
+  font-size: .68rem;
+  letter-spacing: .04em;
+}
+
+/* ---------- tabs / record selectors ---------- */
+
+.pda-screen :is(
+  .profile-section-tabs,
+  .groups-record-tabs,
+  .list-tabs,
+  .segmented-tabs,
+  .journal-tabs-grid,
+  .map-panel-tabs
+) {
+  gap: 1px;
+  border: 1px solid #34383a;
+  border-radius: 1px;
+  background: #080909;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,.65);
+}
+
+.pda-screen :is(
+  .profile-section-tab,
+  .groups-record-tab,
+  .list-tabs > button,
+  .segmented-tabs > button,
+  .journal-tabs-grid > button,
+  .map-panel-tabs > button
+) {
+  border: 0;
+  border-right: 1px solid #303436;
+  border-radius: 0 !important;
+  background:
+    linear-gradient(180deg, #202325 0, #111315 52%, #0d0f10 100%) !important;
+  color: #9fa4a5 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.04),
+    inset 0 -1px 0 rgba(0,0,0,.75);
+  font-family: "Arial Narrow", "Segoe UI", sans-serif;
+  font-weight: 700;
+  letter-spacing: .03em;
+}
+
+.pda-screen :is(
+  .profile-section-tab,
+  .groups-record-tab,
+  .list-tabs > button,
+  .segmented-tabs > button,
+  .journal-tabs-grid > button,
+  .map-panel-tabs > button
+):hover {
+  background:
+    linear-gradient(180deg, #2b2e30, #141617) !important;
+  color: #e8eaea !important;
+}
+
+.pda-screen :is(
+  .profile-section-tab-active,
+  .groups-record-tab-active,
+  .list-tabs > button[aria-selected="true"],
+  .segmented-tabs > button[aria-selected="true"],
+  .journal-tabs-grid > button[aria-selected="true"],
+  .map-panel-tabs > button[aria-selected="true"]
+) {
+  background:
+    linear-gradient(180deg, #4d171b 0, #251113 62%, #120c0d 100%) !important;
+  color: #fff !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.06),
+    inset 0 -2px 0 #c42b33 !important;
+}
+
+/* ---------- forms ---------- */
+
+.pda-screen :is(
+  .form-section,
+  .profile-create-grid,
+  .group-form-grid,
+  .group-role-modal-form,
+  .group-role-fields,
+  .profile-group-role-fields,
+  .task-form-grid,
+  .task-complete-grid,
+  .payment-form-stack,
+  .apartment-notes-form,
+  .duty-member-form-grid,
+  .map-object-form,
+  .map-form-grid,
+  .map-form-section,
+  .map-layer-create-form
+) {
+  border-color: #303436;
+}
+
+.pda-screen :is(
+  .form-section,
+  .map-form-section,
+  .map-panel-section
+) {
+  border: 1px solid #303436;
+  border-radius: 1px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.017), transparent),
+    #0e1011;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.022),
+    inset 0 -1px 0 rgba(0,0,0,.58);
+}
+
+.pda-screen :is(
+  .profile-create-wide,
+  .profile-notes-wide,
+  .task-form-wide,
+  .duty-member-form-wide,
+  .map-form-wide
+) {
+  border-top-color: #34383a;
+}
+
+.pda-screen :is(
+  .group-member-edit-row,
+  .member-role-controls,
+  .group-role-fields,
+  .profile-group-role-fields
+) {
+  background: #0b0d0e;
+}
+
+.pda-screen .form-error {
+  border: 1px solid #6e2025;
+  border-left: 3px solid #b12830;
+  border-radius: 1px;
+  background: #260d10;
+  color: #e0a2a6;
+  font-family: Consolas, "Lucida Console", monospace;
+}
+
+.pda-screen .draft-message,
+.pda-screen .table-message,
+.pda-screen .map-panel-message {
+  border: 1px solid #424648;
+  border-left: 3px solid #777d7f;
+  border-radius: 1px;
+  background: #111315;
+  color: #aeb2b3;
+}
+
+.pda-screen .map-panel-message-strong {
+  border-left-color: #a7272e;
+  color: #d5d7d7;
+}
+
+.pda-screen .map-panel-message-danger {
+  border-color: #682026;
+  border-left-color: #c12d35;
+  background: #220c0f;
+  color: #e8a8ac;
+}
+
+/* ---------- badges and status markings ---------- */
+
+.pda-screen :is(
+  .profile-badge,
+  .profile-state-badge,
+  .profile-affiliation-badge,
+  .badge-chip,
+  .apartment-count-badge,
+  .apartment-occupancy-badge,
+  .apartment-payment-status-badge,
+  .apartment-tenant-group-badge,
+  .task-status-badge,
+  .trade-record-type-badge,
+  .map-form-badge
+) {
+  min-height: 1.35rem;
+  border: 1px solid #464a4c;
+  border-radius: 1px;
+  background:
+    linear-gradient(180deg, #202325, #131516);
+  color: #bdc1c2;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.04),
+    inset 0 -1px 0 rgba(0,0,0,.65);
+  font-family: "Arial Narrow", "Segoe UI", sans-serif;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+}
+
+.pda-screen :is(
+  .badge-service-task-overdue,
+  .badge-service-violation-active,
+  .badge-task-overdue,
+  .trade-record-sale-badge
+) {
+  border-color: #78232a !important;
+  background: linear-gradient(180deg, #3b1115, #210b0e) !important;
+  color: #eca8ac !important;
+}
+
+.pda-screen :is(
+  .badge-service-group,
+  .badge-state-group,
+  .badge-task-active,
+  .badge-service-task-active,
+  .trade-record-purchase-badge
+) {
+  border-color: #4f5355 !important;
+  background: linear-gradient(180deg, #25282a, #161819) !important;
+  color: #d0d3d3 !important;
+}
+
+.pda-screen :is(
+  .badge-state-archive,
+  .badge-neutral,
+  .registry-status-badge-muted
+) {
+  border-color: #363a3c !important;
+  background: #111315 !important;
+  color: #747a7c !important;
+}
+
+/* ---------- notes and journal records ---------- */
+
+.pda-screen :is(
+  .stalker-notes-block,
+  .stalker-note-form,
+  .stalker-note-edit-form,
+  .apartment-notes-view,
+  .apartment-notes-form,
+  .group-hero-notes,
+  .profile-hero-notes
+) {
+  border-color: #303436;
+  background: #0d0f10;
+}
+
+.pda-screen .stalker-note-card {
+  border-left: 3px solid #4d5153;
+}
+
+.pda-screen .stalker-note-card:hover {
+  border-left-color: #7d1b20;
+}
+
+.pda-screen .stalker-note-footer {
+  border-top: 1px solid #292d2f;
+}
+
+.pda-screen .stalker-note-message,
+.pda-screen .stalker-note-text,
+.pda-screen .apartment-notes-text {
+  color: #c7caca;
+}
+
+.pda-screen :is(
+  .dossier-records-area,
+  .group-records-area,
+  .apartment-records-area,
+  .journals-detail
+) {
+  background: transparent;
+}
+
+.pda-screen :is(
+  .dossier-records-empty,
+  .group-records-empty,
+  .dossier-empty,
+  .journal-empty,
+  .apartment-detail-empty,
+  .profile-detail-empty,
+  .group-detail-empty,
+  .calculator-empty-state,
+  .entity-search-empty,
+  .compact-empty-state,
+  .empty-state
+) {
+  border: 1px dashed #34383a;
+  border-radius: 1px;
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255,255,255,.012) 0 6px,
+      transparent 6px 12px
+    ),
+    #0b0d0e;
+  color: #777d7f;
+  font-family: Consolas, "Lucida Console", monospace;
+}
+
+/* ---------- apartments ---------- */
+
+.pda-screen .apartment-list-card-divider,
+.pda-screen .apartment-payment-strip {
+  border-color: #2e3234;
+  background: #0b0d0e;
+}
+
+.pda-screen .apartment-list-metrics {
+  border-top: 1px solid #2b2f31;
+}
+
+.pda-screen .apartment-list-metric-value {
+  color: #d4d7d7;
+  font-family: Consolas, "Lucida Console", monospace;
+}
+
+.pda-screen .apartment-checkbox-list {
+  border: 1px solid #2f3335;
+  background: #090a0b;
+}
+
+.pda-screen .apartment-checkbox-row {
+  border-bottom: 1px solid #292d2f;
+  background: #0e1011;
+}
+
+.pda-screen .apartment-checkbox-row:hover {
+  background: #151719;
+}
+
+.pda-screen .apartment-checkbox-row-disabled {
+  color: #5e6365;
+  opacity: .64;
+}
+
+.pda-screen .apartment-payment-toggle {
+  border-color: #44484a;
+  background: #131516;
+}
+
+.pda-screen .apartment-payment-toggle:hover {
+  border-color: #65383b;
+  background: #211416;
+}
+
+/* ---------- calculator ---------- */
+
+.pda-screen .calculator-layout {
+  gap: var(--registry-gap);
+}
+
+.pda-screen .calculator-catalog-heading,
+.pda-screen .calculator-cart-card-head {
+  border-bottom: 1px solid #303436;
+}
+
+.pda-screen .calculator-catalog-table {
+  border: 1px solid #303436;
+  background: #0a0b0c;
+}
+
+.pda-screen .calculator-catalog-table thead {
+  background: #17191b;
+}
+
+.pda-screen .calculator-catalog-table tbody tr:nth-child(even) {
+  background: rgba(255,255,255,.012);
+}
+
+.pda-screen .calculator-catalog-table tbody tr:hover {
+  background: rgba(151,31,37,.09);
+}
+
+.pda-screen .calculator-category-label {
+  border-bottom: 1px solid #373b3d;
+  background:
+    linear-gradient(90deg, rgba(151,31,37,.15), transparent 55%),
+    #121415;
+  color: #c3c6c7;
+}
+
+.pda-screen :is(
+  .calculator-info-button,
+  .calculator-composition-button
+) {
+  border: 1px solid #44484a;
+  border-radius: 1px;
+  background: linear-gradient(180deg, #232628, #111315);
+  color: #aeb2b3;
+}
+
+.pda-screen :is(
+  .calculator-info-button,
+  .calculator-composition-button
+):hover {
+  border-color: #71383b;
+  color: #f0f1f1;
+}
+
+.pda-screen :is(
+  .calculator-info-tooltip,
+  .calculator-composition-tooltip
+) {
+  border: 1px solid #555a5c;
+  border-top: 2px solid #7d1b21;
+  border-radius: 1px;
+  background: #0d0f10;
+  box-shadow: 5px 7px 18px rgba(0,0,0,.55);
+}
+
+.pda-screen .calculator-tooltip-content,
+.pda-screen .calculator-composition-tooltip-content {
+  color: #c5c8c8;
+}
+
+.pda-screen .calculator-quantity-control {
+  border: 1px solid #35393b;
+  background: #080909;
+}
+
+.pda-screen .calculator-total-block,
+.pda-screen .calculator-cart-sums {
+  border: 1px solid #3a3e40;
+  border-left: 3px solid #7a1a1f;
+  background:
+    linear-gradient(90deg, rgba(151,31,37,.10), transparent 54%),
+    #0c0e0f;
+  box-shadow: inset 0 2px 5px rgba(0,0,0,.42);
+}
+
+.pda-screen :is(
+  .calculator-cart-sum-general,
+  .calculator-cart-sum-partner,
+  .calculator-cart-sum-tenant,
+  .calculator-price-value
+) {
+  font-family: Consolas, "Lucida Console", monospace;
+}
+
+.pda-screen .calculator-price-value-general,
+.pda-screen .calculator-cart-sum-general {
+  color: #d7dada;
+}
+
+.pda-screen .calculator-price-value-partner,
+.pda-screen .calculator-cart-sum-partner {
+  color: #bfc3c4;
+}
+
+.pda-screen .calculator-price-value-tenant,
+.pda-screen .calculator-cart-sum-tenant {
+  color: #e2a4a8;
+}
+
+/* ---------- personnel / access registry ---------- */
+
+.pda-screen .duty-members-layout {
+  gap: var(--registry-gap);
+}
+
+.pda-screen .duty-member-list-section {
+  border: 1px solid #2e3234;
+  border-radius: 1px;
+  background: #0c0e0f;
+}
+
+.pda-screen .duty-member-list-section-archived {
+  opacity: .76;
+}
+
+.pda-screen .duty-member-list-section-heading {
+  border-bottom: 1px solid #303436;
+  background: #141617;
+}
+
+.pda-screen .duty-member-list-line {
+  border-bottom: 1px solid #292d2f;
+}
+
+.pda-screen .duty-member-list-line:hover {
+  background:
+    linear-gradient(90deg, rgba(151,31,37,.13), transparent 46%),
+    #121415;
+}
+
+.pda-screen .duty-member-access-filter {
+  border: 1px solid #323638;
+  background: #0b0d0e;
+}
+
+.pda-screen .duty-member-profile-section,
+.pda-screen .profile-detail-block {
+  border: 1px solid #303436;
+  border-radius: 1px;
+  background: #0e1011;
+}
+
+.pda-screen .registry-info-grid,
+.pda-screen .profile-card-grid {
+  gap: 1px;
+  border: 1px solid #303436;
+  background: #303436;
+}
+
+.pda-screen .registry-info-field,
+.pda-screen .profile-card-grid > * {
+  border: 0;
+  background: #0e1011;
+}
+
+.pda-screen .registry-info-field dt {
+  color: #7e8486;
+  font-family: Consolas, "Lucida Console", monospace;
+  font-size: .68rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.pda-screen .registry-info-field dd {
+  color: #d0d3d3;
+}
+
+/* ---------- entity pickers ---------- */
+
+.pda-screen .entity-search-picker {
+  border: 1px solid #34383a;
+  border-radius: 1px;
+  background: #0b0d0e;
+}
+
+.pda-screen .entity-search-results {
+  border: 1px solid #3a3e40;
+  background: #0a0b0c;
+  box-shadow: 4px 7px 16px rgba(0,0,0,.48);
+}
+
+.pda-screen .entity-search-row {
+  border-bottom: 1px solid #2c3032;
+}
+
+.pda-screen .entity-selected-row {
+  border-left: 3px solid #68171c;
+}
+
+/* ---------- pagination ---------- */
+
+.pda-screen .pagination-row {
+  border-top: 1px solid #303436;
+  background: #0d0f10;
+}
+
+.pda-screen .pagination-button {
+  min-width: 2rem;
+  border: 1px solid #44484a;
+  background: linear-gradient(180deg, #25282a, #121415);
+  color: #afb3b4;
+}
+
+.pda-screen .pagination-button:hover:not(:disabled) {
+  border-color: #72393c;
+  background: #201315;
+  color: #fff;
+}
+
+/* ---------- map workstation ---------- */
+
+.map-page-screen {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.018), transparent 3rem),
+    #08090a;
+}
+
+.pda-screen .map-page-layout {
+  gap: var(--registry-gap);
+}
+
+.pda-screen .map-work-area {
+  border: 1px solid #34383a;
+  border-radius: 1px;
+  background: #080909;
+  box-shadow:
+    inset 0 0 0 1px #050606,
+    0 4px 10px rgba(0,0,0,.22);
+}
+
+.pda-screen .map-viewer-shell {
+  border: 1px solid #45494b;
+  border-radius: 1px;
+  background: #050606;
+  box-shadow:
+    inset 0 0 0 2px #090a0b,
+    0 3px 9px rgba(0,0,0,.3);
+}
+
+.pda-screen .map-viewer-toolbar,
+.pda-screen .map-viewer-controls,
+.pda-screen .map-viewer-state,
+.pda-screen .map-viewer-coordinates,
+.pda-screen .map-viewer-scale {
+  border-color: #3a3e40;
+  border-radius: 1px;
+  background: rgba(10,11,12,.94);
+  color: #aeb2b3;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.035),
+    0 2px 6px rgba(0,0,0,.45);
+  font-family: Consolas, "Lucida Console", monospace;
+}
+
+.pda-screen .map-viewer-mode {
+  border: 1px solid #424648;
+  border-radius: 1px;
+  background: linear-gradient(180deg, #25282a, #111315);
+  color: #9fa4a5;
+}
+
+.pda-screen .map-viewer-mode:hover,
+.pda-screen .map-viewer-mode-active {
+  border-color: #7b252a;
+  background: linear-gradient(180deg, #47171a, #1e1012);
+  color: #fff;
+}
+
+.pda-screen .map-panel-section {
+  border-bottom: 1px solid #303436;
+  background: #0e1011;
+}
+
+.pda-screen .map-panel-section-last {
+  border-bottom: 0;
+}
+
+.pda-screen .map-panel-action-grid,
+.pda-screen .map-radius-presets,
+.pda-screen .map-marker-size-presets {
+  gap: 1px;
+  border: 1px solid #2f3335;
+  background: #080909;
+}
+
+.pda-screen .map-preset-button {
+  border: 1px solid #3c4042;
+  border-radius: 0;
+  background: linear-gradient(180deg, #212426, #101213);
+  color: #aeb2b3;
+}
+
+.pda-screen .map-preset-button:hover,
+.pda-screen .map-choice-active,
+.pda-screen .map-command-active {
+  border-color: #743237 !important;
+  background: linear-gradient(180deg, #37171a, #1b1012) !important;
+  color: #fff !important;
+}
+
+.pda-screen .map-layer-list,
+.pda-screen .map-object-list,
+.pda-screen .map-route-list {
+  border: 1px solid #2f3335;
+  background: #090a0b;
+}
+
+.pda-screen .map-layer-row {
+  border-bottom: 1px solid #2d3133;
+  border-radius: 0;
+}
+
+.pda-screen .map-layer-row:hover {
+  background:
+    linear-gradient(90deg, rgba(151,31,37,.13), transparent),
+    #131516;
+}
+
+.pda-screen .map-layer-toggle {
+  accent-color: #ad252c;
+}
+
+.pda-screen .map-layer-actions {
+  border-left: 1px solid #303436;
+}
+
+.pda-screen .map-visual-select-field {
+  border: 1px solid #3c4042;
+  border-radius: 1px;
+  background: #090a0b;
+}
+
+.pda-screen .map-visual-select-menu {
+  border: 1px solid #4d5153;
+  border-top: 2px solid #78191f;
+  border-radius: 1px;
+  background: #0c0e0f;
+  box-shadow: 5px 8px 18px rgba(0,0,0,.56);
+}
+
+.pda-screen .map-visual-select-option {
+  border-bottom: 1px solid #2b2f31;
+  background: #0e1011;
+  color: #aeb2b3;
+}
+
+.pda-screen .map-visual-select-option:hover,
+.pda-screen .map-visual-select-option-active {
+  background:
+    linear-gradient(90deg, rgba(151,31,37,.27), transparent),
+    #151719;
+  color: #fff;
+}
+
+.pda-screen :is(
+  .map-marker-popover,
+  .map-route-panel-overview
+) {
+  border: 1px solid #4d5153;
+  border-top: 2px solid #7d1b20;
+  border-radius: 1px;
+  background: #0d0f10;
+  box-shadow: 5px 8px 18px rgba(0,0,0,.58);
+}
+
+.pda-screen .map-marker-popover-head {
+  border-bottom: 1px solid #323638;
+}
+
+.pda-screen .map-marker-popover-description,
+.pda-screen .map-marker-popover-details,
+.pda-screen .map-form-hint,
+.pda-screen .map-form-info-line {
+  color: #929799;
+}
+
+.pda-screen .map-route-builder-progress {
+  border: 1px solid #34383a;
+  background: #090a0b;
+  color: #8e9395;
+  font-family: Consolas, "Lucida Console", monospace;
+}
+
+.pda-screen .map-route-builder-progress-ready {
+  border-color: #6e2429;
+  color: #d6d9d9;
+  box-shadow: inset 3px 0 0 #9e2229;
+}
+
+/* Map markers retain semantic colors; their shell becomes PDA-like. */
+.pda-screen .map-marker-icon {
+  border: 1px solid rgba(230,233,233,.32);
+  box-shadow:
+    0 0 0 2px rgba(0,0,0,.65),
+    0 2px 5px rgba(0,0,0,.38);
+}
+
+.pda-screen .map-marker--selected .map-marker-icon,
+.pda-screen .map-label--selected,
+.pda-screen .map-route-group--selected {
+  filter: brightness(1.12);
+  outline: 1px solid rgba(207,48,56,.82);
+  outline-offset: 2px;
+}
+
+/* ---------- modals / dialogs ---------- */
+
+.pda-modal-backdrop {
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.009) 0 1px, transparent 1px 4px),
+    rgba(0,0,0,.80);
+}
+
+.pda-screen :is(
+  .pda-modal,
+  .journal-modal,
+  .journal-action-modal,
+  .task-modal,
+  .task-complete-modal,
+  .duty-member-modal,
+  .map-marker-modal,
+  .confirm-dialog
+) {
+  border: 1px solid #555a5c;
+  border-top: 2px solid #8d2027;
+  border-radius: 1px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.027), transparent 3.2rem),
+    #111315;
+  box-shadow:
+    0 0 0 2px #050606,
+    8px 12px 30px rgba(0,0,0,.62);
+}
+
+.pda-screen :is(
+  .pda-modal,
+  .journal-modal,
+  .journal-action-modal,
+  .task-modal,
+  .task-complete-modal,
+  .duty-member-modal,
+  .map-marker-modal,
+  .confirm-dialog
+) .modal-header {
+  border-bottom: 1px solid #414547;
+  background:
+    linear-gradient(180deg, #1d2022, #121415);
+}
+
+.pda-screen .modal-body {
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.008) 0 1px, transparent 1px 5px),
+    transparent;
+}
+
+.pda-screen .modal-actions,
+.pda-screen .confirm-dialog-actions {
+  border-top: 1px solid #393d3f;
+  background: #0d0f10;
+}
+
+.pda-screen .confirm-dialog-confirm {
+  border-radius: 1px;
+}
+
+.pda-screen .confirm-dialog-confirm-danger,
+.pda-screen .confirm-dialog-confirm-warning {
+  border-color: #8a262c !important;
+  background: linear-gradient(180deg, #9d232a, #5a1015) !important;
+  color: #fff !important;
+}
+
+/* ---------- buttons: normalize secondary, primary and destructive ---------- */
+
+.pda-screen :is(
+  .primary-command,
+  .profile-create-button,
+  .duty-member-add-button,
+  .calculator-add-button,
+  .tenant-modal-command,
+  .journal-modal-submit,
+  .journal-modal-submit-confirm
+) {
+  border: 1px solid #87242a !important;
+  border-top-color: #b64046 !important;
+  border-bottom-color: #460b0f !important;
+  border-radius: 1px !important;
+  background:
+    linear-gradient(180deg, #a5262d 0, #77171c 49%, #540f13 51%, #681218 100%) !important;
+  color: #f7f8f8 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.14),
+    inset 0 -1px 0 rgba(0,0,0,.7),
+    0 1px 2px rgba(0,0,0,.42) !important;
+  font-weight: 700;
+  text-shadow: 0 1px 0 #260406;
+}
+
+.pda-screen :is(
+  .primary-command,
+  .profile-create-button,
+  .duty-member-add-button,
+  .calculator-add-button,
+  .tenant-modal-command,
+  .journal-modal-submit,
+  .journal-modal-submit-confirm
+):hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+.pda-screen :is(
+  .command-row,
+  .task-action-button,
+  .group-record-action,
+  .dossier-record-action,
+  .duty-member-action-button,
+  .map-layer-action-button,
+  .map-preset-button,
+  .pagination-button,
+  .calculator-quantity-button,
+  .calculator-composition-button,
+  .calculator-info-button
+) {
+  font-family: "Arial Narrow", "Segoe UI", sans-serif;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.pda-screen :is(
+  .duty-member-danger-action,
+  .group-remove-button,
+  .calculator-remove-button,
+  .calculator-clear-button,
+  .map-layer-action-button-delete,
+  .journal-modal-submit-warning
+) {
+  border: 1px solid #6d1e24 !important;
+  border-radius: 1px !important;
+  background: linear-gradient(180deg, #341014, #1d0a0c) !important;
+  color: #e4a2a6 !important;
+}
+
+.pda-screen :is(
+  .duty-member-danger-action,
+  .group-remove-button,
+  .calculator-remove-button,
+  .calculator-clear-button,
+  .map-layer-action-button-delete,
+  .journal-modal-submit-warning
+):hover:not(:disabled) {
+  border-color: #a32931 !important;
+  background: linear-gradient(180deg, #4c1318, #270b0f) !important;
+  color: #ffd3d6 !important;
+}
+
+/* ---------- home / login polish ---------- */
+
+.welcome-service-panel,
+.login-status-list {
+  border: 1px solid #303436;
+  border-radius: 1px;
+  background: #0b0d0e;
+  box-shadow: inset 0 2px 5px rgba(0,0,0,.48);
+}
+
+.welcome-service-panel-head,
+.login-briefing-topline {
+  border-bottom: 1px solid #313537;
+  background: #131516;
+  color: #bec2c2;
+  font-family: Consolas, "Lucida Console", monospace;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+
+.welcome-service-list > *,
+.login-status-list > * {
+  border-color: #292d2f !important;
+}
+
+.welcome-text,
+.login-card-header p,
+.login-briefing-copy p {
+  color: #858a8c;
+}
+
+.login-error {
+  border: 1px solid #6d2026;
+  border-left: 3px solid #b72b33;
+  border-radius: 1px;
+  background: #250c0f;
+  color: #e2a4a8;
+}
+
+/* ---------- typography consistency ---------- */
+
+.pda-screen :is(
+  .profile-record-title,
+  .task-record-header,
+  .calculator-card-title-line,
+  .apartment-tenant-title-row,
+  .group-member-summary,
+  .member-identity
+) {
+  color: #dadddd;
+  font-family: "Arial Narrow", "Roboto Condensed", "Segoe UI", sans-serif;
+  font-weight: 700;
+}
+
+.pda-screen :is(
+  .profile-record-subtitle,
+  .profile-record-muted,
+  .action-author-line,
+  .map-form-hint,
+  .dossier-context-cell-meta
+) {
+  color: #7f8587;
+}
+
+.pda-screen :is(
+  .profile-record-due,
+  .calculator-price-value,
+  .apartment-list-metric-value,
+  .map-viewer-coordinates,
+  .map-viewer-scale
+) {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- scrollbar / selection ---------- */
+
+.pda-content,
+.map-side-panel,
+.modal-body,
+.entity-search-results,
+.calculator-catalog-list,
+.calculator-cart-list,
+.profile-list,
+.group-member-list,
+.duty-member-list {
+  scrollbar-width: thin;
+  scrollbar-color: #5d171b #090a0b;
+}
+
+::selection {
+  background: #762027;
+  color: #fff;
+}
+
+/* ---------- responsive consistency ---------- */
+
+@media (max-width: 900px) {
+  .pda-screen :is(
+    .profile-hero,
+    .group-hero-card,
+    .apartment-hero-card,
+    .duty-member-profile
+  )::after {
+    display: none;
+  }
+
+  .pda-screen :is(
+    .filter-bar,
+    .journal-filter-bar,
+    .calculator-filters,
+    .duty-member-search-filter-row
+  ) {
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+  }
+}
+
+@media (max-width: 640px) {
+  .pda-screen :is(
+    .profile-section-tabs,
+    .groups-record-tabs,
+    .journal-tabs-grid,
+    .map-panel-tabs
+  ) {
+    overflow-x: auto;
+  }
+
+  .pda-screen :is(
+    .profile-section-tab,
+    .groups-record-tab,
+    .journal-tabs-grid > button,
+    .map-panel-tabs > button
+  ) {
+    white-space: nowrap;
+  }
+}
+
+/* ---------- shared component primitives ---------- */
+
+.pda-screen .ui-page-header {
+  border: 1px solid #373b3d;
+  border-left: 4px solid #74171c;
+  border-radius: 1px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.028), transparent 3rem),
+    #111315;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.035),
+    0 4px 10px rgba(0,0,0,.20);
+}
+
+.pda-screen .ui-page-header-copy p {
+  color: #858b8d;
+}
+
+.pda-screen .ui-header-meta {
+  border: 1px solid #3b3f41;
+  background: #090a0b;
+  color: #9da2a4;
+  padding: .28rem .48rem;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,.62);
+}
+
+.pda-screen .ui-stat-card {
+  position: relative;
+  border: 1px solid #35393b;
+  border-radius: 1px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.022), transparent),
+    #0f1112;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.025),
+    inset 0 -1px 0 rgba(0,0,0,.62);
+}
+
+.pda-screen .ui-stat-card::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: -1px;
+  bottom: -1px;
+  width: 2px;
+  background: #68161b;
+}
+
+.pda-screen .ui-stat-card > span {
+  color: #777d7f;
+  font-family: Consolas, "Lucida Console", monospace;
+  letter-spacing: .065em;
+  text-transform: uppercase;
+}
+
+.pda-screen .ui-stat-card > strong {
+  color: #e0e3e3;
+  font-family: Consolas, "Lucida Console", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.pda-screen .ui-stat-card > p {
+  color: #959a9c;
+}
+
+.pda-screen .ui-panel-accent {
+  border-left: 3px solid #7f1b21;
+}
+
+.pda-screen .ui-panel-muted {
+  opacity: .78;
+}
+
+.pda-screen .action-author-line {
+  border-left: 2px solid #4e5254;
+  padding-left: .55rem;
+  color: #797f81;
+  font-family: Consolas, "Lucida Console", monospace;
+  font-size: .70rem;
+}
+
+.pda-screen .action-author-line > span {
+  color: #a7abad;
+}
+
+/* ---------- record card internals ---------- */
+
+.pda-screen .interactive-card {
+  transition:
+    border-color .1s linear,
+    background-color .1s linear,
+    box-shadow .1s linear;
+}
+
+.pda-screen .interactive-card:hover {
+  border-color: #4d3a3c;
+}
+
+.pda-screen .task-record-header {
+  border-bottom: 1px solid #303436;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.016), transparent),
+    #121415;
+}
+
+.pda-screen .task-item-mainline > strong,
+.pda-screen .profile-record-title > strong {
+  color: #dce0e0;
+  font-family: "Arial Narrow", "Roboto Condensed", "Segoe UI", sans-serif;
+  letter-spacing: .018em;
+}
+
+.pda-screen .profile-record-subtitle {
+  color: #858b8d;
+}
+
+.pda-screen :is(
+  .profile-record-facts,
+  .task-record-facts,
+  .trade-record-facts,
+  .violation-record-facts
+) dt {
+  color: #747a7c;
+  font-family: Consolas, "Lucida Console", monospace;
+  font-size: .67rem;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+
+.pda-screen :is(
+  .profile-record-facts,
+  .task-record-facts,
+  .trade-record-facts,
+  .violation-record-facts
+) dd {
+  color: #c3c7c7;
+}
+
+.pda-screen .profile-record-emphasis {
+  color: #e0e2e2 !important;
+  font-weight: 700;
+}
+
+.pda-screen .profile-record-due {
+  font-family: Consolas, "Lucida Console", monospace;
+}
+
+.pda-screen .profile-record-due-future {
+  color: #c6c9ca !important;
+}
+
+.pda-screen .profile-record-due-neutral {
+  color: #9ba0a2 !important;
+}
+
+.pda-screen .profile-record-due-today {
+  color: #e6c7c9 !important;
+  text-shadow: 0 0 7px rgba(183,43,51,.22);
+}
+
+.pda-screen .profile-record-due-overdue {
+  color: #f0a0a5 !important;
+  text-shadow: 0 0 7px rgba(207,48,56,.30);
+}
+
+.pda-screen .profile-record-alert {
+  border-left: 3px solid #9b2229 !important;
+  background:
+    linear-gradient(90deg, rgba(151,31,37,.11), transparent 48%),
+    #101213;
+}
+
+.pda-screen .profile-record-muted {
+  opacity: .78;
+}
+
+.pda-screen :is(
+  .profile-record-notes,
+  .profile-record-items
+) {
+  border: 1px solid #2e3234;
+  border-radius: 1px;
+  background: #0b0d0e;
+}
+
+.pda-screen :is(
+  .profile-record-notes,
+  .profile-record-items
+) > span:first-child {
+  color: #7d8385;
+  font-family: Consolas, "Lucida Console", monospace;
+  font-size: .67rem;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+
+.pda-screen .profile-record-notes p {
+  color: #b9bdbd;
+}
+
+.pda-screen .profile-record-items > div {
+  border-top: 1px solid #292d2f;
+}
+
+.pda-screen .profile-record-items > div > strong {
+  color: #ced1d1;
+}
+
+.pda-screen .profile-record-items > div > span {
+  color: #858b8d;
+  font-family: Consolas, "Lucida Console", monospace;
+}
+
+.pda-screen .task-record-completed,
+.pda-screen .task-record-cancelled {
+  opacity: .77;
+}
+
+.pda-screen .task-record-active {
+  border-left: 3px solid #555a5c;
+}
+
+.pda-screen .trade-record-sale {
+  border-left: 3px solid #7f1b21;
+}
+
+.pda-screen .trade-record-purchase {
+  border-left: 3px solid #555a5c;
+}
+
+/* ---------- journals summary ---------- */
+
+.pda-screen .journal-overview {
+  border: 1px solid #383c3e;
+  border-left: 4px solid #72171c;
+  border-radius: 1px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.022), transparent),
+    #111315;
+}
+
+.pda-screen .journal-overview-copy {
+  color: #aeb2b3;
+}
+
+.pda-screen .journal-title-block {
+  border-bottom: 1px solid #35393b;
+}
+
+.pda-screen .journal-stats {
+  gap: 1px;
+  border: 1px solid #303436;
+  background: #303436;
+}
+
+.pda-screen .journal-stat {
+  border: 0;
+  border-radius: 0;
+  background: #0e1011;
+}
+
+.pda-screen .journal-stat > strong {
+  color: #e0e2e2;
+  font-family: Consolas, "Lucida Console", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.pda-screen .journal-stat > span {
+  color: #777d7f;
+  font-family: Consolas, "Lucida Console", monospace;
+  font-size: .67rem;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+/* ---------- profile / group record strips ---------- */
+
+.pda-screen .dossier-context-strip {
+  box-shadow: inset 0 2px 5px rgba(0,0,0,.48);
+}
+
+.pda-screen .dossier-context-cell {
+  background: #0c0e0f;
+}
+
+.pda-screen .dossier-context-cell-group {
+  border-left: 2px solid #62161a;
+}
+
+.pda-screen .dossier-group-main,
+.pda-screen .group-hero-main,
+.pda-screen .profile-hero-main {
+  min-width: 0;
+}
+
+.pda-screen .dossier-group-copy,
+.pda-screen .group-member-summary {
+  color: #b5b9ba;
+}
+
+.pda-screen .group-hero-notes,
+.pda-screen .profile-hero-notes {
+  border-top: 1px solid #303436;
+}
+
+.pda-screen .group-member-list,
+.pda-screen .detailed-member-list,
+.pda-screen .relation-list,
+.pda-screen .apartment-tenant-list,
+.pda-screen .apartment-payment-list,
+.pda-screen .task-list {
+  border-color: #303436;
+}
+
+.pda-screen .group-member-row,
+.pda-screen .detailed-member-row,
+.pda-screen .relation-row,
+.pda-screen .apartment-tenant-row {
+  border-bottom-color: #292d2f;
+}
+
+.pda-screen .group-member-row:last-child,
+.pda-screen .detailed-member-row:last-child,
+.pda-screen .relation-row:last-child,
+.pda-screen .apartment-tenant-row:last-child {
+  border-bottom: 0;
+}
+
+/* ---------- topbar remaining elements ---------- */
+
+.pda-user-email {
+  max-width: 12rem;
+  border-left: 1px solid #35393b;
+  padding-left: .65rem;
+  color: #8f9496;
+  font-family: Consolas, "Lucida Console", monospace;
+  font-size: .70rem;
+}
+
+.pda-nav-dropdown-caret {
+  color: #777c7e;
+}
+
+.pda-main-nav,
+.registry-main-nav {
+  background: transparent;
+}
+
+/* ---------- static auth / loading state ---------- */
+
+.login-card .login-error + .login-submit,
+.login-shell .login-submit {
+  min-height: 2.7rem;
+}
+
+.login-page-grid {
+  opacity: .42;
+  background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,.018) 0 1px, transparent 1px 64px),
+    repeating-linear-gradient(0deg, rgba(255,255,255,.014) 0 1px, transparent 1px 64px);
+}
+
+/* ---------- map geometry states ---------- */
+
+.pda-screen .map-label {
+  font-family: "Arial Narrow", "Segoe UI", sans-serif;
+  text-shadow:
+    0 1px 0 #000,
+    0 0 4px rgba(0,0,0,.75);
+}
+
+.pda-screen .map-label-draft,
+.pda-screen .map-marker-draft,
+.pda-screen .map-route-draft,
+.pda-screen .map-zone-draft {
+  filter: saturate(.75) brightness(1.08);
+  opacity: .88;
+}
+
+.pda-screen .map-route-double-shadow {
+  opacity: .74;
+}
+
+.pda-screen .map-route-hit-area {
+  cursor: pointer;
+}
+
+.pda-screen .map-viewer-viewport-drawing,
+.pda-screen .map-viewer-viewport-picking,
+.pda-screen .map-viewer-viewport-marker-preview {
+  box-shadow: inset 0 0 0 2px rgba(139,31,37,.38);
+}
+
+/* ---------- focus, disabled and motion consistency ---------- */
+
+.pda-screen :is(
+  button,
+  a,
+  input,
+  select,
+  textarea
+):focus-visible {
+  outline: 1px solid #c42b33 !important;
+  outline-offset: 2px;
+}
+
+.pda-screen button:disabled,
+.pda-screen input:disabled,
+.pda-screen select:disabled,
+.pda-screen textarea:disabled {
+  opacity: .48;
+  filter: grayscale(.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .interactive-card {
+    transition: none !important;
+  }
+}
