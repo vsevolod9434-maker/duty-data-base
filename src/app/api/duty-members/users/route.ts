@@ -94,6 +94,10 @@ export async function POST(request: Request) {
     return createDutyMemberErrorResponse("Выберите уровень допуска.");
   }
 
+  if (auth.role === "officer" && role === "officer") {
+    return createDutyMemberErrorResponse("Доступ к операции запрещён.", 403);
+  }
+
   const memberData = buildDutyMemberData({
     ...payload,
     accessLogin: payload.login,
