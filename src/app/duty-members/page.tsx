@@ -729,7 +729,7 @@ export default function DutyMembersPage() {
       return false;
     }
 
-    if (currentUser.role === "officer" && member.access.role === "system_admin") {
+    if (currentUser.role === "officer" && (member.access.role === "system_admin" || member.access.role === "officer")) {
       return false;
     }
 

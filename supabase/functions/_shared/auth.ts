@@ -135,7 +135,7 @@ export function canManageTargetAccess(
     return { ok: false as const, message: "Нельзя выполнить действие над собственным профилем." };
   }
 
-  if (actor.role === "officer" && target.role === "system_admin") {
+  if (actor.role === "officer" && (target.role === "system_admin" || target.role === "officer")) {
     return { ok: false as const, message: "Доступ к приказу запрещён." };
   }
 

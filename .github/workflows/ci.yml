@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+    branches: ["main"]
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+      NEXT_PUBLIC_SUPABASE_URL: https://xtvrvocckogqvwcgetrz.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_viYzc4U7oueN_e2LTqcBKw_vPUz-Ja6
+      NEXT_PUBLIC_ACCESS_ADMIN_FUNCTION_URL: https://xtvrvocckogqvwcgetrz.supabase.co/functions/v1/access-admin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        env:
+          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test and typecheck
+        run: npm test
+
+      - name: Build static site
+        run: npm run build:pages
