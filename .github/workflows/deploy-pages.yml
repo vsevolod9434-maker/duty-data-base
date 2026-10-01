@@ -19,10 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-      NEXT_PUBLIC_ACCESS_ADMIN_FUNCTION_URL: ${{ vars.NEXT_PUBLIC_ACCESS_ADMIN_FUNCTION_URL }}
+      NEXT_PUBLIC_SUPABASE_URL: https://xtvrvocckogqvwcgetrz.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_viYzc4U7oueN_e2LTqcBKw_vPUz-Ja6
+      NEXT_PUBLIC_ACCESS_ADMIN_FUNCTION_URL: https://xtvrvocckogqvwcgetrz.supabase.co/functions/v1/access-admin
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
