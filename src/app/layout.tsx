@@ -3,6 +3,7 @@ import { DutyQueryProvider } from "@/components/providers/DutyQueryProvider";
 import { StaticAuthGate } from "@/components/providers/StaticAuthGate";
 import "./globals.css";
 import "./pda-2009-theme.css";
+import "./pda-2009-complete.css";
 
 export const metadata: Metadata = {
   title: "Система учёта «Долг»",
