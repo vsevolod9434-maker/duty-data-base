@@ -44,7 +44,7 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel, onSubt
     null;
 
   useEffect(() => {
-    if (!currentUserQuery.error) {
+    if (!currentUserQuery.error || process.env.NEXT_PUBLIC_STATIC_EXPORT === "true") {
       return;
     }
 
@@ -61,7 +61,9 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel, onSubt
 
     try {
       const supabase = createSupabaseBrowserClient();
-      await supabase.auth.signOut();
+      await supabase.auth.signOut(
+        process.env.NEXT_PUBLIC_STATIC_EXPORT === "true" ? { scope: "local" } : undefined,
+      );
     } finally {
       queryClient.clear();
       router.replace("/login");
