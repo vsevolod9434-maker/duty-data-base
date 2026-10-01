@@ -67,6 +67,10 @@ export async function PATCH(request: Request, context: DutyMemberContext) {
     return createDutyMemberErrorResponse(data.error);
   }
 
+  if (data.value.serviceStatus === "discharged") {
+    return createDutyMemberErrorResponse("Используйте приказ «Исключить из состава».", 400);
+  }
+
   const prisma = getPrismaClient();
   const currentMember = await prisma.dutyMember
     .findUnique({
@@ -79,7 +83,7 @@ export async function PATCH(request: Request, context: DutyMemberContext) {
     return createDutyMemberErrorResponse("Профиль не найден.", 404);
   }
 
-  if (auth.role === "officer" && currentMember.accessUser?.role === "system_admin") {
+  if (auth.role === "officer" && (currentMember.accessUser?.role === "system_admin" || currentMember.accessUser?.role === "officer")) {
     return createDutyMemberErrorResponse("Доступ к операции запрещён.", 403);
   }
 
@@ -111,7 +115,7 @@ export async function PATCH(request: Request, context: DutyMemberContext) {
     return createDutyMemberErrorResponse("Доступ к операции запрещён.", 403);
   }
 
-  if (auth.role === "officer" && accessUser?.role === "system_admin") {
+  if (auth.role === "officer" && (accessUser?.role === "system_admin" || accessUser?.role === "officer")) {
     return createDutyMemberErrorResponse("Доступ к операции запрещён.", 403);
   }
 
@@ -120,6 +124,10 @@ export async function PATCH(request: Request, context: DutyMemberContext) {
 
   if (!requestedAccessRole) {
     return createDutyMemberErrorResponse("Выберите уровень допуска.");
+  }
+
+  if (auth.role === "officer" && requestedAccessRole === "officer") {
+    return createDutyMemberErrorResponse("Доступ к операции запрещён.", 403);
   }
 
   if (auth.accessUser.id === accessUser.id && requestedAccessRole !== accessUser.role) {
