@@ -125,11 +125,10 @@ const serviceStatusLabels: Record<DutyServiceStatus, string> = {
   discharged: "Исключён",
 };
 
-const serviceStatusOptions: Array<{ label: string; value: DutyServiceStatus }> = [
+const serviceStatusOptions: Array<{ label: string; value: Exclude<DutyServiceStatus, "discharged"> }> = [
   { label: "В строю", value: "active" },
   { label: "В резерве", value: "leave" },
   { label: "Временно отстранён", value: "wounded" },
-  { label: "Исключён", value: "discharged" },
 ];
 
 const accessFilters: Array<{ label: string; value: DutyAccessFilter }> = [
@@ -749,7 +748,7 @@ export default function DutyMembersPage() {
   }
 
   function canEditProfileTarget(member: DutyMember) {
-    return Boolean(canUseAccessAdminAction() && canManageTarget(member));
+    return Boolean(canUseAccessAdminAction() && canManageTarget(member) && !isExcludedMember(member));
   }
 
   function canUpdateAccessTarget(member: DutyMember) {
