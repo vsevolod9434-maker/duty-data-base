@@ -92,14 +92,11 @@ begin
 end
 $$;
 
-create policy access_user_select_self_or_officer
+create policy access_user_select_active_user
 on public."AccessUser"
 for select
 to authenticated
-using (
-  "authUserId" = auth.uid()
-  or public.current_access_role() in ('system_admin', 'officer')
-);
+using (public.is_active_access_user());
 
 create policy duty_member_select_active_user
 on public."DutyMember"
