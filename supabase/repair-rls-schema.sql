@@ -1,18 +1,25 @@
--- Repair для БД, где RLS helpers/policies были применены не полностью
--- или helper-функции оказались не в схеме private.
+-- Emergency repair wrapper for the current RLS model.
+-- Keep this file synchronized with supabase/rls-policies.sql.
+-- Apply manually only when an existing project has incomplete or drifted RLS.
+-- The canonical policy definitions below are intentionally identical to the
+-- current rls-policies.sql so a repair cannot silently weaken production.
+
+-- Duty RP Control System: минимальные политики для статического GitHub Pages клиента.
 --
--- Скрипт:
--- - транзакционный и идемпотентный;
--- - не отключает RLS;
--- - пересоздаёт только политики duty_pages_*;
--- - не предоставляет USAGE схемы private браузерным ролям;
--- - не применяется автоматически.
+-- ВАЖНО:
+-- 1. Этот файл не применяется автоматически.
+-- 2. Он не отключает RLS.
+-- 3. Выполняйте его только после проверки на тестовом проекте Supabase.
+-- 4. Роли system_admin/officer ниже являются значениями public."AccessUser"."role",
+--    а не PostgreSQL-ролями и не service_role.
 
 begin;
 
 create schema if not exists private;
 revoke all on schema private from public, anon, authenticated;
 
+-- Убираем браузерный EXECUTE с инфраструктурной security-definer функции.
+-- Event trigger продолжает вызывать её от имени владельца.
 do $$
 begin
   if to_regprocedure('public.rls_auto_enable()') is not null then
@@ -105,6 +112,30 @@ as $$
   select private.is_system_admin() or private.is_officer()
 $$;
 
+create or replace function private.can_manage_duty_member(target_access_user_id text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = pg_catalog
+as $$
+  select case
+    when target_access_user_id is null then false
+    when target_access_user_id = private.current_access_user_id() then false
+    when private.is_system_admin() then true
+    when private.is_officer() then exists (
+      select 1
+      from public."AccessUser" as target_access
+      where target_access."id" = target_access_user_id
+        and target_access."role" in (
+          'manager'::public."AccessUserRole",
+          'regular'::public."AccessUserRole"
+        )
+    )
+    else false
+  end
+$$;
+
 create or replace function private.task_assignee_is_allowed(
   assignee_type public."TaskAssigneeType",
   stalker_id text,
@@ -152,6 +183,7 @@ revoke all on function private.is_system_admin() from public, anon, authenticate
 revoke all on function private.is_officer() from public, anon, authenticated;
 revoke all on function private.current_access_level() from public, anon, authenticated;
 revoke all on function private.is_duty_admin() from public, anon, authenticated;
+revoke all on function private.can_manage_duty_member(text) from public, anon, authenticated;
 revoke all on function private.task_assignee_is_allowed(
   public."TaskAssigneeType",
   text,
@@ -162,6 +194,7 @@ revoke all on function private.task_assignee_is_allowed(
 -- Без USAGE схемы private они не доступны для прямого вызова браузерным SQL.
 grant execute on function private.is_active_access_user() to authenticated;
 grant execute on function private.is_duty_admin() to authenticated;
+grant execute on function private.can_manage_duty_member(text) to authenticated;
 grant execute on function private.current_access_user_id() to authenticated;
 grant execute on function private.task_assignee_is_allowed(
   public."TaskAssigneeType",
@@ -169,9 +202,11 @@ grant execute on function private.task_assignee_is_allowed(
   text
 ) to authenticated;
 
+-- Явно закрываем public API и выдаём только необходимые права.
 revoke all privileges on all tables in schema public from anon, authenticated;
 alter default privileges in schema public revoke all on tables from anon, authenticated;
 
+-- AccessUser: пароль, email и normalizedLogin никогда не доступны браузеру.
 grant select (
   "id",
   "authUserId",
@@ -181,6 +216,7 @@ grant select (
   "isActive"
 ) on public."AccessUser" to authenticated;
 
+-- Основные рабочие сущности.
 grant select, insert, update, delete on
   public."Stalker",
   public."StalkerGroup",
@@ -194,6 +230,7 @@ grant select, insert, update, delete on
   public."MapRoute"
 to authenticated;
 
+-- Связанные записи заменяются клиентом через DELETE + INSERT.
 grant select, insert, delete on
   public."StalkerGroupMember",
   public."ApartmentTenant",
@@ -203,6 +240,7 @@ grant select, insert, delete on
   public."MapRoutePoint"
 to authenticated;
 
+-- Заметки: менять и удалять может автор или duty-admin.
 grant select on public."StalkerNote" to authenticated;
 grant insert (
   "id",
@@ -220,6 +258,7 @@ grant update (
 ) on public."StalkerNote" to authenticated;
 grant delete on public."StalkerNote" to authenticated;
 
+-- Слои карты: isDefault не может меняться из браузера.
 grant select on public."MapLayer" to authenticated;
 grant insert (
   "id",
@@ -236,6 +275,7 @@ grant update (
 ) on public."MapLayer" to authenticated;
 grant delete on public."MapLayer" to authenticated;
 
+-- Каталог и штатный список в Pages работают только на чтение.
 grant select on
   public."SupplyCatalogCategory",
   public."SupplyCatalogItem",
@@ -243,6 +283,9 @@ grant select on
   public."DutyStaffPosition"
 to authenticated;
 
+-- Профили состава читают все активные пользователи.
+-- Редактируют только system_admin/officer; создание, удаление и accessUserId
+-- остаются серверными операциями.
 grant select on public."DutyMember" to authenticated;
 grant update (
   "fullName",
@@ -261,6 +304,10 @@ grant update (
   "updatedAt"
 ) on public."DutyMember" to authenticated;
 
+-- Таблицы, не используемые статическим клиентом, остаются закрыты:
+-- public."ActivityLog", public."_prisma_migrations".
+
+-- Повторное применение файла безопасно заменяет только политики duty_pages_*.
 do $$
 declare
   policy_row record;
@@ -281,6 +328,7 @@ begin
 end
 $$;
 
+-- SELECT + полный CRUD для обычных рабочих сущностей.
 do $$
 declare
   table_name text;
@@ -317,6 +365,7 @@ begin
 end
 $$;
 
+-- Задания дополнительно проверяют запрет выдачи членам «Долга».
 create policy duty_pages_select
 on public."Task"
 for select
@@ -348,6 +397,7 @@ for delete
 to authenticated
 using (private.is_active_access_user());
 
+-- Дочерние таблицы: SELECT, INSERT, DELETE.
 do $$
 declare
   table_name text;
@@ -377,12 +427,17 @@ begin
 end
 $$;
 
+-- Доступ к безопасным столбцам AccessUser нужен для проверки сессии и ролей.
 create policy duty_pages_select
 on public."AccessUser"
 for select
 to authenticated
-using (private.is_active_access_user());
+using (
+  "authUserId" = auth.uid()
+  or private.is_duty_admin()
+);
 
+-- Заметки.
 create policy duty_pages_select
 on public."StalkerNote"
 for select
@@ -420,6 +475,7 @@ using (
   or "createdByAccessUserId" = private.current_access_user_id()
 );
 
+-- Слои карты: слой по умолчанию нельзя изменить или удалить из браузера.
 create policy duty_pages_select
 on public."MapLayer"
 for select
@@ -433,6 +489,7 @@ to authenticated
 with check (
   private.is_active_access_user()
   and "isDefault" = false
+  and "normalizedName" <> 'основной слой'
 );
 
 create policy duty_pages_update
@@ -446,6 +503,7 @@ using (
 with check (
   private.is_active_access_user()
   and "isDefault" = false
+  and "normalizedName" <> 'основной слой'
 );
 
 create policy duty_pages_delete
@@ -457,6 +515,7 @@ using (
   and "isDefault" = false
 );
 
+-- Read-only объекты.
 do $$
 declare
   table_name text;
@@ -476,6 +535,7 @@ begin
 end
 $$;
 
+-- Профили состава: чтение всем активным, редактирование duty-admin.
 create policy duty_pages_select
 on public."DutyMember"
 for select
@@ -486,8 +546,8 @@ create policy duty_pages_update
 on public."DutyMember"
 for update
 to authenticated
-using (private.is_duty_admin())
-with check (private.is_duty_admin());
+using (private.can_manage_duty_member("accessUserId"))
+with check (private.can_manage_duty_member("accessUserId"));
 
 -- Удаляем helper-функции legacy-варианта из public только после пересоздания
 -- duty_pages_* на private. DROP без CASCADE защищает посторонние зависимости.
@@ -504,4 +564,9 @@ drop function if exists public.current_access_role();
 drop function if exists public.is_active_access_user();
 drop function if exists public.current_access_user_id();
 
+-- Storage: браузерный код не использует buckets/objects.
+-- Политики storage.objects намеренно не добавляются; при отсутствии bucket
+-- и storage policies upload/download/delete остаются запрещены.
+
 commit;
+
