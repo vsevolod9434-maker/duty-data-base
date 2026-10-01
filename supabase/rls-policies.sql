@@ -426,10 +426,7 @@ create policy duty_pages_select
 on public."AccessUser"
 for select
 to authenticated
-using (
-  "authUserId" = auth.uid()
-  or private.is_duty_admin()
-);
+using (private.is_active_access_user());
 
 -- Заметки.
 create policy duty_pages_select
