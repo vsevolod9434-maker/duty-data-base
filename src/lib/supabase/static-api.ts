@@ -662,6 +662,7 @@ async function handleMapOverlay(
   if ((method === "POST" && !id) || (method === "PATCH" && id)) {
     const payload = await requestBody(init);
     const parentId = id ?? (stringValue(payload.id) || crypto.randomUUID());
+    const hasPoints = payload.points !== undefined;
     const points = asArray(payload.points).map((point, index) => {
       const record = asRecord(point);
       return {
@@ -686,7 +687,9 @@ async function handleMapOverlay(
     const query = method === "POST" ? client.from(table).insert(record) : client.from(table).update(record).eq("id", parentId);
     const { error } = await query;
     if (error) throw error;
-    await replaceChildren(client, pointTable, foreignKey, parentId, points);
+    if (method === "POST" || hasPoints) {
+      await replaceChildren(client, pointTable, foreignKey, parentId, points);
+    }
     const { data, error: readError } = await client.from(table).select(select).eq("id", parentId).single();
     if (readError) throw readError;
     return json(data, method === "POST" ? 201 : 200);
