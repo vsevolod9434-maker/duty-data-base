@@ -294,16 +294,10 @@ async function handleSimpleItem(
 
 async function handleGroups(client: SupabaseClient, method: string, init?: RequestInit, id?: string) {
   await assertAuthenticated(client);
+  const select = "*, members:StalkerGroupMember(id, stalkerId, roleType, customRoleName, joinedAt)";
 
   if (method === "GET" && !id) {
-    return json(
-      await selectRows(
-        client,
-        "StalkerGroup",
-        "*, members:StalkerGroupMember(id, stalkerId, roleType, customRoleName, joinedAt)",
-        "createdAt",
-      ),
-    );
+    return json(await selectRows(client, "StalkerGroup", select, "createdAt"));
   }
 
   if (method === "DELETE" && id) {
@@ -315,36 +309,58 @@ async function handleGroups(client: SupabaseClient, method: string, init?: Reque
   if ((method === "POST" && !id) || (method === "PATCH" && id)) {
     const payload = await requestBody(init);
     const groupId = id ?? (stringValue(payload.id) || crypto.randomUUID());
-    const members = asArray(payload.members).map((member) => {
-      const record = asRecord(member);
-      return {
-        id: stringValue(record.id) || crypto.randomUUID(),
-        groupId,
-        stalkerId: stringValue(record.stalkerId),
-        roleType: stringValue(record.roleType) || "member",
-        customRoleName: nullableString(record.customRoleName),
-        joinedAt: stringValue(record.joinedAt) || nowIso(),
-      };
-    });
-    const group = normalizeParentPayload(
-      {
-        name: stringValue(payload.name).trim(),
-        photoUrl: nullableString(payload.photoUrl),
-        status: stringValue(payload.status) || "active",
-        notes: nullableString(payload.notes),
-      },
-      groupId,
-      method === "POST",
-    );
-    const query = method === "POST" ? client.from("StalkerGroup").insert(group) : client.from("StalkerGroup").update(group).eq("id", groupId);
+    const hasMembers = payload.members !== undefined;
+    const members = hasMembers
+      ? asArray(payload.members).map((member) => {
+          const record = asRecord(member);
+          return {
+            id: stringValue(record.id) || crypto.randomUUID(),
+            groupId,
+            stalkerId: stringValue(record.stalkerId),
+            roleType: stringValue(record.roleType) || "member",
+            customRoleName: nullableString(record.customRoleName),
+            joinedAt: stringValue(record.joinedAt) || nowIso(),
+          };
+        })
+      : [];
+
+    const patch: JsonRecord = { updatedAt: nowIso() };
+
+    if (method === "POST" || payload.name !== undefined) {
+      const name = stringValue(payload.name).trim();
+      if (!name) return errorResponse("Укажите название группы.");
+      patch.name = name;
+    }
+
+    if (method === "POST" || payload.photoUrl !== undefined) {
+      patch.photoUrl = nullableString(payload.photoUrl);
+    }
+
+    if (method === "POST" || payload.status !== undefined) {
+      const status = stringValue(payload.status) || "active";
+      if (status !== "active" && status !== "archive") {
+        return errorResponse("Указан некорректный статус группы.");
+      }
+      patch.status = status;
+    }
+
+    if (method === "POST" || payload.notes !== undefined) {
+      patch.notes = nullableString(payload.notes);
+    }
+
+    const group = normalizeParentPayload(patch, groupId, method === "POST");
+    const query =
+      method === "POST"
+        ? client.from("StalkerGroup").insert(group)
+        : client.from("StalkerGroup").update(group).eq("id", groupId);
     const { error } = await query;
     if (error) throw error;
-    await replaceChildren(client, "StalkerGroupMember", "groupId", groupId, members);
-    const { data, error: readError } = await client
-      .from("StalkerGroup")
-      .select("*, members:StalkerGroupMember(id, stalkerId, roleType, customRoleName, joinedAt)")
-      .eq("id", groupId)
-      .single();
+
+    if (method === "POST" || hasMembers) {
+      await replaceChildren(client, "StalkerGroupMember", "groupId", groupId, members);
+    }
+
+    const { data, error: readError } = await client.from("StalkerGroup").select(select).eq("id", groupId).single();
     if (readError) throw readError;
     return json(data, method === "POST" ? 201 : 200);
   }
@@ -477,7 +493,22 @@ async function handleTradeOperations(client: SupabaseClient, method: string, ini
   if ((method === "POST" && !id) || (method === "PATCH" && id)) {
     const payload = await requestBody(init);
     const operationId = id ?? (stringValue(payload.id) || crypto.randomUUID());
-    const items = asArray(payload.items).map((item) => {
+    let current: JsonRecord = {};
+
+    if (method === "PATCH") {
+      const { data: currentData, error: currentError } = await client
+        .from("TradeOperation")
+        .select(select)
+        .eq("id", operationId)
+        .maybeSingle();
+      if (currentError) throw currentError;
+      if (!currentData) return errorResponse("Торговая операция не найдена.", 404);
+      current = asRecord(currentData);
+    }
+
+    const hasItems = payload.items !== undefined;
+    const sourceItems = hasItems ? asArray(payload.items) : asArray(current.items);
+    const items = sourceItems.map((item) => {
       const record = asRecord(item);
       return {
         id: stringValue(record.id) || crypto.randomUUID(),
@@ -488,29 +519,53 @@ async function handleTradeOperations(client: SupabaseClient, method: string, ini
         notes: nullableString(record.notes),
       };
     });
-    const totalAmount = items.reduce((total, item) => total + item.quantity * item.price, 0);
-    const operation = normalizeParentPayload(
-      {
-        type: stringValue(payload.type) || "sale",
-        subjectType: stringValue(payload.subjectType) || "manual",
-        stalkerId: nullableString(payload.stalkerId),
-        groupId: nullableString(payload.groupId),
-        manualParticipantName: nullableString(payload.manualParticipantName),
-        totalAmount,
-        issuedBy: actorLabel(accessUser),
-        notes: nullableString(payload.notes),
-        operationDate: nullableString(payload.operationDate),
-      },
-      operationId,
-      method === "POST",
-    );
+
+    if ((method === "POST" || hasItems) && items.length === 0) {
+      return errorResponse("Добавьте хотя бы один предмет.");
+    }
+
+    const patch: JsonRecord = { updatedAt: nowIso() };
+
+    if (method === "POST" || payload.type !== undefined) {
+      patch.type = stringValue(payload.type) || "sale";
+    }
+    if (method === "POST" || payload.subjectType !== undefined) {
+      patch.subjectType = stringValue(payload.subjectType) || "manual";
+    }
+    if (method === "POST" || payload.stalkerId !== undefined) {
+      patch.stalkerId = nullableString(payload.stalkerId);
+    }
+    if (method === "POST" || payload.groupId !== undefined) {
+      patch.groupId = nullableString(payload.groupId);
+    }
+    if (method === "POST" || payload.manualParticipantName !== undefined) {
+      patch.manualParticipantName = nullableString(payload.manualParticipantName);
+    }
+    if (method === "POST") {
+      patch.issuedBy = actorLabel(accessUser);
+    }
+    if (method === "POST" || payload.notes !== undefined) {
+      patch.notes = nullableString(payload.notes);
+    }
+    if (method === "POST" || payload.operationDate !== undefined) {
+      patch.operationDate = nullableString(payload.operationDate);
+    }
+    if (method === "POST" || hasItems) {
+      patch.totalAmount = items.reduce((total, item) => total + item.quantity * item.price, 0);
+    }
+
+    const operation = normalizeParentPayload(patch, operationId, method === "POST");
     const query =
       method === "POST"
         ? client.from("TradeOperation").insert(operation)
         : client.from("TradeOperation").update(operation).eq("id", operationId);
     const { error } = await query;
     if (error) throw error;
-    await replaceChildren(client, "TradeOperationItem", "operationId", operationId, items);
+
+    if (method === "POST" || hasItems) {
+      await replaceChildren(client, "TradeOperationItem", "operationId", operationId, items);
+    }
+
     const { data, error: readError } = await client.from("TradeOperation").select(select).eq("id", operationId).single();
     if (readError) throw readError;
     return json(data, method === "POST" ? 201 : 200);
