@@ -10,6 +10,7 @@ const {
   clearStaticAuthState,
   getStaticAccessProfileResult,
   getStaticAuthGateDecision,
+  getStaticLoginDisplayMessage,
   isCurrentStaticAuthCheck,
   resolveStaticAuthEmail,
   signInStaticAccessUser,
@@ -320,6 +321,14 @@ assert.deepEqual(getStaticAuthGateDecision({ status: "unauthenticated" }, true),
 assert.equal(isCurrentStaticAuthCheck(2, 2, true), true);
 assert.equal(isCurrentStaticAuthCheck(1, 2, true), false);
 assert.equal(isCurrentStaticAuthCheck(2, 2, false), false);
+assert.equal(
+  getStaticLoginDisplayMessage(new Error("Канал допуска временно не отвечает. Повторите проверку.")),
+  "Канал допуска временно не отвечает. Повторите проверку.",
+);
+assert.equal(
+  getStaticLoginDisplayMessage(new Error("internal Supabase stack detail")),
+  staticLoginErrorMessage,
+);
 
 {
   const client = createMockClient({});
