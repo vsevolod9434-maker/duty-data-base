@@ -1,17 +1,11 @@
 "use client";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { normalizeLogin } from "@/lib/auth-login";
 
 export const staticLoginErrorMessage = "Не удалось выполнить вход. Проверьте логин и пароль.";
 export const staticAccessDeniedMessage = "Доступ к системе запрещён.";
 export const staticLookupUnavailableMessage =
   "Не удалось найти активную учётную запись доступа. Проверьте логин или обратитесь к администратору.";
-
-type AccessUserLookupRow = {
-  authEmail?: string | null;
-  isActive?: boolean | null;
-};
 
 export type StaticAccessUserProfile = {
   id: string;
@@ -80,49 +74,6 @@ async function resolveAuthEmailWithRpc(client: SupabaseClient, identifier: strin
   return readAuthEmailFromRpcResult(data as RpcAuthEmailResult | null);
 }
 
-async function lookupAccessUserAuthEmailByColumn(client: SupabaseClient, column: string, value: string) {
-  const normalizedValue = value.trim();
-
-  if (!normalizedValue) {
-    return null;
-  }
-
-  const { data, error } = await client
-    .from("AccessUser")
-    .select("authEmail,isActive")
-    .eq(column, normalizedValue)
-    .eq("isActive", true)
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    return null;
-  }
-
-  const accessUser = data as AccessUserLookupRow | null;
-  return accessUser?.isActive === true && accessUser.authEmail ? accessUser.authEmail.trim() : null;
-}
-
-async function resolveAuthEmailWithTableLookup(client: SupabaseClient, identifier: string) {
-  const trimmedIdentifier = identifier.trim();
-  const normalizedIdentifier = normalizeLogin(trimmedIdentifier);
-  const candidates: Array<[string, string]> = [
-    ["authEmail", normalizeEmail(trimmedIdentifier)],
-    ["normalizedLogin", normalizedIdentifier],
-    ["login", trimmedIdentifier],
-    ["displayName", trimmedIdentifier],
-  ];
-
-  for (const [column, value] of candidates) {
-    const authEmail = await lookupAccessUserAuthEmailByColumn(client, column, value);
-    if (authEmail) {
-      return authEmail;
-    }
-  }
-
-  return null;
-}
-
 export async function resolveStaticAuthEmail(client: SupabaseClient, identifier: string) {
   const trimmedIdentifier = identifier.trim();
 
@@ -135,15 +86,12 @@ export async function resolveStaticAuthEmail(client: SupabaseClient, identifier:
     return normalizeEmail(rpcAuthEmail);
   }
 
-  const tableAuthEmail = await resolveAuthEmailWithTableLookup(client, trimmedIdentifier);
-  if (tableAuthEmail) {
-    return normalizeEmail(tableAuthEmail);
-  }
-
   if (isEmailIdentifier(trimmedIdentifier)) {
     return normalizeEmail(trimmedIdentifier);
   }
 
+  // Deliberately do not query AccessUser anonymously here.
+  // Internal login resolution is provided only by the narrow SECURITY DEFINER RPC.
   throw new Error(staticLookupUnavailableMessage);
 }
 
@@ -155,7 +103,10 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : undefined;
 }
 
-export async function getStaticAccessProfileResult(client: SupabaseClient, authUserId: string | null | undefined): Promise<StaticAccessProfileResult> {
+export async function getStaticAccessProfileResult(
+  client: SupabaseClient,
+  authUserId: string | null | undefined,
+): Promise<StaticAccessProfileResult> {
   if (!authUserId) {
     return { status: "unauthenticated" };
   }
@@ -187,7 +138,10 @@ export async function getStaticAccessProfileResult(client: SupabaseClient, authU
   }
 }
 
-export function getStaticAuthGateDecision(profileResult: StaticAccessProfileResult, isLoginPage: boolean): StaticAuthGateDecision {
+export function getStaticAuthGateDecision(
+  profileResult: StaticAccessProfileResult,
+  isLoginPage: boolean,
+): StaticAuthGateDecision {
   if (profileResult.status === "ok") {
     return isLoginPage ? { action: "redirect_home" } : { action: "allow" };
   }
@@ -230,7 +184,11 @@ export async function signInStaticAccessUser(client: SupabaseClient, identifier:
     throw new Error(staticAccessRetryMessage);
   }
 
-  if (profileResult.status === "inactive" || profileResult.status === "not_found" || profileResult.status === "unauthenticated") {
+  if (
+    profileResult.status === "inactive" ||
+    profileResult.status === "not_found" ||
+    profileResult.status === "unauthenticated"
+  ) {
     await clearStaticAuthState(client);
     throw new Error(staticAccessDeniedMessage);
   }
