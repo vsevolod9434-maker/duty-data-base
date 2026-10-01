@@ -20,7 +20,7 @@ type PdaTopbarProps = {
   onSubtabChange?: (label: string) => void;
 };
 
-export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaTopbarProps) {
+export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel, onSubtabChange }: PdaTopbarProps) {
   const rawPathname = usePathname();
   const pathname = stripBasePath(rawPathname).replace(/\/$/, "") || "/";
   const router = useRouter();
@@ -130,7 +130,9 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
         <nav className="pda-main-nav registry-main-nav" aria-label="Основные разделы" ref={navMenuRef}>
           {navigation.map((tab) => {
             const isActive = tab.label === activeTab.label;
-            const hasDropdown = tab.subtabs.some((subtab) => subtab.href.startsWith("/"));
+            const hasRouteDropdown = tab.subtabs.some((subtab) => subtab.href.startsWith("/"));
+            const hasActionDropdown = tab.label === activeTab.label && Boolean(onSubtabChange) && tab.subtabs.length > 0;
+            const hasDropdown = hasRouteDropdown || hasActionDropdown;
             const isDropdownOpen = openDropdownLabel === tab.label;
 
             if (hasDropdown) {
@@ -158,9 +160,15 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
                           <a
                             aria-current={isSubtabActive ? "page" : undefined}
                             className={`pda-nav-dropdown-option ${isSubtabActive ? "pda-nav-dropdown-option-active" : ""}`}
-                            href={withBasePath(subtab.href)}
+                            href={subtab.href === "#" ? "#" : withBasePath(subtab.href)}
                             key={subtab.label}
-                            onClick={() => setOpenDropdownLabel(null)}
+                            onClick={(event) => {
+                              if (subtab.href === "#" && onSubtabChange) {
+                                event.preventDefault();
+                                onSubtabChange(subtab.label);
+                              }
+                              setOpenDropdownLabel(null);
+                            }}
                             role="menuitem"
                           >
                             {subtab.label}
