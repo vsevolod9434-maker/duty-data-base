@@ -46,6 +46,14 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Validate Prisma schema
+        env:
+          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: npx prisma validate
+
       - name: Test
         run: npm test
 
