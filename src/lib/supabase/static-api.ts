@@ -599,6 +599,10 @@ async function handleMapLayers(client: SupabaseClient, method: string, init?: Re
     }
 
     const normalizedName = normalizeMapLayerKey(name);
+    if (normalizedName === normalizeMapLayerKey(DEFAULT_MAP_LAYER)) {
+      return errorResponse("Основной слой уже существует.");
+    }
+
     const { data: duplicate, error: duplicateError } = await client
       .from("MapLayer")
       .select("id")
@@ -652,6 +656,10 @@ async function handleMapLayers(client: SupabaseClient, method: string, init?: Re
     }
 
     const normalizedName = normalizeMapLayerKey(name);
+    if (normalizedName === normalizeMapLayerKey(DEFAULT_MAP_LAYER)) {
+      return errorResponse("Основной слой уже существует.");
+    }
+
     const { data: duplicate, error: duplicateError } = await client
       .from("MapLayer")
       .select("id")
