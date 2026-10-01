@@ -76,7 +76,7 @@ type CreatedRecords = {
 };
 
 const createdDutyMemberSelect =
-  "id, fullName, callsign, rank, position, unit, serviceStatus, profileStatus, notes, photoUrl, createdAt, updatedAt, accessUser:AccessUser(id, authUserId, login, displayName, role, isActive)";
+  "id, fullName, callsign, rank, position, unit, serviceStatus, profileStatus, notes, photoUrl, createdAt, updatedAt, accessUser:AccessUser(id, authUserId, login, displayName, role, isActive), staffPositions:DutyStaffPosition(id, title, sectionId, sortOrder, section:DutyStaffSection(id, name, sortOrder))";
 
 const serviceStatuses = new Set<DutyServiceStatus>(["active", "leave", "wounded", "missing", "discharged"]);
 
@@ -668,6 +668,10 @@ async function updateDutyMemberProfile(
   const payload = asRecord(body.payload);
   const memberData = buildDutyMemberData(payload);
 
+  if (memberData.serviceStatus === "discharged") {
+    return errorResponse(request, "INVALID_PAYLOAD", "Используйте приказ «Исключить из состава».", 400);
+  }
+
   if (!memberData.fullName) {
     return errorResponse(request, "INVALID_PAYLOAD", "Укажите ФИО.", 400);
   }
@@ -784,29 +788,13 @@ async function excludeDutyMember(request: Request, context: EdgeAuthContext, bod
     return errorResponse(request, "NOT_FOUND", "Профиль не найден.", 404);
   }
 
-  const now = new Date().toISOString();
   const serviceClient = context.getServiceClient();
-  const { error: accessError } = await serviceClient
-    .from("AccessUser")
-    .update({ isActive: false })
-    .eq("id", member.accessUser.id);
+  const { error: excludeError } = await serviceClient.rpc("exclude_duty_member_transaction", {
+    target_member_id: body.memberId,
+  });
 
-  if (accessError) {
-    logEdgeError("access-admin:excludeDutyMember:access", accessError);
-    return errorResponse(request, "UPDATE_FAILED", "Не удалось выполнить приказ.", 500);
-  }
-
-  const { error: memberError } = await serviceClient
-    .from("DutyMember")
-    .update({
-      profileStatus: "archived",
-      serviceStatus: "discharged",
-      updatedAt: now,
-    })
-    .eq("id", body.memberId);
-
-  if (memberError) {
-    logEdgeError("access-admin:excludeDutyMember:member", memberError);
+  if (excludeError) {
+    logEdgeError("access-admin:excludeDutyMember:transaction", excludeError);
     return errorResponse(request, "UPDATE_FAILED", "Не удалось выполнить приказ.", 500);
   }
 
