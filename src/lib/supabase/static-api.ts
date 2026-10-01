@@ -420,6 +420,47 @@ async function handleApartments(client: SupabaseClient, method: string, init?: R
   return errorResponse("Приказ не распознан.", 405);
 }
 
+async function handleDefaultApartments(client: SupabaseClient, method: string) {
+  await assertAuthenticated(client);
+
+  if (method !== "POST") {
+    return errorResponse("Приказ не распознан.", 405);
+  }
+
+  const { data: existingApartments, error: readError } = await client
+    .from("Apartment")
+    .select("id")
+    .limit(1);
+
+  if (readError) throw readError;
+
+  if ((existingApartments ?? []).length === 0) {
+    const timestamp = nowIso();
+    const { error: insertError } = await client.from("Apartment").insert([
+      {
+        id: "apartment-1",
+        name: "Квартира 1",
+        status: "free",
+        notes: null,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      },
+      {
+        id: "apartment-2",
+        name: "Квартира 2",
+        status: "free",
+        notes: null,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      },
+    ]);
+
+    if (insertError) throw insertError;
+  }
+
+  return handleApartments(client, "GET");
+}
+
 async function handleTradeOperations(client: SupabaseClient, method: string, init?: RequestInit, id?: string) {
   const accessUser = await assertAuthenticated(client);
   const select = "*, items:TradeOperationItem(id, name, quantity, price, notes)";
@@ -879,13 +920,14 @@ export async function staticSupabaseFetch(input: RequestInfo | URL, init?: Reque
     if (path === "/api/auth/me") return await handleCurrentUser(client);
     if (path === "/api/calculator/catalog") return await handleCalculatorCatalog(client);
     if (path === "/api/duty-members/access-users") return await handleAccessUsers(client);
+    if (path === "/api/apartments/defaults") return await handleDefaultApartments(client, method);
     if (path === "/api/duty-members/users" || path.endsWith("/password") || path === "/api/duty-members/password") {
       return errorResponse(blockedAdminMessage, 501);
     }
     if (/^\/api\/duty-members\/[^/]+\/access$/.test(path)) {
       return errorResponse(blockedAdminMessage, 501);
     }
-    if (path.endsWith("/import") || path === "/api/apartments/defaults") {
+    if (path.endsWith("/import")) {
       return errorResponse(transactionalImportMessage, 501);
     }
 
