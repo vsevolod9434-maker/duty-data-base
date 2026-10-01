@@ -152,8 +152,8 @@ begin
   where schemaname = 'public'
     and policyname like 'duty_pages_%';
 
-  if policy_count <> 73 then
-    raise exception 'Expected 73 duty_pages policies; found %.', policy_count;
+  if policy_count <> 74 then
+    raise exception 'Expected 74 duty_pages policies; found %.', policy_count;
   end if;
 
   select count(*)
