@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { signInStaticAccessUser } from "@/lib/supabase/static-auth";
+import { getStaticLoginDisplayMessage, signInStaticAccessUser } from "@/lib/supabase/static-auth";
 
 type LoginResponse = {
   ok?: boolean;
@@ -61,8 +61,8 @@ export default function LoginPage() {
 
       router.replace("/");
       router.refresh();
-    } catch {
-      setMessage(loginErrorMessage);
+    } catch (error) {
+      setMessage(process.env.NEXT_PUBLIC_STATIC_EXPORT === "true" ? getStaticLoginDisplayMessage(error) : loginErrorMessage);
     } finally {
       setIsLoading(false);
     }
