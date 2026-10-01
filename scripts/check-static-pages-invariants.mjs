@@ -44,4 +44,43 @@ for (const path of navigationPages) {
   );
 }
 
+const staticApiSource = readFileSync("src/lib/supabase/static-api.ts", "utf8");
+for (const guard of [
+  "const hasMembers = payload.members !== undefined;",
+  "const hasPayments = payload.payments !== undefined;",
+  "const hasItems = payload.items !== undefined;",
+]) {
+  assert.equal(
+    staticApiSource.includes(guard),
+    true,
+    `Static API must preserve omitted child collections: missing guard ${guard}`,
+  );
+}
+
+const accessAdminSource = readFileSync("supabase/functions/access-admin/index.ts", "utf8");
+assert.equal(
+  accessAdminSource.includes('.rpc("exclude_duty_member_transaction"'),
+  true,
+  "Duty-member exclusion must use the atomic database RPC.",
+);
+assert.equal(
+  accessAdminSource.includes("staffPositions:DutyStaffPosition"),
+  true,
+  "Access-admin responses must include current staff-position relations.",
+);
+
+const accessAdminRpcSource = readFileSync("supabase/access-admin-rpc.sql", "utf8");
+for (const fragment of [
+  'update public."AccessUser"',
+  'update public."DutyStaffPosition"',
+  'update public."DutyMember"',
+  "grant execute on function public.exclude_duty_member_transaction(text) to service_role;",
+]) {
+  assert.equal(
+    accessAdminRpcSource.includes(fragment),
+    true,
+    `Atomic exclusion RPC is missing required statement: ${fragment}`,
+  );
+}
+
 console.log("Static Pages and Supabase SQL invariants passed.");
