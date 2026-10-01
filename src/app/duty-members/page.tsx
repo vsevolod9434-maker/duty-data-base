@@ -442,8 +442,8 @@ export default function DutyMembersPage() {
     [accessUsers, editingId],
   );
   const availableCreateAccessLevelOptions = useMemo(
-    () => accessLevelOptions,
-    [],
+    () => (currentUser?.role === "system_admin" ? accessLevelOptions : accessLevelOptions.filter((option) => option.value === "regular")),
+    [currentUser?.role],
   );
 
   const membersQuery = useQuery({
@@ -1036,7 +1036,7 @@ export default function DutyMembersPage() {
                   <label className="filter-field">
                     <span>Уровень допуска</span>
                     <select disabled={isSaving || isEditingOwnAccessLevel || isStaticProfileEdit} onChange={(event) => updateDraft("accessLevel", event.target.value)} value={draft.accessLevel}>
-                      {accessLevelOptions.map((accessLevel) => (
+                      {(currentUser?.role === "system_admin" ? accessLevelOptions : accessLevelOptions.filter((option) => option.value === "regular")).map((accessLevel) => (
                         <option key={accessLevel.value} value={accessLevel.value}>
                           {accessLevel.label}
                         </option>
