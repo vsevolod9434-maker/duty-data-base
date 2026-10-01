@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import type { User } from "@supabase/supabase-js";
 import { usePathname, useRouter } from "next/navigation";
 import { stripBasePath } from "@/lib/public-path";
+import { clearLegacyStoredCollections } from "@/lib/stalker-utils";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   clearStaticAuthState,
@@ -71,6 +72,7 @@ export function StaticAuthGate({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     isMountedRef.current = true;
+    clearLegacyStoredCollections();
 
     return () => {
       isMountedRef.current = false;
