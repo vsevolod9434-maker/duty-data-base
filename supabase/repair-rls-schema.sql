@@ -304,8 +304,9 @@ grant update (
   "updatedAt"
 ) on public."DutyMember" to authenticated;
 
--- Таблицы, не используемые статическим клиентом, остаются закрыты:
--- public."ActivityLog", public."_prisma_migrations".
+-- Таблицы, не используемые статическим клиентом, остаются закрыты.
+-- ActivityLog получает явную deny-policy; _prisma_migrations не выдаётся браузерным ролям.
+-- public."_prisma_migrations".
 
 -- Повторное применение файла безопасно заменяет только политики duty_pages_*.
 do $$
@@ -433,9 +434,17 @@ on public."AccessUser"
 for select
 to authenticated
 using (
-  "authUserId" = auth.uid()
+  "authUserId" = (select auth.uid())
   or private.is_duty_admin()
 );
+
+-- Неиспользуемый ActivityLog закрыт явной RLS-policy.
+create policy duty_pages_no_access
+on public."ActivityLog"
+for all
+to authenticated
+using (false)
+with check (false);
 
 -- Заметки.
 create policy duty_pages_select
