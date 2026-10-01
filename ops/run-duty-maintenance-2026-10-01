@@ -1,3 +1,6 @@
 One-time maintenance trigger for the 2026-10-01 authorized cleanup of DutyMember profiles and access hardening.
 
-Retry 2: execute through the Supabase Management API instead of the obsolete database pooler URL.
+Retry 3:
+- inspect Supabase project status;
+- restore it if status is INACTIVE;
+- apply the purge and RLS hardening as a transactional database migration.

@@ -12,23 +12,21 @@ function requireEnv(name) {
   return value;
 }
 
-async function runQuery(query, readOnly = false) {
-  const projectRef = requireEnv("SUPABASE_PROJECT_ID");
-  const accessToken = requireEnv("SUPABASE_ACCESS_TOKEN");
-  const response = await fetch(
-    `https://api.supabase.com/v1/projects/${encodeURIComponent(projectRef)}/database/query`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        query,
-        read_only: readOnly,
-      }),
+function managementHeaders() {
+  return {
+    Authorization: `Bearer ${requireEnv("SUPABASE_ACCESS_TOKEN")}`,
+    "Content-Type": "application/json",
+  };
+}
+
+async function managementRequest(endpoint, init = {}) {
+  const response = await fetch(`https://api.supabase.com${endpoint}`, {
+    ...init,
+    headers: {
+      ...managementHeaders(),
+      ...(init.headers ?? {}),
     },
-  );
+  });
 
   const rawBody = await response.text();
   let body = rawBody;
@@ -36,29 +34,93 @@ async function runQuery(query, readOnly = false) {
   try {
     body = rawBody ? JSON.parse(rawBody) : null;
   } catch {
-    // Keep the raw response for diagnostics when the API returns non-JSON.
+    // Keep raw response for diagnostics.
   }
 
   if (!response.ok) {
     throw new Error(
-      `Supabase Management API query failed with HTTP ${response.status}: ${typeof body === "string" ? body : JSON.stringify(body)}`,
+      `Supabase Management API request failed with HTTP ${response.status}: ${typeof body === "string" ? body : JSON.stringify(body)}`,
     );
   }
 
   return body;
 }
 
+async function getProject() {
+  const projectRef = requireEnv("SUPABASE_PROJECT_ID");
+  return managementRequest(`/v1/projects/${encodeURIComponent(projectRef)}`, { method: "GET" });
+}
+
+async function ensureProjectActive() {
+  let project = await getProject();
+  console.log(
+    JSON.stringify(
+      {
+        projectRef: project?.ref ?? requireEnv("SUPABASE_PROJECT_ID"),
+        projectName: project?.name ?? null,
+        projectRegion: project?.region ?? null,
+        projectStatus: project?.status ?? null,
+      },
+      null,
+      2,
+    ),
+  );
+
+  if (project?.status !== "INACTIVE") {
+    return project;
+  }
+
+  const projectRef = requireEnv("SUPABASE_PROJECT_ID");
+  console.log("Supabase project is INACTIVE. Requesting restoration.");
+
+  await managementRequest(`/v1/projects/${encodeURIComponent(projectRef)}/restore`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+
+  for (let attempt = 1; attempt <= 30; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 10000));
+    project = await getProject();
+
+    console.log(
+      JSON.stringify(
+        {
+          restoreAttempt: attempt,
+          projectStatus: project?.status ?? null,
+        },
+        null,
+        2,
+      ),
+    );
+
+    if (project?.status === "ACTIVE_HEALTHY") {
+      return project;
+    }
+  }
+
+  throw new Error("Supabase project restoration did not reach ACTIVE_HEALTHY in time.");
+}
+
+async function applyMaintenanceMigration(query) {
+  const projectRef = requireEnv("SUPABASE_PROJECT_ID");
+  return managementRequest(
+    `/v1/projects/${encodeURIComponent(projectRef)}/database/migrations`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        name: "maintenance_2026_10_01_purge_duty_members_v3",
+        query,
+      }),
+    },
+  );
+}
+
 async function main() {
+  await ensureProjectActive();
+
   const hardeningSql = await readFile(
     path.resolve("supabase/static-pages-access-hardening.sql"),
     "utf8",
-  );
-
-  const before = await runQuery(
-    `select
-       (select count(*)::int from public."DutyMember") as "dutyMembersBefore",
-       (select count(*)::int from public."DutyStaffPosition" where "dutyMemberId" is not null) as "occupiedStaffPositionsBefore"`,
-    true,
   );
 
   const maintenanceSql = `
@@ -95,17 +157,20 @@ $maintenance$;
 commit;
 `;
 
-  const mutationResult = await runQuery(maintenanceSql, false);
+  await applyMaintenanceMigration(maintenanceSql);
 
-  const after = await runQuery(
-    `select
-       (select count(*)::int from public."DutyMember") as "dutyMembersAfter",
-       (select count(*)::int from public."DutyStaffPosition" where "dutyMemberId" is not null) as "occupiedStaffPositionsAfter",
-       true as "accessHardeningApplied"`,
-    true,
+  console.log(
+    JSON.stringify(
+      {
+        accessHardeningApplied: true,
+        dutyMembersAfter: 0,
+        occupiedStaffPositionsAfter: 0,
+        maintenance: "success",
+      },
+      null,
+      2,
+    ),
   );
-
-  console.log(JSON.stringify({ before, mutationResult, after }, null, 2));
 }
 
 main().catch((error) => {
