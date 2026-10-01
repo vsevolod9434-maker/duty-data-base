@@ -36,7 +36,9 @@ function normalizeForMatch(value: string | null | undefined) {
 async function main() {
   const prisma = createPrismaClient();
   const now = new Date();
+  const allowCreateMissing = process.argv.includes("--create-missing");
   let created = 0;
+  let skippedMissing = 0;
   let linked = 0;
   let updated = 0;
   let blockedExcluded = 0;
@@ -116,6 +118,11 @@ async function main() {
           where: { id: matchingOrphan.id },
         });
         linked += 1;
+        continue;
+      }
+
+      if (!allowCreateMissing) {
+        skippedMissing += 1;
         continue;
       }
 
@@ -202,6 +209,7 @@ async function main() {
     console.log(
       [
         `Создано профилей: ${created}`,
+        `Пропущено отсутствующих профилей: ${skippedMissing}`,
         `Связано существующих профилей: ${linked}`,
         `Обновлено профилей: ${updated}`,
         `Заблокировано исключённых доступов: ${blockedExcluded}`,
