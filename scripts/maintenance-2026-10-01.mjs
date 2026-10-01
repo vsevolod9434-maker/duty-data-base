@@ -8,10 +8,10 @@ import pg from "pg";
 const { Client } = pg;
 
 function readConnectionString() {
-  const raw = process.env.DIRECT_URL || process.env.DATABASE_URL;
+  const raw = process.env.DATABASE_URL || process.env.DIRECT_URL;
 
   if (!raw) {
-    throw new Error("DIRECT_URL or DATABASE_URL is not configured.");
+    throw new Error("DATABASE_URL or DIRECT_URL is not configured.");
   }
 
   const url = new URL(raw);
