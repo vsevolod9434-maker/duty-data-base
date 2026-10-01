@@ -174,6 +174,37 @@ const inactiveProfile: StaticAccessUserProfile = {
 }
 
 {
+  const serviceError = Object.assign(new Error("network timeout"), { status: 503 });
+  const client = createMockClient({
+    profile: activeProfile,
+    rpcError: serviceError,
+  });
+
+  await assert.rejects(
+    () => resolveStaticAuthEmail(client as never, "operator"),
+    /Канал допуска временно не отвечает/,
+  );
+  assert.equal(
+    client.calls.some((call) => call.type === "signInWithPassword"),
+    false,
+    "login must not continue when pre-login lookup is unavailable",
+  );
+}
+
+{
+  const client = createMockClient({
+    profile: activeProfile,
+    rpcData: "real-auth@example.test",
+    signInError: new Error("fetch failed"),
+  });
+
+  await assert.rejects(
+    () => signInStaticAccessUser(client as never, "operator", "password"),
+    /Канал допуска временно не отвечает/,
+  );
+}
+
+{
   const client = createMockClient({
     profileError: new Error("temporary Supabase failure"),
     rpcData: "real-auth@example.test",
