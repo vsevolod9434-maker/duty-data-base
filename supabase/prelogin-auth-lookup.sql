@@ -32,14 +32,12 @@ as $$
       lower(access_user."authEmail") = normalized_input.value
       or access_user."normalizedLogin" = normalized_input.value
       or regexp_replace(lower(btrim(access_user."login")), '\s+', ' ', 'g') = normalized_input.value
-      or regexp_replace(lower(btrim(coalesce(access_user."displayName", ''))), '\s+', ' ', 'g') = normalized_input.value
     )
   order by
     case
       when lower(access_user."authEmail") = normalized_input.value then 0
       when access_user."normalizedLogin" = normalized_input.value then 1
-      when regexp_replace(lower(btrim(access_user."login")), '\s+', ' ', 'g') = normalized_input.value then 2
-      else 3
+      else 2
     end,
     access_user."id"
   limit 1
