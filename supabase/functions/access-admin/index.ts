@@ -688,18 +688,6 @@ async function updateDutyMemberProfile(
 
   const serviceClient = context.getServiceClient();
 
-  if (memberData.serviceStatus === "discharged" && member.accessUser.isActive) {
-    const { error: accessError } = await serviceClient
-      .from("AccessUser")
-      .update({ isActive: false })
-      .eq("id", member.accessUser.id);
-
-    if (accessError) {
-      logEdgeError("access-admin:updateDutyMemberProfile:access", accessError);
-      return errorResponse(request, "UPDATE_FAILED", "Не удалось выполнить приказ.", 500);
-    }
-  }
-
   const { error } = await serviceClient
     .from("DutyMember")
     .update({
@@ -708,9 +696,11 @@ async function updateDutyMemberProfile(
       fullName: memberData.fullName,
       notes: memberData.notes,
       photoUrl: memberData.photoUrl,
+      position: memberData.position,
       profileStatus: memberData.profileStatus,
       rank: memberData.rank,
       serviceStatus: memberData.serviceStatus,
+      unit: memberData.unit,
       updatedAt: new Date().toISOString(),
     })
     .eq("id", body.memberId);
