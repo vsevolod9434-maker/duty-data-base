@@ -23,8 +23,6 @@ jobs:
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
       NEXT_PUBLIC_ACCESS_ADMIN_FUNCTION_URL: ${{ vars.NEXT_PUBLIC_ACCESS_ADMIN_FUNCTION_URL }}
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      DIRECT_URL: ${{ secrets.DIRECT_URL }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
