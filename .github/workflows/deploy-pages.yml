@@ -40,6 +40,8 @@ jobs:
         uses: actions/configure-pages@v5
 
       - name: Install dependencies
+        env:
+          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/postgres
         run: npm ci
 
       - name: Lint
