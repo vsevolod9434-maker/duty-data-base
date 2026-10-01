@@ -112,8 +112,10 @@ using (public.current_access_role() in ('system_admin', 'officer'))
 with check (public.current_access_role() in ('system_admin', 'officer'));
 
 revoke all on table public."AccessUser" from anon;
-revoke insert, update, delete on table public."AccessUser" from authenticated;
-grant select on table public."AccessUser" to authenticated;
+revoke all on table public."AccessUser" from authenticated;
+grant select ("id", "authUserId", "login", "displayName", "role", "isActive")
+on table public."AccessUser"
+to authenticated;
 
 revoke all on table public."DutyMember" from anon;
 revoke insert, delete on table public."DutyMember" from authenticated;
