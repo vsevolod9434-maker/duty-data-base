@@ -294,16 +294,10 @@ async function handleSimpleItem(
 
 async function handleGroups(client: SupabaseClient, method: string, init?: RequestInit, id?: string) {
   await assertAuthenticated(client);
+  const select = "*, members:StalkerGroupMember(id, stalkerId, roleType, customRoleName, joinedAt)";
 
   if (method === "GET" && !id) {
-    return json(
-      await selectRows(
-        client,
-        "StalkerGroup",
-        "*, members:StalkerGroupMember(id, stalkerId, roleType, customRoleName, joinedAt)",
-        "createdAt",
-      ),
-    );
+    return json(await selectRows(client, "StalkerGroup", select, "createdAt"));
   }
 
   if (method === "DELETE" && id) {
@@ -315,36 +309,58 @@ async function handleGroups(client: SupabaseClient, method: string, init?: Reque
   if ((method === "POST" && !id) || (method === "PATCH" && id)) {
     const payload = await requestBody(init);
     const groupId = id ?? (stringValue(payload.id) || crypto.randomUUID());
-    const members = asArray(payload.members).map((member) => {
-      const record = asRecord(member);
-      return {
-        id: stringValue(record.id) || crypto.randomUUID(),
-        groupId,
-        stalkerId: stringValue(record.stalkerId),
-        roleType: stringValue(record.roleType) || "member",
-        customRoleName: nullableString(record.customRoleName),
-        joinedAt: stringValue(record.joinedAt) || nowIso(),
-      };
-    });
-    const group = normalizeParentPayload(
-      {
-        name: stringValue(payload.name).trim(),
-        photoUrl: nullableString(payload.photoUrl),
-        status: stringValue(payload.status) || "active",
-        notes: nullableString(payload.notes),
-      },
-      groupId,
-      method === "POST",
-    );
-    const query = method === "POST" ? client.from("StalkerGroup").insert(group) : client.from("StalkerGroup").update(group).eq("id", groupId);
+    const hasMembers = payload.members !== undefined;
+    const members = hasMembers
+      ? asArray(payload.members).map((member) => {
+          const record = asRecord(member);
+          return {
+            id: stringValue(record.id) || crypto.randomUUID(),
+            groupId,
+            stalkerId: stringValue(record.stalkerId),
+            roleType: stringValue(record.roleType) || "member",
+            customRoleName: nullableString(record.customRoleName),
+            joinedAt: stringValue(record.joinedAt) || nowIso(),
+          };
+        })
+      : [];
+
+    const patch: JsonRecord = { updatedAt: nowIso() };
+
+    if (method === "POST" || payload.name !== undefined) {
+      const name = stringValue(payload.name).trim();
+      if (!name) return errorResponse("Укажите название группы.");
+      patch.name = name;
+    }
+
+    if (method === "POST" || payload.photoUrl !== undefined) {
+      patch.photoUrl = nullableString(payload.photoUrl);
+    }
+
+    if (method === "POST" || payload.status !== undefined) {
+      const status = stringValue(payload.status) || "active";
+      if (status !== "active" && status !== "archive") {
+        return errorResponse("Указан некорректный статус группы.");
+      }
+      patch.status = status;
+    }
+
+    if (method === "POST" || payload.notes !== undefined) {
+      patch.notes = nullableString(payload.notes);
+    }
+
+    const group = normalizeParentPayload(patch, groupId, method === "POST");
+    const query =
+      method === "POST"
+        ? client.from("StalkerGroup").insert(group)
+        : client.from("StalkerGroup").update(group).eq("id", groupId);
     const { error } = await query;
     if (error) throw error;
-    await replaceChildren(client, "StalkerGroupMember", "groupId", groupId, members);
-    const { data, error: readError } = await client
-      .from("StalkerGroup")
-      .select("*, members:StalkerGroupMember(id, stalkerId, roleType, customRoleName, joinedAt)")
-      .eq("id", groupId)
-      .single();
+
+    if (method === "POST" || hasMembers) {
+      await replaceChildren(client, "StalkerGroupMember", "groupId", groupId, members);
+    }
+
+    const { data, error: readError } = await client.from("StalkerGroup").select(select).eq("id", groupId).single();
     if (readError) throw readError;
     return json(data, method === "POST" ? 201 : 200);
   }
@@ -371,46 +387,108 @@ async function handleApartments(client: SupabaseClient, method: string, init?: R
     const payload = await requestBody(init);
     const apartmentId = id ?? (stringValue(payload.id) || crypto.randomUUID());
     const actor = actorLabel(accessUser);
-    const tenants = asArray(payload.tenants).map((tenant) => {
-      const record = asRecord(tenant);
-      return {
-        id: stringValue(record.id) || crypto.randomUUID(),
-        apartmentId,
-        profileId: stringValue(record.profileId),
-        addedAt: stringValue(record.addedAt) || nowIso(),
-      };
-    });
-    const payments = asArray(payload.payments).map((payment) => {
-      const record = asRecord(payment);
-      return {
-        id: stringValue(record.id) || crypto.randomUUID(),
-        apartmentId,
-        paidAt: stringValue(record.paidAt) || nowIso(),
-        amount: Math.trunc(Number(record.amount) || 0),
-        paymentType: nullableString(record.paymentType),
-        paymentMethod: nullableString(record.paymentMethod),
-        paidUntil: stringValue(record.paidUntil),
-        notes: nullableString(record.notes),
-        createdAt: stringValue(record.createdAt) || nowIso(),
-        acceptedBy: nullableString(record.acceptedBy) ?? actor,
-        issuedBy: nullableString(record.issuedBy) ?? actor,
-        responsibleBy: nullableString(record.responsibleBy) ?? actor,
-      };
-    });
-    const apartment = normalizeParentPayload(
-      {
-        name: stringValue(payload.name).trim(),
-        status: tenants.length > 0 ? "occupied" : "free",
-        notes: nullableString(payload.notes),
-      },
-      apartmentId,
-      method === "POST",
-    );
-    const query = method === "POST" ? client.from("Apartment").insert(apartment) : client.from("Apartment").update(apartment).eq("id", apartmentId);
+    const hasTenants = payload.tenants !== undefined;
+    const hasPayments = payload.payments !== undefined;
+
+    const tenants = hasTenants
+      ? asArray(payload.tenants).map((tenant) => {
+          const record = asRecord(tenant);
+          return {
+            id: stringValue(record.id) || crypto.randomUUID(),
+            apartmentId,
+            profileId: stringValue(record.profileId),
+            addedAt: stringValue(record.addedAt) || nowIso(),
+          };
+        })
+      : [];
+
+    const existingAttributionById = new Map<
+      string,
+      { acceptedBy: string | null; issuedBy: string | null; responsibleBy: string | null }
+    >();
+
+    if (method === "PATCH" && hasPayments) {
+      const { data: existingPayments, error: existingPaymentsError } = await client
+        .from("ApartmentPayment")
+        .select("id, acceptedBy, issuedBy, responsibleBy")
+        .eq("apartmentId", apartmentId);
+
+      if (existingPaymentsError) throw existingPaymentsError;
+
+      for (const rawPayment of existingPayments ?? []) {
+        const payment = asRecord(rawPayment);
+        const paymentId = stringValue(payment.id);
+        if (!paymentId) continue;
+        existingAttributionById.set(paymentId, {
+          acceptedBy: nullableString(payment.acceptedBy),
+          issuedBy: nullableString(payment.issuedBy),
+          responsibleBy: nullableString(payment.responsibleBy),
+        });
+      }
+    }
+
+    const payments = hasPayments
+      ? asArray(payload.payments).map((payment) => {
+          const record = asRecord(payment);
+          const paymentId = stringValue(record.id) || crypto.randomUUID();
+          const existingAttribution = existingAttributionById.get(paymentId);
+          return {
+            id: paymentId,
+            apartmentId,
+            paidAt: stringValue(record.paidAt) || nowIso(),
+            amount: Math.trunc(Number(record.amount) || 0),
+            paymentType: nullableString(record.paymentType),
+            paymentMethod: nullableString(record.paymentMethod),
+            paidUntil: stringValue(record.paidUntil),
+            notes: nullableString(record.notes),
+            createdAt: stringValue(record.createdAt) || nowIso(),
+            acceptedBy: existingAttribution?.acceptedBy ?? actor,
+            issuedBy: existingAttribution?.issuedBy ?? actor,
+            responsibleBy: existingAttribution?.responsibleBy ?? actor,
+          };
+        })
+      : [];
+
+    const patch: JsonRecord = { updatedAt: nowIso() };
+
+    if (method === "POST" || payload.name !== undefined) {
+      const name = stringValue(payload.name).trim();
+      if (!name) return errorResponse("Укажите название квартиры.");
+      patch.name = name;
+    }
+
+    if (method === "POST" || payload.notes !== undefined) {
+      patch.notes = nullableString(payload.notes);
+    }
+
+    if (hasTenants) {
+      patch.status = tenants.length > 0 ? "occupied" : "free";
+    } else if (method === "POST") {
+      patch.status = "free";
+    } else if (payload.status !== undefined) {
+      const status = stringValue(payload.status);
+      if (status !== "free" && status !== "occupied") {
+        return errorResponse("Указан некорректный статус квартиры.");
+      }
+      patch.status = status;
+    }
+
+    const apartment = normalizeParentPayload(patch, apartmentId, method === "POST");
+    const query =
+      method === "POST"
+        ? client.from("Apartment").insert(apartment)
+        : client.from("Apartment").update(apartment).eq("id", apartmentId);
     const { error } = await query;
     if (error) throw error;
-    await replaceChildren(client, "ApartmentTenant", "apartmentId", apartmentId, tenants);
-    await replaceChildren(client, "ApartmentPayment", "apartmentId", apartmentId, payments);
+
+    if (method === "POST" || hasTenants) {
+      await replaceChildren(client, "ApartmentTenant", "apartmentId", apartmentId, tenants);
+    }
+
+    if (method === "POST" || hasPayments) {
+      await replaceChildren(client, "ApartmentPayment", "apartmentId", apartmentId, payments);
+    }
+
     const { data, error: readError } = await client.from("Apartment").select(select).eq("id", apartmentId).single();
     if (readError) throw readError;
     return json(data, method === "POST" ? 201 : 200);
@@ -477,7 +555,22 @@ async function handleTradeOperations(client: SupabaseClient, method: string, ini
   if ((method === "POST" && !id) || (method === "PATCH" && id)) {
     const payload = await requestBody(init);
     const operationId = id ?? (stringValue(payload.id) || crypto.randomUUID());
-    const items = asArray(payload.items).map((item) => {
+    let current: JsonRecord = {};
+
+    if (method === "PATCH") {
+      const { data: currentData, error: currentError } = await client
+        .from("TradeOperation")
+        .select(select)
+        .eq("id", operationId)
+        .maybeSingle();
+      if (currentError) throw currentError;
+      if (!currentData) return errorResponse("Торговая операция не найдена.", 404);
+      current = asRecord(currentData);
+    }
+
+    const hasItems = payload.items !== undefined;
+    const sourceItems = hasItems ? asArray(payload.items) : asArray(current.items);
+    const items = sourceItems.map((item) => {
       const record = asRecord(item);
       return {
         id: stringValue(record.id) || crypto.randomUUID(),
@@ -488,29 +581,53 @@ async function handleTradeOperations(client: SupabaseClient, method: string, ini
         notes: nullableString(record.notes),
       };
     });
-    const totalAmount = items.reduce((total, item) => total + item.quantity * item.price, 0);
-    const operation = normalizeParentPayload(
-      {
-        type: stringValue(payload.type) || "sale",
-        subjectType: stringValue(payload.subjectType) || "manual",
-        stalkerId: nullableString(payload.stalkerId),
-        groupId: nullableString(payload.groupId),
-        manualParticipantName: nullableString(payload.manualParticipantName),
-        totalAmount,
-        issuedBy: actorLabel(accessUser),
-        notes: nullableString(payload.notes),
-        operationDate: nullableString(payload.operationDate),
-      },
-      operationId,
-      method === "POST",
-    );
+
+    if ((method === "POST" || hasItems) && items.length === 0) {
+      return errorResponse("Добавьте хотя бы один предмет.");
+    }
+
+    const patch: JsonRecord = { updatedAt: nowIso() };
+
+    if (method === "POST" || payload.type !== undefined) {
+      patch.type = stringValue(payload.type) || "sale";
+    }
+    if (method === "POST" || payload.subjectType !== undefined) {
+      patch.subjectType = stringValue(payload.subjectType) || "manual";
+    }
+    if (method === "POST" || payload.stalkerId !== undefined) {
+      patch.stalkerId = nullableString(payload.stalkerId);
+    }
+    if (method === "POST" || payload.groupId !== undefined) {
+      patch.groupId = nullableString(payload.groupId);
+    }
+    if (method === "POST" || payload.manualParticipantName !== undefined) {
+      patch.manualParticipantName = nullableString(payload.manualParticipantName);
+    }
+    if (method === "POST") {
+      patch.issuedBy = actorLabel(accessUser);
+    }
+    if (method === "POST" || payload.notes !== undefined) {
+      patch.notes = nullableString(payload.notes);
+    }
+    if (method === "POST" || payload.operationDate !== undefined) {
+      patch.operationDate = nullableString(payload.operationDate);
+    }
+    if (method === "POST" || hasItems) {
+      patch.totalAmount = items.reduce((total, item) => total + item.quantity * item.price, 0);
+    }
+
+    const operation = normalizeParentPayload(patch, operationId, method === "POST");
     const query =
       method === "POST"
         ? client.from("TradeOperation").insert(operation)
         : client.from("TradeOperation").update(operation).eq("id", operationId);
     const { error } = await query;
     if (error) throw error;
-    await replaceChildren(client, "TradeOperationItem", "operationId", operationId, items);
+
+    if (method === "POST" || hasItems) {
+      await replaceChildren(client, "TradeOperationItem", "operationId", operationId, items);
+    }
+
     const { data, error: readError } = await client.from("TradeOperation").select(select).eq("id", operationId).single();
     if (readError) throw readError;
     return json(data, method === "POST" ? 201 : 200);
@@ -670,20 +787,14 @@ async function handleMapLayers(client: SupabaseClient, method: string, init?: Re
     if (duplicateError) throw duplicateError;
     if (duplicate) return errorResponse("Слой с таким названием уже существует.");
 
-    const previousName = currentLayer.name;
-    const objectTables = ["MapMarker", "MapZone", "MapRoute", "MapLabel"] as const;
+    const { error: renameError } = await client.rpc("rename_map_layer_transaction", {
+      target_layer_id: id,
+      next_name: name,
+      next_normalized_name: normalizedName,
+    });
+    if (renameError) throw renameError;
 
-    for (const table of objectTables) {
-      const { error: objectUpdateError } = await client.from(table).update({ layer: name }).eq("layer", previousName);
-      if (objectUpdateError) throw objectUpdateError;
-    }
-
-    const { data, error } = await client
-      .from("MapLayer")
-      .update({ name, normalizedName, updatedAt: nowIso() })
-      .eq("id", id)
-      .select()
-      .single();
+    const { data, error } = await client.from("MapLayer").select("*").eq("id", id).single();
     if (error) throw error;
     return json(data);
   }
