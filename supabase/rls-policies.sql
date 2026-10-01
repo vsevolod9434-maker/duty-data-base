@@ -102,9 +102,33 @@ language sql
 stable
 security definer
 set search_path = pg_catalog
-as $$
+as $
   select private.is_system_admin() or private.is_officer()
-$$;
+$;
+
+create or replace function private.can_manage_duty_member(target_access_user_id text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = pg_catalog
+as $
+  select case
+    when target_access_user_id is null then false
+    when target_access_user_id = private.current_access_user_id() then false
+    when private.is_system_admin() then true
+    when private.is_officer() then exists (
+      select 1
+      from public."AccessUser" as target_access
+      where target_access."id" = target_access_user_id
+        and target_access."role" in (
+          'manager'::public."AccessUserRole",
+          'regular'::public."AccessUserRole"
+        )
+    )
+    else false
+  end
+$;
 
 create or replace function private.task_assignee_is_allowed(
   assignee_type public."TaskAssigneeType",
@@ -153,6 +177,7 @@ revoke all on function private.is_system_admin() from public, anon, authenticate
 revoke all on function private.is_officer() from public, anon, authenticated;
 revoke all on function private.current_access_level() from public, anon, authenticated;
 revoke all on function private.is_duty_admin() from public, anon, authenticated;
+revoke all on function private.can_manage_duty_member(text) from public, anon, authenticated;
 revoke all on function private.task_assignee_is_allowed(
   public."TaskAssigneeType",
   text,
@@ -163,6 +188,7 @@ revoke all on function private.task_assignee_is_allowed(
 -- Без USAGE схемы private они не доступны для прямого вызова браузерным SQL.
 grant execute on function private.is_active_access_user() to authenticated;
 grant execute on function private.is_duty_admin() to authenticated;
+grant execute on function private.can_manage_duty_member(text) to authenticated;
 grant execute on function private.current_access_user_id() to authenticated;
 grant execute on function private.task_assignee_is_allowed(
   public."TaskAssigneeType",
@@ -509,8 +535,8 @@ create policy duty_pages_update
 on public."DutyMember"
 for update
 to authenticated
-using (private.is_duty_admin())
-with check (private.is_duty_admin());
+using (private.can_manage_duty_member("accessUserId"))
+with check (private.can_manage_duty_member("accessUserId"));
 
 -- Удаляем helper-функции legacy-варианта из public только после пересоздания
 -- duty_pages_* на private. DROP без CASCADE защищает посторонние зависимости.
