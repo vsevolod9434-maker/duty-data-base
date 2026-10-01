@@ -46,6 +46,10 @@ export function validateMapLayerInput(input: MapLayerInput) {
     return { error: "Название слоя слишком длинное.", ok: false as const };
   }
 
+  if (normalizeMapLayerKey(name) === normalizeMapLayerKey(DEFAULT_MAP_LAYER)) {
+    return { error: "Название «Основной слой» зарезервировано.", ok: false as const };
+  }
+
   return {
     data: {
       name,
