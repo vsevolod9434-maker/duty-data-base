@@ -68,6 +68,10 @@ export async function PATCH(request: Request, context: DutyMemberAccessContext) 
     return createDutyMemberErrorResponse("Выберите уровень допуска.");
   }
 
+  if (auth.role === "officer" && requestedAccessRole === "officer") {
+    return createDutyMemberErrorResponse("Доступ к операции запрещён.", 403);
+  }
+
   const accessUpdated = await prisma.accessUser
     .update({
       data: {
