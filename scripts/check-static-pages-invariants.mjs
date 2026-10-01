@@ -68,6 +68,16 @@ assert.equal(
   true,
   "Access-admin responses must include current staff-position relations.",
 );
+assert.equal(
+  accessAdminSource.includes("position: memberData.position"),
+  true,
+  "Access-admin must persist the duty member position field.",
+);
+assert.equal(
+  accessAdminSource.includes("unit: memberData.unit"),
+  true,
+  "Access-admin must persist the duty member unit field.",
+);
 
 const stalkerUtilsSource = readFileSync("src/lib/stalker-utils.ts", "utf8");
 assert.equal(
