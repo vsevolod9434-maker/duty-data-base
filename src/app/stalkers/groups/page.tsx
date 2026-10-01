@@ -12,11 +12,6 @@ import { addActivityLogEntry } from "@/lib/activity-log";
 import { apiFetch, apiFetchJson } from "@/lib/api-client";
 import { dutyDataKeys, scheduleClientStateSync, useCurrentUserCacheKey, useDutyQueryClient } from "@/lib/data-cache";
 import { createTask, deleteTaskRecord, fetchTasks, updateTask } from "@/lib/journal-api";
-import {
-  stalkerGroups as initialStalkerGroups,
-  stalkerProfiles as initialStalkerProfiles,
-  tasks as initialTasks,
-} from "@/lib/mock-data";
 import { isStaticExportEnabled, transactionalImportMessage } from "@/lib/static-hosting";
 import { withBasePath } from "@/lib/public-path";
 import type {
@@ -39,7 +34,6 @@ import {
   getTodayDate,
   groupRoleLabels,
   isTaskOverdue,
-  readStoredCollection,
   SYSTEM_DATE_MAX,
   SYSTEM_DATE_MIN,
   STALKER_GROUPS_STORAGE_KEY,
@@ -327,22 +321,16 @@ export default function StalkerGroupsPage() {
 
   useEffect(() => {
     const storageReadHandle = window.setTimeout(() => {
-      const localProfiles = readStoredCollection<StalkerProfile>(STALKER_PROFILES_STORAGE_KEY, initialStalkerProfiles);
-      const localGroups = readStoredCollection<StalkerGroup>(STALKER_GROUPS_STORAGE_KEY, initialStalkerGroups);
-      const localTasks = readStoredCollection<Task>(STALKER_TASKS_STORAGE_KEY, initialTasks);
       const cachedProfiles = currentUserKey ? queryClient.getQueryData<StalkerProfile[]>(dutyDataKeys.stalkers(currentUserKey)) : null;
       const cachedGroups = currentUserKey ? queryClient.getQueryData<StalkerGroup[]>(dutyDataKeys.stalkerGroups(currentUserKey)) : null;
       const cachedTasks = currentUserKey ? queryClient.getQueryData<Task[]>(dutyDataKeys.tasks(currentUserKey)) : null;
 
-      setProfiles(cachedProfiles ?? localProfiles);
-      setGroups(cachedGroups ?? localGroups);
-      setTasks(cachedTasks ?? localTasks);
+      setProfiles(cachedProfiles ?? []);
+      setGroups(cachedGroups ?? []);
+      setTasks(cachedTasks ?? []);
+      setLocalImportGroups([]);
       setIsStorageReady(true);
       setIsGroupLoading(!cachedGroups && !groupsQuery.data);
-
-      if (!cachedGroups && localGroups.length > 0) {
-        setLocalImportGroups(localGroups);
-      }
     }, 0);
 
     return () => {

@@ -30,12 +30,6 @@ import {
   updateTradeOperation,
   updateViolation,
 } from "@/lib/journal-api";
-import {
-  stalkerGroups as initialStalkerGroups,
-  stalkerProfiles as initialStalkerProfiles,
-  tasks as initialTasks,
-  tradeOperations as initialTradeOperations,
-} from "@/lib/mock-data";
 import { isStaticExportEnabled, transactionalImportMessage } from "@/lib/static-hosting";
 import type {
   StalkerGroup,
@@ -57,7 +51,6 @@ import {
   getProfileTitle,
   getSystemTimestamp,
   getTodayDate,
-  readStoredCollection,
   SYSTEM_DATE_MAX,
   SYSTEM_DATE_MIN,
   STALKER_GROUPS_STORAGE_KEY,
@@ -102,13 +95,9 @@ type EntitySearchResult = {
   meta?: string;
 };
 
-async function fetchReferenceCollection<T>(url: string, fallback: T[]) {
-  try {
-    const payload = await apiFetchJson<T[]>(url);
-    return payload.map((item) => normalizeReferenceRecord(item));
-  } catch {
-    return fallback;
-  }
+async function fetchReferenceCollection<T>(url: string) {
+  const payload = await apiFetchJson<T[]>(url);
+  return payload.map((item) => normalizeReferenceRecord(item));
 }
 
 function normalizeReferenceRecord<T>(item: T): T {
@@ -393,12 +382,12 @@ export default function JournalsPage() {
 
   const profilesQuery = useQuery({
     queryKey: dutyDataKeys.stalkers(currentUserKey ?? "pending"),
-    queryFn: () => fetchReferenceCollection<StalkerProfile>("/api/stalkers", []),
+    queryFn: () => fetchReferenceCollection<StalkerProfile>("/api/stalkers"),
     enabled: Boolean(currentUserKey),
   });
   const groupsQuery = useQuery({
     queryKey: dutyDataKeys.stalkerGroups(currentUserKey ?? "pending"),
-    queryFn: () => fetchReferenceCollection<StalkerGroup>("/api/stalker-groups", []),
+    queryFn: () => fetchReferenceCollection<StalkerGroup>("/api/stalker-groups"),
     enabled: Boolean(currentUserKey),
   });
   const tasksQuery = useQuery({
@@ -418,14 +407,7 @@ export default function JournalsPage() {
   });
 
   useEffect(() => {
-    let isCancelled = false;
-
     const storageReadHandle = window.setTimeout(() => {
-      const localProfiles = readStoredCollection<StalkerProfile>(STALKER_PROFILES_STORAGE_KEY, initialStalkerProfiles);
-      const localGroups = readStoredCollection<StalkerGroup>(STALKER_GROUPS_STORAGE_KEY, initialStalkerGroups);
-      const localTasks = readStoredCollection<Task>(STALKER_TASKS_STORAGE_KEY, initialTasks);
-      const localTradeOperations = readStoredCollection<TradeOperation>(TRADE_OPERATIONS_STORAGE_KEY, initialTradeOperations);
-      const localViolations = readStoredCollection<Violation>(VIOLATIONS_STORAGE_KEY, []);
       const cachedProfiles = currentUserKey ? queryClient.getQueryData<StalkerProfile[]>(dutyDataKeys.stalkers(currentUserKey)) : null;
       const cachedGroups = currentUserKey ? queryClient.getQueryData<StalkerGroup[]>(dutyDataKeys.stalkerGroups(currentUserKey)) : null;
       const cachedTasks = currentUserKey ? queryClient.getQueryData<Task[]>(dutyDataKeys.tasks(currentUserKey)) : null;
@@ -434,99 +416,36 @@ export default function JournalsPage() {
         : null;
       const cachedViolations = currentUserKey ? queryClient.getQueryData<Violation[]>(dutyDataKeys.violations(currentUserKey)) : null;
 
-      setProfiles(cachedProfiles ?? localProfiles);
-      setGroups(cachedGroups ?? localGroups);
-      setTasks(cachedTasks ?? localTasks);
-      setTradeOperations(cachedTradeOperations ?? localTradeOperations);
-      setViolations(cachedViolations ?? localViolations);
-
-      async function loadJournalData() {
-        setIsJournalLoading(true);
-        setJournalLoadMessage("");
-
-        try {
-          const [serverProfiles, serverGroups, serverTasks, serverTradeOperations, serverViolations] = await Promise.all([
-            currentUserKey
-              ? queryClient.fetchQuery({
-                  queryKey: dutyDataKeys.stalkers(currentUserKey),
-                  queryFn: () => fetchReferenceCollection<StalkerProfile>("/api/stalkers", localProfiles),
-                })
-              : fetchReferenceCollection<StalkerProfile>("/api/stalkers", localProfiles),
-            currentUserKey
-              ? queryClient.fetchQuery({
-                  queryKey: dutyDataKeys.stalkerGroups(currentUserKey),
-                  queryFn: () => fetchReferenceCollection<StalkerGroup>("/api/stalker-groups", localGroups),
-                })
-              : fetchReferenceCollection<StalkerGroup>("/api/stalker-groups", localGroups),
-            currentUserKey ? queryClient.fetchQuery({ queryKey: dutyDataKeys.tasks(currentUserKey), queryFn: fetchTasks }) : fetchTasks(),
-            currentUserKey
-              ? queryClient.fetchQuery({ queryKey: dutyDataKeys.tradeOperations(currentUserKey), queryFn: fetchTradeOperations })
-              : fetchTradeOperations(),
-            currentUserKey ? queryClient.fetchQuery({ queryKey: dutyDataKeys.violations(currentUserKey), queryFn: fetchViolations }) : fetchViolations(),
-          ]);
-
-          if (isCancelled) {
-            return;
-          }
-
-          setProfiles(serverProfiles);
-          setGroups(serverGroups);
-          setTasks(serverTasks);
-          setTradeOperations(serverTradeOperations);
-          setViolations(serverViolations);
-
-          if (serverTasks.length > 0) {
-            setLocalImportTasks([]);
-          } else if (localTasks.length > 0) {
-            setLocalImportTasks(localTasks);
-          }
-
-          if (serverTradeOperations.length > 0) {
-            setLocalImportTradeOperations([]);
-          } else if (localTradeOperations.length > 0) {
-            setLocalImportTradeOperations(localTradeOperations);
-          }
-
-          if (serverViolations.length > 0) {
-            setLocalImportViolations([]);
-          } else if (localViolations.length > 0) {
-            setLocalImportViolations(localViolations);
-          }
-
-          writeStoredCollection(STALKER_PROFILES_STORAGE_KEY, serverProfiles);
-          writeStoredCollection(STALKER_GROUPS_STORAGE_KEY, serverGroups);
-          writeStoredCollection(STALKER_TASKS_STORAGE_KEY, serverTasks);
-          writeStoredCollection(TRADE_OPERATIONS_STORAGE_KEY, serverTradeOperations);
-          writeStoredCollection(VIOLATIONS_STORAGE_KEY, serverViolations);
-        } catch {
-          if (isCancelled) {
-            return;
-          }
-
-          setJournalLoadMessage(
-            "Не удалось загрузить журналы.",
-          );
-        } finally {
-          if (!isCancelled) {
-            setIsStorageReady(true);
-            setIsJournalLoading(false);
-          }
-        }
-      }
-
-      if (!cachedTasks && !cachedTradeOperations && !cachedViolations) {
-        void loadJournalData();
-      } else {
-        setIsStorageReady(true);
-        setIsJournalLoading(false);
-      }
+      setProfiles(cachedProfiles ?? []);
+      setGroups(cachedGroups ?? []);
+      setTasks(cachedTasks ?? []);
+      setTradeOperations(cachedTradeOperations ?? []);
+      setViolations(cachedViolations ?? []);
+      setLocalImportTasks([]);
+      setLocalImportTradeOperations([]);
+      setLocalImportViolations([]);
+      setIsStorageReady(true);
+      setIsJournalLoading(
+        (!cachedProfiles && !profilesQuery.data) ||
+          (!cachedGroups && !groupsQuery.data) ||
+          (!cachedTasks && !tasksQuery.data) ||
+          (!cachedTradeOperations && !tradeOperationsQuery.data) ||
+          (!cachedViolations && !violationsQuery.data),
+      );
     }, 0);
 
     return () => {
-      isCancelled = true;
       window.clearTimeout(storageReadHandle);
     };
-  }, [currentUserKey, queryClient]);
+  }, [
+    currentUserKey,
+    groupsQuery.data,
+    profilesQuery.data,
+    queryClient,
+    tasksQuery.data,
+    tradeOperationsQuery.data,
+    violationsQuery.data,
+  ]);
 
   useEffect(() => {
     return scheduleClientStateSync(() => {
