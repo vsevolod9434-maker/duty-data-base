@@ -68,6 +68,10 @@ async function resolveAuthEmailWithRpc(client: SupabaseClient, identifier: strin
   });
 
   if (error) {
+    if (isServiceUnavailableError(error)) {
+      throw new Error(staticAccessRetryMessage);
+    }
+
     return null;
   }
 
@@ -101,6 +105,42 @@ export async function clearStaticAuthState(client: SupabaseClient) {
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : undefined;
+}
+
+function errorStatus(error: unknown) {
+  if (!error || typeof error !== "object" || !("status" in error)) {
+    return null;
+  }
+
+  const status = Number((error as { status?: unknown }).status);
+  return Number.isFinite(status) ? status : null;
+}
+
+function isServiceUnavailableError(error: unknown) {
+  const status = errorStatus(error);
+
+  if (status !== null && status >= 500) {
+    return true;
+  }
+
+  const message = errorMessage(error)?.toLocaleLowerCase("en-US") ?? "";
+  return (
+    message.includes("network") ||
+    message.includes("fetch failed") ||
+    message.includes("connection") ||
+    message.includes("timeout")
+  );
+}
+
+function isCredentialAuthError(error: unknown) {
+  const status = errorStatus(error);
+
+  if (status === 400 || status === 401) {
+    return true;
+  }
+
+  const message = errorMessage(error)?.toLocaleLowerCase("en-US") ?? "";
+  return message.includes("invalid login credentials") || message.includes("invalid credentials");
 }
 
 export async function getStaticAccessProfileResult(
@@ -165,13 +205,27 @@ export async function signInStaticAccessUser(client: SupabaseClient, identifier:
   await clearStaticAuthState(client);
 
   const email = await resolveStaticAuthEmail(client, identifier);
+  let signInResult;
+
+  try {
+    signInResult = await client.auth.signInWithPassword({ email, password });
+  } catch {
+    await clearStaticAuthState(client);
+    throw new Error(staticAccessRetryMessage);
+  }
+
   const {
     data: { user },
     error,
-  } = await client.auth.signInWithPassword({ email, password });
+  } = signInResult;
 
   if (error || !user) {
     await clearStaticAuthState(client);
+
+    if (error && !isCredentialAuthError(error)) {
+      throw new Error(staticAccessRetryMessage);
+    }
+
     throw new Error(staticLoginErrorMessage);
   }
 
