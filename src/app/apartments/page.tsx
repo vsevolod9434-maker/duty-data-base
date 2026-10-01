@@ -1002,11 +1002,6 @@ export default function ApartmentsPage() {
   }
 
   async function createDefaultServerApartments() {
-    if (isStaticExportEnabled) {
-      setApartmentActionMessage(transactionalImportMessage);
-      return;
-    }
-
     setIsApartmentInitializing(true);
     setApartmentActionMessage("");
 
@@ -1077,12 +1072,11 @@ export default function ApartmentsPage() {
         {isStorageReady && !isApartmentLoading && apartments.length === 0 && localImportApartments.length === 0 ? (
           <div className="empty-state compact-empty-state">
             <p>Квартиры не найдены.</p>
-            <span>Для нормальной работы раздела создайте три базовые квартиры.</span>
+            <span>Для нормальной работы раздела создайте две базовые квартиры.</span>
             <button
               className="primary-command"
-              disabled={isApartmentInitializing || isStaticExportEnabled}
+              disabled={isApartmentInitializing}
               onClick={createDefaultServerApartments}
-              title={isStaticExportEnabled ? transactionalImportMessage : undefined}
               type="button"
             >
               {isApartmentInitializing ? "Создание..." : "Создать базовые квартиры"}
