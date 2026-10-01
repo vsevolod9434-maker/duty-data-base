@@ -12,6 +12,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Pagination } from "@/components/ui/Pagination";
 import { cachePolicy, dutyDataKeys, scheduleClientStateSync, useCurrentUserCacheKey, useDutyQueryClient } from "@/lib/data-cache";
 import { isStaticExportEnabled, transactionalImportMessage } from "@/lib/static-hosting";
+import { withBasePath } from "@/lib/public-path";
 import {
   apartmentPaymentStatusLabels,
   apartmentStatusLabels,
@@ -712,7 +713,7 @@ export default function ApartmentsPage() {
   }
 
   function openTenantProfile(profileId: string) {
-    window.location.assign(`/stalkers/profiles?profileId=${encodeURIComponent(profileId)}`);
+    window.location.assign(withBasePath(`/stalkers/profiles?profileId=${encodeURIComponent(profileId)}`));
   }
 
   function handleTenantCardKeyDown(event: KeyboardEvent<HTMLElement>, profileId: string) {
