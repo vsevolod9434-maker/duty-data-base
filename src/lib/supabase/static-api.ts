@@ -787,20 +787,14 @@ async function handleMapLayers(client: SupabaseClient, method: string, init?: Re
     if (duplicateError) throw duplicateError;
     if (duplicate) return errorResponse("Слой с таким названием уже существует.");
 
-    const previousName = currentLayer.name;
-    const objectTables = ["MapMarker", "MapZone", "MapRoute", "MapLabel"] as const;
+    const { error: renameError } = await client.rpc("rename_map_layer_transaction", {
+      target_layer_id: id,
+      next_name: name,
+      next_normalized_name: normalizedName,
+    });
+    if (renameError) throw renameError;
 
-    for (const table of objectTables) {
-      const { error: objectUpdateError } = await client.from(table).update({ layer: name }).eq("layer", previousName);
-      if (objectUpdateError) throw objectUpdateError;
-    }
-
-    const { data, error } = await client
-      .from("MapLayer")
-      .update({ name, normalizedName, updatedAt: nowIso() })
-      .eq("id", id)
-      .select()
-      .single();
+    const { data, error } = await client.from("MapLayer").select("*").eq("id", id).single();
     if (error) throw error;
     return json(data);
   }
