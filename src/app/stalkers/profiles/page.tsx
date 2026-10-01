@@ -2250,7 +2250,7 @@ export default function StalkerProfilesPage() {
   }
 
   function openGroupsPage() {
-    window.location.href = "/stalkers/groups";
+    window.location.href = withBasePath("/stalkers/groups");
   }
 
   function handleGroupCardKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
