@@ -1,1 +1,3 @@
 One-time maintenance trigger for the 2026-10-01 authorized cleanup of DutyMember profiles and access hardening.
+
+Retry 2: execute through the Supabase Management API instead of the obsolete database pooler URL.
