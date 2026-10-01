@@ -20,7 +20,6 @@ import {
   getApartmentPaymentBadgeClass,
   getApartmentPaymentStatus,
   getLatestApartmentPayment,
-  normalizeApartments,
 } from "@/lib/apartment-utils";
 import {
   forceSystemYear,
@@ -31,12 +30,9 @@ import {
   getProfileTitle,
   getSystemTimestamp,
   getTodayDate,
-  readStoredCollection,
   APARTMENTS_STORAGE_KEY,
   SYSTEM_DATE_MAX,
   SYSTEM_DATE_MIN,
-  STALKER_GROUPS_STORAGE_KEY,
-  STALKER_PROFILES_STORAGE_KEY,
   writeStoredCollection,
 } from "@/lib/stalker-utils";
 import type { Apartment, ApartmentPayment, StalkerGroup, StalkerProfile } from "@/lib/types";
@@ -311,20 +307,16 @@ export default function ApartmentsPage() {
 
   useEffect(() => {
     const storageReadHandle = window.setTimeout(() => {
-      const localApartments = readStoredCollection<Apartment>(APARTMENTS_STORAGE_KEY, []);
       const cachedProfiles = currentUserKey ? queryClient.getQueryData<StalkerProfile[]>(dutyDataKeys.stalkers(currentUserKey)) : null;
       const cachedGroups = currentUserKey ? queryClient.getQueryData<StalkerGroup[]>(dutyDataKeys.stalkerGroups(currentUserKey)) : null;
       const cachedApartments = currentUserKey ? queryClient.getQueryData<Apartment[]>(dutyDataKeys.apartments(currentUserKey)) : null;
 
-      setProfiles(cachedProfiles ?? readStoredCollection<StalkerProfile>(STALKER_PROFILES_STORAGE_KEY, []));
-      setGroups(cachedGroups ?? readStoredCollection<StalkerGroup>(STALKER_GROUPS_STORAGE_KEY, []));
-      setApartments(cachedApartments ?? normalizeApartments(localApartments));
+      setProfiles(cachedProfiles ?? []);
+      setGroups(cachedGroups ?? []);
+      setApartments(cachedApartments ?? []);
+      setLocalImportApartments([]);
       setIsStorageReady(true);
       setIsApartmentLoading(!cachedApartments && !apartmentsQuery.data);
-
-      if (!cachedApartments && localApartments.length > 0) {
-        setLocalImportApartments(normalizeApartments(localApartments));
-      }
     }, 0);
 
     return () => {
