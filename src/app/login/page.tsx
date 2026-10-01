@@ -4,11 +4,8 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
+  getStaticLoginDisplayMessage,
   signInStaticAccessUser,
-  staticAccessDeniedMessage,
-  staticAccessRetryMessage,
-  staticLoginErrorMessage,
-  staticLookupUnavailableMessage,
 } from "@/lib/supabase/static-auth";
 
 type LoginResponse = {
@@ -68,14 +65,7 @@ export default function LoginPage() {
       router.replace("/");
       router.refresh();
     } catch (error) {
-      const safeMessage = error instanceof Error ? error.message : "";
-      const allowedMessages = new Set([
-        staticAccessDeniedMessage,
-        staticAccessRetryMessage,
-        staticLoginErrorMessage,
-        staticLookupUnavailableMessage,
-      ]);
-      setMessage(allowedMessages.has(safeMessage) ? safeMessage : loginErrorMessage);
+      setMessage(process.env.NEXT_PUBLIC_STATIC_EXPORT === "true" ? getStaticLoginDisplayMessage(error) : loginErrorMessage);
     } finally {
       setIsLoading(false);
     }
