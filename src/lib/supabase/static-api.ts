@@ -3,7 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getRoleLabel, type UserRole } from "@/lib/auth-roles";
 import { getDutyAccessLevelLabel } from "@/lib/duty-members";
-import { DEFAULT_MAP_LAYER, normalizeMapLayerKey, normalizeMapLayerName } from "@/lib/map-layers";
+import { DEFAULT_MAP_LAYER, normalizeMapLayerKey, validateMapLayerInput } from "@/lib/map-layers";
 import { isStaticSupabaseApiRequest } from "@/lib/supabase/static-api-routing";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { backendOnlyOperationMessage, transactionalImportMessage } from "@/lib/static-hosting";
@@ -587,18 +587,13 @@ async function handleMapLayers(client: SupabaseClient, method: string, init?: Re
 
   if (method === "POST") {
     const payload = await requestBody(init);
-    const rawName = stringValue(payload.name);
-    const name = normalizeMapLayerName(rawName);
+    const validation = validateMapLayerInput({ name: payload.name });
 
-    if (!rawName.trim()) {
-      return errorResponse("Укажите название слоя.");
+    if (!validation.ok) {
+      return errorResponse(validation.error);
     }
 
-    if (name.length > 80) {
-      return errorResponse("Название слоя слишком длинное.");
-    }
-
-    const normalizedName = normalizeMapLayerKey(name);
+    const { name, normalizedName } = validation.data;
     const { data: duplicate, error: duplicateError } = await client
       .from("MapLayer")
       .select("id")
@@ -627,16 +622,13 @@ async function handleMapLayers(client: SupabaseClient, method: string, init?: Re
 
   if (method === "PATCH" && id) {
     const payload = await requestBody(init);
-    const rawName = stringValue(payload.name);
-    const name = normalizeMapLayerName(rawName);
+    const validation = validateMapLayerInput({ name: payload.name });
 
-    if (!rawName.trim()) {
-      return errorResponse("Укажите название слоя.");
+    if (!validation.ok) {
+      return errorResponse(validation.error);
     }
 
-    if (name.length > 80) {
-      return errorResponse("Название слоя слишком длинное.");
-    }
+    const { name, normalizedName } = validation.data;
 
     const { data: currentLayer, error: currentLayerError } = await client
       .from("MapLayer")
@@ -651,7 +643,6 @@ async function handleMapLayers(client: SupabaseClient, method: string, init?: Re
       return errorResponse("Основной слой нельзя переименовать.");
     }
 
-    const normalizedName = normalizeMapLayerKey(name);
     const { data: duplicate, error: duplicateError } = await client
       .from("MapLayer")
       .select("id")
