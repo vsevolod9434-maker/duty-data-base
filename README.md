@@ -33,13 +33,32 @@ npm run access-user:create -- --auth-user-id "UUID" --auth-email "admin@duty.loc
 
 `https://vsevolod9434-maker.github.io/duty-data-base/`
 
-Перед первой публикацией добавьте в GitHub Actions Secrets:
+Текущий Supabase URL, publishable key и URL Edge Function зафиксированы прямо в
+workflow. Это допустимо: publishable key является публичным браузерным ключом.
+`service_role`, пароль БД и Supabase access token в Pages-сборку не передаются.
+
+При переносе на новый Supabase-проект необходимо одновременно обновить:
 
 - `NEXT_PUBLIC_SUPABASE_URL`;
-- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`;
+- `NEXT_PUBLIC_ACCESS_ADMIN_FUNCTION_URL`;
+- `SUPABASE_PROJECT_ID` в `.github/workflows/deploy-supabase-functions.yml`.
 
-Для старых проектов вместо publishable key поддерживается
-`NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+### Чистое развёртывание Supabase
 
-Подробности совместимости, ограничения серверных операций и требования к
-Supabase RLS описаны в [docs/github-pages.md](docs/github-pages.md).
+После Prisma-миграций применяются актуальные SQL-файлы безопасности и RPC:
+
+1. `supabase/remove-access-user-password.sql`;
+2. `supabase/harden-access-user-identity.sql`;
+3. `supabase/prelogin-auth-lookup.sql`;
+4. `supabase/rls-policies.sql`;
+5. `supabase/access-admin-rpc.sql`;
+6. `supabase/static-pages-rpc.sql`;
+7. при необходимости `supabase/repair-service-role-access-admin-grants.sql`.
+
+После этого разворачивается Edge Function `access-admin`. Штатные секции и
+должности создаются командой `npm run duty-staff:seed`. Каталог снабжения не
+заполняется автоматически.
+
+Подробности совместимости, доступных операций и требований к Supabase RLS
+описаны в [docs/github-pages.md](docs/github-pages.md).
