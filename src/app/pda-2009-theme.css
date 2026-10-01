@@ -1,0 +1,892 @@
+/*
+ * PDA / КПК 2009 visual layer.
+ * Purely presentational: no layout routes, data flow, permissions or controls are changed.
+ * Rollback: remove this file import from globals.css (or revert the design commit).
+ */
+
+:root {
+  --pda09-black: #050506;
+  --pda09-black-2: #090a0b;
+  --pda09-shell: #111315;
+  --pda09-panel: #151719;
+  --pda09-panel-hi: #1c1f22;
+  --pda09-panel-low: #0d0f10;
+  --pda09-steel: #9ba0a2;
+  --pda09-steel-dim: #656a6c;
+  --pda09-text: #d4d6d6;
+  --pda09-text-hi: #f1f2f2;
+  --pda09-red: #9f1f25;
+  --pda09-red-hi: #cf3038;
+  --pda09-red-dark: #4c0e12;
+  --pda09-line: #393d3f;
+  --pda09-line-hi: #5a5e60;
+  --pda09-inset: inset 0 1px 0 rgba(255,255,255,.05), inset 0 -1px 0 rgba(0,0,0,.72);
+  --pda09-shadow: 0 8px 18px rgba(0,0,0,.26);
+  --background: var(--pda09-black);
+  --device: var(--pda09-shell);
+  --screen: #0a0b0c;
+  --top-panel: #111315;
+  --panel: var(--pda09-panel);
+  --panel-strong: var(--pda09-panel-hi);
+  --cell: #0c0d0e;
+  --tab: #151719;
+  --tab-active: #241012;
+  --tab-hover: #202326;
+  --foreground: var(--pda09-text);
+  --foreground-strong: var(--pda09-text-hi);
+  --muted: #8a8e90;
+  --muted-soft: #64686a;
+  --accent: var(--pda09-red);
+  --accent-strong: var(--pda09-red-hi);
+  --accent-soft: #da5b61;
+  --steel: var(--pda09-steel);
+  --warning: var(--pda09-red-hi);
+  --ok: #a4a6a5;
+  --line: rgba(151, 156, 158, .28);
+  --line-soft: rgba(151, 156, 158, .14);
+  --line-strong: rgba(207, 48, 56, .55);
+  --registry-bg: var(--pda09-black);
+  --registry-surface: #0d0f10;
+  --registry-surface-2: #151719;
+  --registry-surface-3: #1d2022;
+  --registry-border: rgba(154, 160, 162, .23);
+  --registry-border-strong: rgba(193, 198, 200, .38);
+  --registry-red: var(--pda09-red);
+  --registry-red-strong: var(--pda09-red-hi);
+  --registry-row-hover: rgba(159, 31, 37, .13);
+  --registry-row-active: rgba(159, 31, 37, .23);
+  --radius-panel: 1px;
+  --radius-control: 1px;
+}
+
+html,
+body {
+  scrollbar-color: #5a1b1f #090a0b;
+}
+
+body {
+  background:
+    radial-gradient(circle at 50% -15%, rgba(120, 124, 126, .10), transparent 38rem),
+    repeating-linear-gradient(0deg, rgba(255,255,255,.012) 0 1px, transparent 1px 4px),
+    #050506;
+  letter-spacing: .005em;
+}
+
+body::before {
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0 1px, transparent 1px 5px),
+    linear-gradient(90deg, rgba(0,0,0,.34), transparent 12%, transparent 88%, rgba(0,0,0,.42));
+  opacity: .38;
+}
+
+body::after {
+  background:
+    radial-gradient(ellipse at center, transparent 48%, rgba(0,0,0,.34) 100%),
+    linear-gradient(115deg, transparent 20%, rgba(255,255,255,.018) 48%, transparent 56%);
+  opacity: .7;
+}
+
+/* Screen / hardware framing */
+.pda-page {
+  background:
+    linear-gradient(90deg, rgba(255,255,255,.018), transparent 8%, transparent 92%, rgba(255,255,255,.012)),
+    var(--pda09-black);
+}
+
+.pda-screen {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.025), transparent 3.5rem),
+    #090a0b;
+  box-shadow:
+    inset 0 0 0 1px #242729,
+    inset 0 0 0 2px #060707,
+    inset 0 0 72px rgba(0,0,0,.58);
+  backdrop-filter: none;
+}
+
+.pda-screen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.012) 0 1px, transparent 1px 3px);
+  mix-blend-mode: screen;
+  opacity: .34;
+}
+
+.pda-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* Top status / navigation bar */
+.pda-topbar,
+.registry-topbar {
+  position: relative;
+  z-index: 15;
+  border-bottom: 1px solid #050506;
+  background:
+    linear-gradient(180deg, #25282a 0, #17191b 18%, #101214 72%, #090a0b 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.10),
+    inset 0 -1px 0 #414548,
+    0 2px 8px rgba(0,0,0,.42);
+}
+
+.pda-topbar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #4b0c10, var(--pda09-red-hi) 18%, #641117 56%, transparent 94%);
+  opacity: .85;
+}
+
+.pda-shell-header,
+.registry-shell-header {
+  position: relative;
+}
+
+.pda-shell-header::before,
+.pda-shell-header::after {
+  content: "";
+  position: absolute;
+  top: .45rem;
+  width: 4px;
+  height: 4px;
+  border: 1px solid #565a5c;
+  border-radius: 50%;
+  background: #111315;
+  box-shadow: inset 0 0 0 1px #050506;
+  opacity: .78;
+}
+
+.pda-shell-header::before { left: .42rem; }
+.pda-shell-header::after { right: .42rem; }
+
+.pda-brand-mark,
+.registry-brand-mark {
+  border: 1px solid #4a4d4f;
+  border-radius: 2px;
+  background: linear-gradient(145deg, #242729, #0c0d0e 70%);
+  box-shadow: var(--pda09-inset), 0 0 0 1px #050506;
+}
+
+.pda-brand-copy strong,
+.registry-brand-copy strong {
+  color: #e2e4e4;
+  font-family: "Arial Narrow", "Roboto Condensed", "Segoe UI", sans-serif;
+  font-size: .92rem;
+  font-weight: 700;
+  letter-spacing: .075em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 #000;
+}
+
+.pda-tab,
+.registry-nav-tab {
+  position: relative;
+  border: 1px solid transparent;
+  border-left-color: rgba(255,255,255,.035);
+  border-right-color: rgba(0,0,0,.6);
+  border-radius: 0;
+  background: transparent;
+  color: #aeb2b3;
+  font-family: "Arial Narrow", "Segoe UI", sans-serif;
+  font-size: .84rem;
+  font-weight: 700;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 #000;
+  transition: background-color .1s linear, color .1s linear, border-color .1s linear;
+}
+
+.pda-tab:hover,
+.registry-nav-tab:hover,
+.pda-nav-dropdown-trigger:hover {
+  border-color: #45494b;
+  background: linear-gradient(180deg, #282b2d, #151719);
+  color: #f0f1f1;
+}
+
+.pda-tab-active,
+.registry-nav-tab-active,
+.pda-tab[aria-current="page"] {
+  border-color: #5a2a2d;
+  border-bottom-color: var(--pda09-red-hi);
+  background:
+    linear-gradient(180deg, rgba(123,31,37,.52), rgba(46,15,18,.48)),
+    linear-gradient(180deg, #2a2c2e, #111315);
+  color: #fff;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.06),
+    inset 0 -2px 0 var(--pda09-red-hi);
+}
+
+.pda-nav-dropdown-menu {
+  border: 1px solid #4a4e50;
+  border-top: 2px solid var(--pda09-red);
+  border-radius: 0;
+  background: #101214;
+  box-shadow: 4px 6px 0 rgba(0,0,0,.30), 0 10px 24px rgba(0,0,0,.44);
+}
+
+.pda-nav-dropdown-option {
+  border-bottom: 1px solid #242729;
+  background: linear-gradient(90deg, rgba(255,255,255,.018), transparent);
+  color: #bfc2c3;
+}
+
+.pda-nav-dropdown-option:hover,
+.pda-nav-dropdown-option-active {
+  background: linear-gradient(90deg, rgba(159,31,37,.38), rgba(159,31,37,.08));
+  color: #fff;
+  box-shadow: inset 3px 0 0 var(--pda09-red-hi);
+}
+
+.pda-status,
+.registry-status {
+  font-family: Consolas, "Lucida Console", monospace;
+  font-size: .76rem;
+  letter-spacing: .035em;
+  color: #aeb2b3;
+}
+
+.pda-clock {
+  border: 1px solid #3b3f41;
+  background: #070808;
+  color: #d8dada;
+  padding: .2rem .42rem;
+  box-shadow: inset 0 1px 5px rgba(0,0,0,.8);
+}
+
+.pda-signal {
+  filter: grayscale(1) contrast(1.15);
+}
+
+.battery {
+  filter: grayscale(1) contrast(1.15);
+}
+
+/* Panels and information surfaces */
+:is(
+  .registry-panel,
+  .section-panel,
+  .profiles-workspace-panel,
+  .groups-workspace-panel,
+  .apartments-workspace-panel,
+  .journals-panel,
+  .duty-members-list-panel,
+  .duty-member-detail-panel,
+  .calculator-catalog-panel,
+  .calculator-cart-panel,
+  .map-side-panel,
+  .map-panel-editor,
+  .login-card,
+  .login-briefing,
+  .welcome-panel,
+  .ui-panel
+) {
+  border: 1px solid #34383a;
+  border-top-color: #55595b;
+  border-radius: 1px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.025), transparent 2.6rem),
+    linear-gradient(135deg, #151719, #0d0f10 76%);
+  box-shadow:
+    var(--pda09-inset),
+    0 0 0 1px rgba(0,0,0,.52),
+    var(--pda09-shadow);
+}
+
+:is(
+  .registry-panel,
+  .section-panel,
+  .profiles-workspace-panel,
+  .groups-workspace-panel,
+  .apartments-workspace-panel,
+  .journals-panel,
+  .duty-members-list-panel,
+  .duty-member-detail-panel,
+  .calculator-catalog-panel,
+  .calculator-cart-panel,
+  .map-side-panel,
+  .map-panel-editor,
+  .login-card,
+  .login-briefing,
+  .welcome-panel
+) {
+  position: relative;
+}
+
+:is(
+  .registry-panel,
+  .section-panel,
+  .profiles-workspace-panel,
+  .groups-workspace-panel,
+  .apartments-workspace-panel,
+  .journals-panel,
+  .duty-members-list-panel,
+  .duty-member-detail-panel,
+  .calculator-catalog-panel,
+  .calculator-cart-panel,
+  .map-side-panel,
+  .map-panel-editor,
+  .login-card,
+  .login-briefing,
+  .welcome-panel
+)::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  left: -1px;
+  top: -1px;
+  width: 4.6rem;
+  height: 2px;
+  pointer-events: none;
+  background: linear-gradient(90deg, var(--pda09-red-hi), var(--pda09-red), transparent);
+}
+
+:is(
+  .section-header,
+  .registry-section-header,
+  .column-header,
+  .list-column-header,
+  .list-header-block,
+  .calculator-panel-header,
+  .map-side-panel-head,
+  .modal-header,
+  .login-card-header,
+  .apartment-notes-header,
+  .stalker-notes-header,
+  .task-section-header
+) {
+  border-bottom-color: #393d3f;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.028), rgba(0,0,0,.08)),
+    #151719;
+}
+
+:is(
+  .section-header,
+  .registry-section-header,
+  .column-header,
+  .list-column-header,
+  .list-header-block,
+  .calculator-panel-header,
+  .map-side-panel-head
+) h1,
+.ui-page-header h1,
+.welcome-hero-copy h1,
+.login-card-header h2,
+.login-briefing-copy h1 {
+  color: #edf0f0;
+  font-family: "Arial Narrow", "Roboto Condensed", "Segoe UI", sans-serif;
+  font-weight: 700;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 #000;
+}
+
+.ui-eyebrow,
+.eyebrow-text,
+.welcome-eyebrow,
+.login-kicker,
+.ui-header-meta,
+.filter-label-row,
+.apartment-list-metric-label {
+  color: #aeb2b3;
+  font-family: Consolas, "Lucida Console", monospace;
+  font-size: .72rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.ui-eyebrow::before,
+.eyebrow-text::before,
+.login-kicker::before {
+  content: "■";
+  margin-right: .42rem;
+  color: var(--pda09-red-hi);
+  font-size: .62em;
+}
+
+/* Rows / records */
+:is(
+  .profile-list-item-main,
+  .group-list-item-main,
+  .apartment-list-row,
+  .duty-member-list-line,
+  .task-item-row,
+  .relation-row,
+  .detailed-member-row,
+  .entity-search-result,
+  .map-layer-row,
+  .calculator-catalog-card,
+  .calculator-cart-card,
+  .stalker-note-card,
+  .apartment-payment-card
+) {
+  border-color: #303436;
+  border-radius: 0;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.018), transparent),
+    #101214;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+:is(
+  .profile-list-item-main,
+  .group-list-item-main,
+  .apartment-list-row,
+  .duty-member-list-line,
+  .task-item-row,
+  .relation-row,
+  .detailed-member-row,
+  .entity-search-result,
+  .map-layer-row,
+  .calculator-catalog-card,
+  .calculator-cart-card
+):hover {
+  border-color: #5a4345;
+  background:
+    linear-gradient(90deg, rgba(159,31,37,.14), transparent 42%),
+    #151719;
+  box-shadow: inset 3px 0 0 #7f1a1f;
+}
+
+:is(
+  .profile-list-item-main,
+  .group-list-item-main,
+  .apartment-list-row,
+  .duty-member-list-line,
+  .map-layer-row
+)[aria-current="true"],
+.registry-row-active {
+  background:
+    linear-gradient(90deg, rgba(159,31,37,.26), rgba(159,31,37,.05) 58%, transparent),
+    #17191b;
+  box-shadow: inset 3px 0 0 var(--pda09-red-hi);
+}
+
+/* Controls */
+input,
+select,
+textarea,
+.entity-search-field,
+.map-search-input,
+.map-title-field,
+.group-role-input,
+.group-role-select,
+.apartment-notes-textarea {
+  border: 1px solid #3d4143 !important;
+  border-top-color: #232628 !important;
+  border-radius: 1px !important;
+  background: #090a0b !important;
+  color: #e0e2e2 !important;
+  box-shadow:
+    inset 0 2px 5px rgba(0,0,0,.70),
+    0 1px 0 rgba(255,255,255,.025) !important;
+  caret-color: var(--pda09-red-hi);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #686d6f !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+.entity-search-field:focus,
+.map-search-input:focus,
+.map-title-field:focus {
+  outline: 1px solid rgba(207,48,56,.28) !important;
+  outline-offset: 1px;
+  border-color: #8e282d !important;
+  box-shadow:
+    inset 0 2px 5px rgba(0,0,0,.74),
+    0 0 0 1px rgba(207,48,56,.12) !important;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--pda09-red-hi);
+}
+
+/* Button hardware language */
+button,
+.interactive-button,
+.command-row,
+.pagination-button,
+.task-action-button,
+.duty-member-action-button,
+.map-layer-action-button,
+.calculator-quantity-button,
+.calculator-composition-button,
+.map-visual-select-button {
+  border-radius: 1px;
+}
+
+:is(
+  .interactive-button,
+  .command-row,
+  .pagination-button,
+  .task-action-button,
+  .duty-member-action-button,
+  .map-layer-action-button,
+  .calculator-quantity-button,
+  .calculator-composition-button,
+  .map-visual-select-button,
+  .pda-signout-button,
+  .group-record-action,
+  .dossier-record-action
+) {
+  border-color: #44484a;
+  background:
+    linear-gradient(180deg, #282b2d 0, #1b1e20 46%, #101214 52%, #151719 100%);
+  color: #d0d3d3;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.09),
+    inset 0 -1px 0 rgba(0,0,0,.82),
+    0 1px 1px rgba(0,0,0,.42);
+  text-shadow: 0 1px 0 #000;
+}
+
+:is(
+  .interactive-button,
+  .command-row,
+  .pagination-button,
+  .task-action-button,
+  .duty-member-action-button,
+  .map-layer-action-button,
+  .calculator-quantity-button,
+  .calculator-composition-button,
+  .map-visual-select-button,
+  .pda-signout-button,
+  .group-record-action,
+  .dossier-record-action
+):hover:not(:disabled) {
+  border-color: #6f3639;
+  background:
+    linear-gradient(180deg, #352628 0, #231719 47%, #130d0e 53%, #1c1214 100%);
+  color: #fff;
+}
+
+:is(
+  .interactive-button,
+  .command-row,
+  .pagination-button,
+  .task-action-button,
+  .duty-member-action-button,
+  .map-layer-action-button,
+  .calculator-quantity-button,
+  .calculator-composition-button,
+  .map-visual-select-button,
+  .pda-signout-button,
+  .group-record-action,
+  .dossier-record-action
+):active:not(:disabled) {
+  transform: translateY(1px);
+  background: #0d0f10;
+  box-shadow: inset 0 2px 5px rgba(0,0,0,.78);
+}
+
+:is(
+  .profile-create-button,
+  .duty-member-add-button,
+  .calculator-add-button,
+  .journal-modal-submit,
+  .journal-modal-submit-confirm,
+  .login-submit,
+  .tenant-modal-command
+) {
+  border: 1px solid #8d292e !important;
+  border-top-color: #c14a50 !important;
+  border-bottom-color: #4a0d11 !important;
+  border-radius: 1px !important;
+  background:
+    linear-gradient(180deg, #b32a31 0, #861a20 48%, #5b1015 52%, #78151b 100%) !important;
+  color: #fff !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.18),
+    inset 0 -1px 0 rgba(0,0,0,.72),
+    0 1px 3px rgba(0,0,0,.38) !important;
+  font-weight: 700;
+  text-shadow: 0 1px 0 #350609;
+}
+
+:is(
+  .profile-create-button,
+  .duty-member-add-button,
+  .calculator-add-button,
+  .journal-modal-submit,
+  .journal-modal-submit-confirm,
+  .login-submit,
+  .tenant-modal-command
+):hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+:is(
+  .duty-member-danger-action,
+  .map-layer-action-button-delete,
+  .group-remove-button,
+  .calculator-remove-button,
+  .calculator-clear-button,
+  .journal-modal-submit-warning
+) {
+  border-color: #772127 !important;
+  background: #2d1013 !important;
+  color: #e7a4a8 !important;
+}
+
+button:disabled,
+.interactive-button:disabled {
+  filter: grayscale(.75);
+  opacity: .46;
+  cursor: not-allowed;
+}
+
+/* Tabs / segmented controls */
+:is(
+  .segmented-tabs,
+  .list-tabs,
+  .profile-section-tabs,
+  .groups-record-tabs,
+  .journal-tabs-grid,
+  .map-panel-tabs
+) {
+  border: 1px solid #34383a;
+  border-radius: 1px;
+  background: #0a0b0c;
+  box-shadow: inset 0 2px 5px rgba(0,0,0,.58);
+}
+
+:is(
+  .segmented-tabs,
+  .list-tabs,
+  .profile-section-tabs,
+  .groups-record-tabs,
+  .journal-tabs-grid,
+  .map-panel-tabs
+) button {
+  border-radius: 0 !important;
+  border-right: 1px solid #2d3032 !important;
+  background: linear-gradient(180deg, #1e2123, #111315) !important;
+  color: #a7abad !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+}
+
+:is(
+  .segmented-tabs,
+  .list-tabs,
+  .profile-section-tabs,
+  .groups-record-tabs,
+  .journal-tabs-grid,
+  .map-panel-tabs
+) button[aria-selected="true"],
+:is(
+  .segmented-tabs,
+  .list-tabs,
+  .profile-section-tabs,
+  .groups-record-tabs,
+  .journal-tabs-grid,
+  .map-panel-tabs
+) button.active {
+  background:
+    linear-gradient(180deg, rgba(159,31,37,.42), rgba(63,15,19,.48)),
+    #181a1c !important;
+  color: #fff !important;
+  box-shadow: inset 0 -2px 0 var(--pda09-red-hi);
+}
+
+/* Badges: grey by default, red only when attention is useful */
+.badge-chip,
+.profile-badge,
+.profile-state-badge,
+.task-status-badge,
+.apartment-count-badge,
+.map-form-badge {
+  border: 1px solid #45494b;
+  border-radius: 1px;
+  background: #17191b;
+  color: #c6c9c9;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+  font-family: "Arial Narrow", "Segoe UI", sans-serif;
+  letter-spacing: .035em;
+}
+
+:is(
+  .badge-service-task-overdue,
+  .badge-service-violation-active,
+  .badge-task-overdue,
+  .registry-status-badge-danger,
+  .map-panel-message-danger
+) {
+  border-color: #792329 !important;
+  background: #2d0d11 !important;
+  color: #f0a7ab !important;
+}
+
+:is(
+  .badge-task-active,
+  .badge-service-task-active,
+  .registry-status-badge-active
+) {
+  border-color: #654144 !important;
+  background: #211416 !important;
+  color: #d9dada !important;
+}
+
+/* Modals and confirmations */
+.pda-modal-backdrop {
+  background: rgba(0,0,0,.78);
+  backdrop-filter: blur(1px);
+}
+
+:is(
+  .pda-modal,
+  .journal-modal,
+  .journal-action-modal,
+  .task-modal,
+  .task-complete-modal,
+  .duty-member-modal,
+  .confirm-dialog,
+  .map-marker-modal
+) {
+  border: 1px solid #555a5c;
+  border-top: 2px solid #842128;
+  border-radius: 1px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.025), transparent 3rem),
+    #111315;
+  box-shadow:
+    0 0 0 2px #050506,
+    8px 12px 32px rgba(0,0,0,.62);
+}
+
+/* Home / login = boot terminal rather than marketing screen */
+.welcome-screen,
+.login-page {
+  background:
+    radial-gradient(circle at 50% 28%, rgba(75,78,80,.08), transparent 32rem),
+    repeating-linear-gradient(0deg, rgba(255,255,255,.012) 0 1px, transparent 1px 4px),
+    #070808;
+}
+
+.welcome-panel {
+  box-shadow:
+    inset 4px 0 0 #74171c,
+    var(--pda09-inset),
+    0 12px 26px rgba(0,0,0,.34);
+}
+
+.welcome-indicator,
+.login-status-dot {
+  border-radius: 1px;
+  background: var(--pda09-red-hi);
+  box-shadow: 0 0 7px rgba(207,48,56,.42);
+}
+
+.welcome-status-strip {
+  border-top: 1px solid #383c3e;
+  background: #090a0b;
+  color: #8f9495;
+  font-family: Consolas, "Lucida Console", monospace;
+  font-size: .72rem;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+
+.login-shell {
+  position: relative;
+}
+
+.login-shell::before {
+  content: "PDA // ACCESS TERMINAL // 2009";
+  position: absolute;
+  top: -1.55rem;
+  left: 0;
+  color: #64696b;
+  font: 700 .65rem/1 Consolas, "Lucida Console", monospace;
+  letter-spacing: .12em;
+}
+
+.login-briefing {
+  border-left: 4px solid #72161b;
+}
+
+.login-form label > span {
+  color: #aeb2b3;
+  font-family: Consolas, "Lucida Console", monospace;
+  font-size: .72rem;
+  letter-spacing: .075em;
+  text-transform: uppercase;
+}
+
+/* Table-like content */
+table {
+  border-collapse: collapse;
+}
+
+th {
+  border-color: #3c4042 !important;
+  background: #151719 !important;
+  color: #aeb2b3 !important;
+  font-family: Consolas, "Lucida Console", monospace;
+  font-size: .72rem;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+
+td {
+  border-color: #292d2f !important;
+}
+
+tr:hover td {
+  background-color: rgba(159,31,37,.055);
+}
+
+/* Useful focus: keyboard navigation should be obvious */
+a:focus-visible,
+button:focus-visible {
+  outline: 1px solid var(--pda09-red-hi);
+  outline-offset: 2px;
+}
+
+/* Compact screens preserve the same structure; only hardware decoration softens */
+@media (max-width: 900px) {
+  .pda-brand-copy strong {
+    letter-spacing: .035em;
+  }
+
+  .pda-tab,
+  .registry-nav-tab {
+    letter-spacing: .02em;
+  }
+
+  .pda-shell-header::before,
+  .pda-shell-header::after {
+    display: none;
+  }
+
+  .login-shell::before {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(button, a, input, select, textarea) {
+    transition: none !important;
+  }
+
+  .animate-panel-in,
+  .animate-modal-in {
+    animation: none !important;
+  }
+}
