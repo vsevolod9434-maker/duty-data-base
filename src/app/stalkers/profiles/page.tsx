@@ -27,12 +27,6 @@ import {
   updateTradeOperation,
   updateViolation,
 } from "@/lib/journal-api";
-import {
-  stalkerGroups as initialStalkerGroups,
-  stalkerProfiles as initialStalkerProfiles,
-  tasks as initialTasks,
-  tradeOperations as initialTradeOperations,
-} from "@/lib/mock-data";
 import { isStaticExportEnabled, transactionalImportMessage } from "@/lib/static-hosting";
 import { withBasePath } from "@/lib/public-path";
 import type {
@@ -62,7 +56,6 @@ import {
   groupRoleLabels,
   isTaskOverdue,
   matchesStalkerProfileSearch,
-  readStoredCollection,
   SYSTEM_DATE_MAX,
   SYSTEM_DATE_MIN,
   STALKER_GROUPS_STORAGE_KEY,
@@ -654,11 +647,6 @@ export default function StalkerProfilesPage() {
 
   useEffect(() => {
     const storageReadHandle = window.setTimeout(() => {
-      const localProfiles = readStoredCollection<StalkerProfile>(STALKER_PROFILES_STORAGE_KEY, initialStalkerProfiles);
-      const localTasks = readStoredCollection<Task>(STALKER_TASKS_STORAGE_KEY, initialTasks);
-      const localGroups = readStoredCollection<StalkerGroup>(STALKER_GROUPS_STORAGE_KEY, initialStalkerGroups);
-      const localTradeOperations = readStoredCollection<TradeOperation>(TRADE_OPERATIONS_STORAGE_KEY, initialTradeOperations);
-      const localViolations = readStoredCollection<Violation>(VIOLATIONS_STORAGE_KEY, []);
       const cachedProfiles = currentUserKey ? queryClient.getQueryData<StalkerProfile[]>(dutyDataKeys.stalkers(currentUserKey)) : null;
       const cachedGroups = currentUserKey ? queryClient.getQueryData<StalkerGroup[]>(dutyDataKeys.stalkerGroups(currentUserKey)) : null;
       const cachedTasks = currentUserKey ? queryClient.getQueryData<Task[]>(dutyDataKeys.tasks(currentUserKey)) : null;
@@ -667,17 +655,14 @@ export default function StalkerProfilesPage() {
         : null;
       const cachedViolations = currentUserKey ? queryClient.getQueryData<Violation[]>(dutyDataKeys.violations(currentUserKey)) : null;
 
-      setProfiles(cachedProfiles ?? localProfiles);
-      setGroups(cachedGroups ?? localGroups);
-      setTasks(cachedTasks ?? localTasks);
-      setTradeOperations(cachedTradeOperations ?? localTradeOperations);
-      setViolations(cachedViolations ?? localViolations);
+      setProfiles(cachedProfiles ?? []);
+      setGroups(cachedGroups ?? []);
+      setTasks(cachedTasks ?? []);
+      setTradeOperations(cachedTradeOperations ?? []);
+      setViolations(cachedViolations ?? []);
+      setLocalImportProfiles([]);
       setIsStorageReady(true);
       setIsProfileLoading(!cachedProfiles && !profilesQuery.data);
-
-      if (!cachedProfiles && localProfiles.length > 0) {
-        setLocalImportProfiles(localProfiles);
-      }
     }, 0);
 
     return () => {
