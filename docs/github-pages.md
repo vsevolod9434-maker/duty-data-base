@@ -11,11 +11,12 @@ Workflow собирает проект с `basePath`, равным имени р
 
 1. Откройте `Settings → Pages`.
 2. В `Build and deployment` выберите источник `GitHub Actions`.
-3. В `Settings → Secrets and variables → Actions` добавьте:
-   - `NEXT_PUBLIC_SUPABASE_URL`;
-   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
-4. Если проект Supabase ещё использует старый ключ, можно добавить
-   `NEXT_PUBLIC_SUPABASE_ANON_KEY` вместо publishable key.
+3. Текущие публичные `NEXT_PUBLIC_SUPABASE_URL`,
+   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` и
+   `NEXT_PUBLIC_ACCESS_ADMIN_FUNCTION_URL` уже зафиксированы в
+   `.github/workflows/deploy-pages.yml`.
+4. Никогда не добавляйте в `NEXT_PUBLIC_*` service-role key, пароль БД или
+   Supabase access token.
 5. Запустите workflow `Deploy GitHub Pages` вручную либо отправьте изменения в
    ветку `main`.
 
@@ -53,25 +54,49 @@ Supabase Auth, Row Level Security и правами PostgreSQL. До публи�
   подготовленная миграция сначала обнуляет plaintext-значения, затем удаляет столбец;
 - политики отдельно ограничивают административные изменения состава и доступа.
 
-Схема Supabase и RLS этим изменением не менялись. Если подходящих политик сейчас
-нет, публикация рабочей базы на GitHub Pages небезопасна и должна считаться
-заблокированной до отдельной настройки RLS.
+Канонический набор политик находится в `supabase/rls-policies.sql`.
+Одноразовый legacy-файл `static-pages-access-hardening.sql` удалён и не должен
+использоваться. Для аварийного восстановления RLS применяется только
+`supabase/repair-rls-schema.sql`, синхронизированный с каноническим файлом.
 
-## Функции, которые нельзя безопасно перенести в браузер
+## Серверные и Edge-операции
 
-Следующие операции оставлены в серверной Vercel-версии и в статическом режиме
-возвращают понятную ошибку:
+На GitHub Pages административные операции с Auth выполняет защищённая Supabase
+Edge Function `access-admin`. Через неё работают:
 
-- создание нового пользователя Supabase Auth;
+- создание пользователя и профиля состава;
 - сброс пароля другого пользователя;
-- включение и отключение чужого служебного доступа;
-- назначение состава на штатные должности;
-- массовый импорт с транзакционной заменой связанных записей;
-- автоматическое создание квартир по умолчанию.
+- блокировка/разблокировка доступа;
+- смена уровня допуска с проверкой иерархии ролей;
+- редактирование и исключение профиля состава.
 
-Для них нужен защищённый backend: например, Supabase Edge Functions или
-отдельный API. В таком backend секретный/service-role key должен храниться
-только на сервере. Добавлять его в переменные `NEXT_PUBLIC_*` запрещено.
+Исключение состава использует service-role-only RPC
+`exclude_duty_member_transaction`, поэтому блокировка доступа, освобождение
+штатных должностей и архивирование выполняются одной транзакцией.
+
+В браузере также доступно создание двух базовых квартир. Переименование слоя
+карты выполняется через authenticated RPC `rename_map_layer_transaction` и
+атомарно обновляет сам слой и связанные объекты.
+
+По-прежнему не переносятся в браузер массовые import-маршруты и серверное
+назначение штатных должностей. Текущий Pages-интерфейс их не вызывает.
+
+
+## Порядок развёртывания новой Supabase-базы
+
+После применения Prisma migrations выполните, по порядку:
+
+1. `supabase/remove-access-user-password.sql`;
+2. `supabase/harden-access-user-identity.sql`;
+3. `supabase/prelogin-auth-lookup.sql`;
+4. `supabase/rls-policies.sql`;
+5. `supabase/access-admin-rpc.sql`;
+6. `supabase/static-pages-rpc.sql`;
+7. при необходимости `supabase/repair-service-role-access-admin-grants.sql`.
+
+Затем разверните `supabase/functions/access-admin` и создайте штатные записи
+командой `npm run duty-staff:seed`. После любых изменений RLS рекомендуется
+прогнать `supabase/rls-policy-tests.sql` на отдельном тестовом проекте.
 
 ## Локальная проверка
 
@@ -95,11 +120,11 @@ Supabase Auth:
 
 1. браузер очищает локальную Supabase-сессию перед новой попыткой входа;
 2. введённый email используется как Supabase Auth email;
-3. введённый внутренний `login` или `displayName` сначала резолвится в
-   `AccessUser.authEmail`;
+3. введённый внутренний `login` сначала резолвится в
+   `AccessUser.authEmail` через узкий anonymous RPC;
 4. после `signInWithPassword` профиль заново читается по `auth.uid()`.
 
-Для входа по внутреннему `login`/`displayName` примените в Supabase отдельный SQL:
+Для входа по внутреннему `login` примените в Supabase отдельный SQL:
 
 ```text
 supabase/prelogin-auth-lookup.sql
