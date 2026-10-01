@@ -31,7 +31,19 @@ export type StaticAuthGateDecision =
 
 type RpcAuthEmailResult = string | { authEmail?: string | null } | Array<string | { authEmail?: string | null }>;
 
-const staticAccessRetryMessage = "Канал допуска временно не отвечает. Повторите проверку.";
+export const staticAccessRetryMessage = "Канал допуска временно не отвечает. Повторите проверку.";
+
+export function getStaticLoginDisplayMessage(error: unknown) {
+  const safeMessage = error instanceof Error ? error.message : "";
+  const allowedMessages = new Set([
+    staticAccessDeniedMessage,
+    staticAccessRetryMessage,
+    staticLoginErrorMessage,
+    staticLookupUnavailableMessage,
+  ]);
+
+  return allowedMessages.has(safeMessage) ? safeMessage : staticLoginErrorMessage;
+}
 
 function normalizeEmail(email: string) {
   return email.trim().toLocaleLowerCase("en-US");
