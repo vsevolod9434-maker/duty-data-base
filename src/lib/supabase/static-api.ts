@@ -2,6 +2,8 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getRoleLabel, type UserRole } from "@/lib/auth-roles";
+import { getDutyAccessLevelLabel } from "@/lib/duty-members";
+import { DEFAULT_MAP_LAYER, normalizeMapLayerKey, normalizeMapLayerName } from "@/lib/map-layers";
 import { normalizeLogin } from "@/lib/auth-login";
 import { isStaticSupabaseApiRequest } from "@/lib/supabase/static-api-routing";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -545,14 +547,34 @@ async function handleMapLayers(client: SupabaseClient, method: string, init?: Re
 
   if (method === "POST") {
     const payload = await requestBody(init);
-    const name = stringValue(payload.name).trim();
+    const rawName = stringValue(payload.name);
+    const name = normalizeMapLayerName(rawName);
+
+    if (!rawName.trim()) {
+      return errorResponse("Укажите название слоя.");
+    }
+
+    if (name.length > 80) {
+      return errorResponse("Название слоя слишком длинное.");
+    }
+
+    const normalizedName = normalizeMapLayerKey(name);
+    const { data: duplicate, error: duplicateError } = await client
+      .from("MapLayer")
+      .select("id")
+      .eq("normalizedName", normalizedName)
+      .maybeSingle();
+
+    if (duplicateError) throw duplicateError;
+    if (duplicate) return errorResponse("Слой с таким названием уже существует.");
+
     const timestamp = nowIso();
     const { data, error } = await client
       .from("MapLayer")
       .insert({
         id: crypto.randomUUID(),
         name,
-        normalizedName: normalizeLogin(name),
+        normalizedName,
         isDefault: false,
         createdAt: timestamp,
         updatedAt: timestamp,
@@ -565,10 +587,52 @@ async function handleMapLayers(client: SupabaseClient, method: string, init?: Re
 
   if (method === "PATCH" && id) {
     const payload = await requestBody(init);
-    const name = stringValue(payload.name).trim();
+    const rawName = stringValue(payload.name);
+    const name = normalizeMapLayerName(rawName);
+
+    if (!rawName.trim()) {
+      return errorResponse("Укажите название слоя.");
+    }
+
+    if (name.length > 80) {
+      return errorResponse("Название слоя слишком длинное.");
+    }
+
+    const { data: currentLayer, error: currentLayerError } = await client
+      .from("MapLayer")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (currentLayerError) throw currentLayerError;
+    if (!currentLayer) return errorResponse("Слой не найден.", 404);
+
+    if (currentLayer.isDefault || normalizeMapLayerKey(currentLayer.name) === normalizeMapLayerKey(DEFAULT_MAP_LAYER)) {
+      return errorResponse("Основной слой нельзя переименовать.");
+    }
+
+    const normalizedName = normalizeMapLayerKey(name);
+    const { data: duplicate, error: duplicateError } = await client
+      .from("MapLayer")
+      .select("id")
+      .eq("normalizedName", normalizedName)
+      .neq("id", id)
+      .maybeSingle();
+
+    if (duplicateError) throw duplicateError;
+    if (duplicate) return errorResponse("Слой с таким названием уже существует.");
+
+    const previousName = currentLayer.name;
+    const objectTables = ["MapMarker", "MapZone", "MapRoute", "MapLabel"] as const;
+
+    for (const table of objectTables) {
+      const { error: objectUpdateError } = await client.from(table).update({ layer: name }).eq("layer", previousName);
+      if (objectUpdateError) throw objectUpdateError;
+    }
+
     const { data, error } = await client
       .from("MapLayer")
-      .update({ name, normalizedName: normalizeLogin(name), updatedAt: nowIso() })
+      .update({ name, normalizedName, updatedAt: nowIso() })
       .eq("id", id)
       .select()
       .single();
@@ -577,6 +641,28 @@ async function handleMapLayers(client: SupabaseClient, method: string, init?: Re
   }
 
   if (method === "DELETE" && id) {
+    const { data: layer, error: layerError } = await client
+      .from("MapLayer")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (layerError) throw layerError;
+    if (!layer) return errorResponse("Слой не найден.", 404);
+
+    if (layer.isDefault || normalizeMapLayerKey(layer.name) === normalizeMapLayerKey(DEFAULT_MAP_LAYER)) {
+      return errorResponse("Основной слой нельзя удалить.");
+    }
+
+    const objectTables = ["MapMarker", "MapZone", "MapRoute", "MapLabel"] as const;
+    for (const table of objectTables) {
+      const { data: usedObjects, error: usageError } = await client.from(table).select("id").eq("layer", layer.name).limit(1);
+      if (usageError) throw usageError;
+      if ((usedObjects ?? []).length > 0) {
+        return errorResponse("Слой используется объектами карты.");
+      }
+    }
+
     const { error } = await client.from("MapLayer").delete().eq("id", id).eq("isDefault", false);
     if (error) throw error;
     return json({ id });
@@ -614,7 +700,8 @@ async function handleDutyMembers(client: SupabaseClient, method: string, init?: 
   const accessUser = await assertAuthenticated(client);
   const actorRole = stringValue(accessUser.role) as UserRole;
   const canManage = actorRole === "system_admin" || actorRole === "officer";
-  const select = "*, accessUser:AccessUser(id, login, displayName, role, isActive)";
+  const select =
+    "*, accessUser:AccessUser(id, login, displayName, role, isActive), staffPositions:DutyStaffPosition(id, title, sectionId, sortOrder, section:DutyStaffSection(id, name, sortOrder))";
 
   if (method === "GET" && !id) {
     const rows = await selectRows(client, "DutyMember", select, "createdAt");
@@ -624,15 +711,27 @@ async function handleDutyMembers(client: SupabaseClient, method: string, init?: 
         .map((row) => {
           const member = asRecord(row);
           const memberAccess = asRecord(member.accessUser);
+          const role = stringValue(memberAccess.role) as UserRole;
           return {
             ...member,
-            positions: [],
+            positions: asArray(member.staffPositions).map((rawPosition) => {
+              const position = asRecord(rawPosition);
+              const section = asRecord(position.section);
+              return {
+                id: position.id,
+                title: position.title,
+                sectionId: position.sectionId,
+                sectionName: section.name ?? "",
+                sortOrder: position.sortOrder,
+              };
+            }),
             access: member.accessUser
               ? {
                   login: memberAccess.login,
                   displayName: memberAccess.displayName,
-                  role: memberAccess.role,
-                  roleLabel: getRoleLabel(stringValue(memberAccess.role) as UserRole),
+                  role,
+                  roleLabel: getRoleLabel(role),
+                  accessLevelLabel: getDutyAccessLevelLabel(role),
                   isActive: memberAccess.isActive,
                 }
               : null,
@@ -676,8 +775,31 @@ async function handleAccessUsers(client: SupabaseClient) {
     return errorResponse("Доступ к операции запрещён.", 403);
   }
 
+  const rows = await selectRows(
+    client,
+    "AccessUser",
+    "id, login, displayName, role, isActive, dutyMember:DutyMember(id)",
+    "login",
+    true,
+  );
+
   return json(
-    await selectRows(client, "AccessUser", "id, login, displayName, role, isActive", "login", true),
+    rows
+      .map(asRecord)
+      .filter((user) => stringValue(user.role) !== "system_admin")
+      .map((user) => {
+        const role = stringValue(user.role) as UserRole;
+        const dutyMember = asRecord(user.dutyMember);
+        return {
+          login: user.login,
+          displayName: user.displayName,
+          role,
+          roleLabel: getRoleLabel(role),
+          accessLevelLabel: getDutyAccessLevelLabel(role),
+          isActive: user.isActive,
+          dutyMemberId: nullableString(dutyMember.id),
+        };
+      }),
   );
 }
 
