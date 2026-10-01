@@ -61,7 +61,9 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
 
     try {
       const supabase = createSupabaseBrowserClient();
-      await supabase.auth.signOut();
+      await supabase.auth.signOut(
+        process.env.NEXT_PUBLIC_STATIC_EXPORT === "true" ? { scope: "local" } : undefined,
+      );
     } finally {
       queryClient.clear();
       router.replace("/login");
