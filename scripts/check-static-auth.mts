@@ -14,6 +14,7 @@ const {
   resolveStaticAuthEmail,
   signInStaticAccessUser,
   staticLoginErrorMessage,
+  staticLookupUnavailableMessage,
 } = staticAuth;
 const { isStaticSupabaseApiRequest } = staticApiRouting;
 
@@ -26,17 +27,6 @@ type StaticAccessUserProfile = {
   isActive: boolean;
 };
 
-type AccessUserRow = {
-  authEmail?: string | null;
-  authUserId?: string;
-  displayName?: string | null;
-  id?: string;
-  isActive?: boolean;
-  login?: string;
-  normalizedLogin?: string;
-  role?: string;
-};
-
 type MockClientOptions = {
   profile?: StaticAccessUserProfile | null;
   profileError?: Error | null;
@@ -45,12 +35,10 @@ type MockClientOptions = {
   rpcError?: Error | null;
   signInError?: Error | null;
   userId?: string;
-  lookupRows?: AccessUserRow[];
 };
 
 function createMockClient(options: MockClientOptions) {
   const calls: Array<{ type: string; payload?: unknown }> = [];
-  const lookupRows = options.lookupRows ?? [];
   const userId = options.userId ?? "auth-user-1";
 
   function createQuery(table: string) {
@@ -64,9 +52,6 @@ function createMockClient(options: MockClientOptions) {
         filters[column] = value;
         return query;
       },
-      limit() {
-        return query;
-      },
       async maybeSingle() {
         calls.push({ type: "maybeSingle", payload: { table, filters: { ...filters } } });
 
@@ -74,26 +59,18 @@ function createMockClient(options: MockClientOptions) {
           return { data: null, error: null };
         }
 
-        if (typeof filters.authUserId === "string") {
-          if (options.profileThrows) {
-            throw new Error("network is down");
-          }
-
-          if (options.profileError) {
-            return { data: null, error: options.profileError };
-          }
-
-          return {
-            data: options.profile && options.profile.authUserId === filters.authUserId ? options.profile : null,
-            error: null,
-          };
+        if (options.profileThrows) {
+          throw new Error("network is down");
         }
 
-        const row =
-          lookupRows.find((candidate) =>
-            Object.entries(filters).every(([key, value]) => candidate[key as keyof AccessUserRow] === value),
-          ) ?? null;
-        return { data: row, error: null };
+        if (options.profileError) {
+          return { data: null, error: options.profileError };
+        }
+
+        return {
+          data: options.profile && options.profile.authUserId === filters.authUserId ? options.profile : null,
+          error: null,
+        };
       },
     };
 
@@ -168,16 +145,18 @@ const inactiveProfile: StaticAccessUserProfile = {
 {
   const client = createMockClient({
     profile: activeProfile,
-    lookupRows: [
-      {
-        authEmail: "display-auth@example.test",
-        displayName: "Оператор",
-        isActive: true,
-      },
-    ],
+    rpcError: new Error("lookup function is not installed"),
   });
 
-  assert.equal(await resolveStaticAuthEmail(client as never, "Оператор"), "display-auth@example.test");
+  await assert.rejects(
+    () => resolveStaticAuthEmail(client as never, "Оператор"),
+    new RegExp(staticLookupUnavailableMessage),
+  );
+  assert.equal(
+    client.calls.some((call) => call.type === "from"),
+    false,
+    "pre-login resolution must never query AccessUser directly with the anonymous client",
+  );
 }
 
 {
@@ -200,7 +179,10 @@ const inactiveProfile: StaticAccessUserProfile = {
     rpcData: "real-auth@example.test",
   });
 
-  await assert.rejects(() => signInStaticAccessUser(client as never, "operator", "password"), /Канал допуска временно не отвечает/);
+  await assert.rejects(
+    () => signInStaticAccessUser(client as never, "operator", "password"),
+    /Канал допуска временно не отвечает/,
+  );
   assert.equal(
     client.calls.filter((call) => call.type === "signOut").length,
     1,
@@ -286,11 +268,18 @@ assert.equal(isCurrentStaticAuthCheck(2, 2, false), false);
 
 assert.equal(isStaticSupabaseApiRequest("/api/auth/me"), true);
 assert.equal(isStaticSupabaseApiRequest("/api/stalkers"), true);
-assert.equal(isStaticSupabaseApiRequest("https://oolkegedhnzilwhbemyu.supabase.co/auth/v1/token"), false);
+assert.equal(isStaticSupabaseApiRequest("https://example.supabase.co/auth/v1/token"), false);
 
 const loginPageSource = readFileSync("src/app/login/page.tsx", "utf8");
 assert.equal(loginPageSource.includes("createTechnicalAuthEmail"), false);
 assert.equal(loginPageSource.includes("@duty.local"), false);
+
+const staticAuthSource = readFileSync("src/lib/supabase/static-auth.ts", "utf8");
+assert.equal(
+  staticAuthSource.includes('.from("AccessUser")') && staticAuthSource.includes("resolveAuthEmailWithTableLookup"),
+  false,
+  "pre-login lookup must not fall back to anonymous table access",
+);
 
 const staticAuthGateSource = readFileSync("src/components/providers/StaticAuthGate.tsx", "utf8");
 assert.equal(

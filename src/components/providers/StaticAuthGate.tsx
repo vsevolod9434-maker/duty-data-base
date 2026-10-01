@@ -70,6 +70,8 @@ export function StaticAuthGate({ children }: { children: ReactNode }) {
   const [gateState, setGateState] = useState<GateState>(() => (isStaticExport ? { status: "checking" } : { status: "allowed" }));
 
   useEffect(() => {
+    isMountedRef.current = true;
+
     return () => {
       isMountedRef.current = false;
       runIdRef.current += 1;

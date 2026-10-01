@@ -612,32 +612,40 @@ async function handleCalculatorCatalog(client: SupabaseClient) {
 
 async function handleDutyMembers(client: SupabaseClient, method: string, init?: RequestInit, id?: string) {
   const accessUser = await assertAuthenticated(client);
+  const actorRole = stringValue(accessUser.role) as UserRole;
+  const canManage = actorRole === "system_admin" || actorRole === "officer";
   const select = "*, accessUser:AccessUser(id, login, displayName, role, isActive)";
 
   if (method === "GET" && !id) {
     const rows = await selectRows(client, "DutyMember", select, "createdAt");
     return json(
-      rows.map((row) => {
-        const member = asRecord(row);
-        const memberAccess = asRecord(member.accessUser);
-        return {
-          ...member,
-          positions: [],
-          access: member.accessUser
-            ? {
-                login: memberAccess.login,
-                displayName: memberAccess.displayName,
-                role: memberAccess.role,
-                roleLabel: getRoleLabel(stringValue(memberAccess.role) as UserRole),
-                isActive: memberAccess.isActive,
-              }
-            : null,
-        };
-      }),
+      rows
+        .filter((row) => stringValue(asRecord(asRecord(row).accessUser).role) !== "system_admin")
+        .map((row) => {
+          const member = asRecord(row);
+          const memberAccess = asRecord(member.accessUser);
+          return {
+            ...member,
+            positions: [],
+            access: member.accessUser
+              ? {
+                  login: memberAccess.login,
+                  displayName: memberAccess.displayName,
+                  role: memberAccess.role,
+                  roleLabel: getRoleLabel(stringValue(memberAccess.role) as UserRole),
+                  isActive: memberAccess.isActive,
+                }
+              : null,
+          };
+        }),
     );
   }
 
   if (method === "PATCH" && id) {
+    if (!canManage) {
+      return errorResponse("Доступ к операции запрещён.", 403);
+    }
+
     const payload = await requestBody(init);
     const { data, error } = await client
       .from("DutyMember")
@@ -657,15 +665,17 @@ async function handleDutyMembers(client: SupabaseClient, method: string, init?: 
     return errorResponse(blockedAdminMessage, 501);
   }
 
-  if (method === "PATCH" && id?.endsWith("/access")) {
-    void accessUser;
-  }
-
   return errorResponse("Приказ не распознан.", 405);
 }
 
 async function handleAccessUsers(client: SupabaseClient) {
-  await assertAuthenticated(client);
+  const accessUser = await assertAuthenticated(client);
+  const role = stringValue(accessUser.role) as UserRole;
+
+  if (role !== "system_admin" && role !== "officer") {
+    return errorResponse("Доступ к операции запрещён.", 403);
+  }
+
   return json(
     await selectRows(client, "AccessUser", "id, login, displayName, role, isActive", "login", true),
   );
