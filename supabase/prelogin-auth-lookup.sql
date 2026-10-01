@@ -44,6 +44,6 @@ as $$
 $$;
 
 revoke all on function public.resolve_access_user_auth_email(text) from public, anon, authenticated;
-grant execute on function public.resolve_access_user_auth_email(text) to anon, authenticated;
+grant execute on function public.resolve_access_user_auth_email(text) to anon;
 
 commit;
