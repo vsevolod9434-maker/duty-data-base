@@ -44,7 +44,7 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel }: PdaT
     null;
 
   useEffect(() => {
-    if (!currentUserQuery.error) {
+    if (!currentUserQuery.error || process.env.NEXT_PUBLIC_STATIC_EXPORT === "true") {
       return;
     }
 
