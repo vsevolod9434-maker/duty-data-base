@@ -1,22 +1,51 @@
-import "dotenv/config";
-
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
-import pg from "pg";
 
-const { Client } = pg;
+function requireEnv(name) {
+  const value = process.env[name]?.trim();
 
-function readConnectionString() {
-  const raw = process.env.DATABASE_URL || process.env.DIRECT_URL;
-
-  if (!raw) {
-    throw new Error("DATABASE_URL or DIRECT_URL is not configured.");
+  if (!value) {
+    throw new Error(`${name} is not configured.`);
   }
 
-  const url = new URL(raw);
-  url.searchParams.delete("sslmode");
-  return url.toString();
+  return value;
+}
+
+async function runQuery(query, readOnly = false) {
+  const projectRef = requireEnv("SUPABASE_PROJECT_ID");
+  const accessToken = requireEnv("SUPABASE_ACCESS_TOKEN");
+  const response = await fetch(
+    `https://api.supabase.com/v1/projects/${encodeURIComponent(projectRef)}/database/query`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        query,
+        read_only: readOnly,
+      }),
+    },
+  );
+
+  const rawBody = await response.text();
+  let body = rawBody;
+
+  try {
+    body = rawBody ? JSON.parse(rawBody) : null;
+  } catch {
+    // Keep the raw response for diagnostics when the API returns non-JSON.
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      `Supabase Management API query failed with HTTP ${response.status}: ${typeof body === "string" ? body : JSON.stringify(body)}`,
+    );
+  }
+
+  return body;
 }
 
 async function main() {
@@ -24,67 +53,59 @@ async function main() {
     path.resolve("supabase/static-pages-access-hardening.sql"),
     "utf8",
   );
-  const client = new Client({
-    connectionString: readConnectionString(),
-    ssl: { rejectUnauthorized: false },
-  });
 
-  await client.connect();
+  const before = await runQuery(
+    `select
+       (select count(*)::int from public."DutyMember") as "dutyMembersBefore",
+       (select count(*)::int from public."DutyStaffPosition" where "dutyMemberId" is not null) as "occupiedStaffPositionsBefore"`,
+    true,
+  );
 
-  try {
-    await client.query("begin");
+  const maintenanceSql = `
+begin;
 
-    const beforeResult = await client.query(
-      'select count(*)::int as count from public."DutyMember"',
-    );
-    const beforeCount = Number(beforeResult.rows[0]?.count ?? 0);
+update public."DutyStaffPosition"
+set "dutyMemberId" = null,
+    "assignedAt" = null,
+    "assignedBy" = null,
+    "updatedBy" = 'Системная очистка',
+    "updatedAt" = now()
+where "dutyMemberId" is not null;
 
-    const releasedResult = await client.query(
-      `update public."DutyStaffPosition"
-       set "dutyMemberId" = null,
-           "assignedAt" = null,
-           "assignedBy" = null,
-           "updatedBy" = 'Системная очистка',
-           "updatedAt" = now()
-       where "dutyMemberId" is not null`,
-    );
+delete from public."DutyMember";
 
-    const deletedResult = await client.query(
-      'delete from public."DutyMember"',
-    );
+${hardeningSql}
 
-    await client.query(hardeningSql);
+do $maintenance$
+begin
+  if exists (select 1 from public."DutyMember") then
+    raise exception 'DutyMember purge verification failed';
+  end if;
 
-    const afterResult = await client.query(
-      'select count(*)::int as count from public."DutyMember"',
-    );
-    const afterCount = Number(afterResult.rows[0]?.count ?? 0);
+  if exists (
+    select 1
+    from public."DutyStaffPosition"
+    where "dutyMemberId" is not null
+  ) then
+    raise exception 'DutyStaffPosition release verification failed';
+  end if;
+end
+$maintenance$;
 
-    if (afterCount !== 0) {
-      throw new Error(`DutyMember purge verification failed: ${afterCount} rows remain.`);
-    }
+commit;
+`;
 
-    await client.query("commit");
+  const mutationResult = await runQuery(maintenanceSql, false);
 
-    console.log(
-      JSON.stringify(
-        {
-          dutyMembersBefore: beforeCount,
-          dutyMembersDeleted: deletedResult.rowCount ?? 0,
-          dutyMembersAfter: afterCount,
-          staffPositionsReleased: releasedResult.rowCount ?? 0,
-          accessHardeningApplied: true,
-        },
-        null,
-        2,
-      ),
-    );
-  } catch (error) {
-    await client.query("rollback").catch(() => undefined);
-    throw error;
-  } finally {
-    await client.end();
-  }
+  const after = await runQuery(
+    `select
+       (select count(*)::int from public."DutyMember") as "dutyMembersAfter",
+       (select count(*)::int from public."DutyStaffPosition" where "dutyMemberId" is not null) as "occupiedStaffPositionsAfter",
+       true as "accessHardeningApplied"`,
+    true,
+  );
+
+  console.log(JSON.stringify({ before, mutationResult, after }, null, 2));
 }
 
 main().catch((error) => {
