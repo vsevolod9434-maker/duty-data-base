@@ -4,12 +4,14 @@
 -- 1. На ТЕСТОВОМ Supabase-проекте применены:
 --    - harden-access-user-identity.sql;
 --    - remove-access-user-password.sql;
---    - rls-policies.sql.
+--    - rls-policies.sql;
+--    - access-admin-rpc.sql;
+--    - static-pages-rpc.sql.
 -- 2. Есть активные AccessUser, связанные с auth.users:
 --    - regular или manager;
 --    - officer;
 --    - system_admin.
--- 3. Есть хотя бы один DutyMember.
+-- 3. Есть хотя бы один DutyMember, связанный с regular/manager AccessUser.
 --
 -- Скрипт выполняется одной транзакцией и всегда заканчивается ROLLBACK.
 -- Production-данные после успешного или неуспешного теста не сохраняются.
@@ -47,14 +49,15 @@ begin
       'is_officer',
       'current_access_level',
       'is_duty_admin',
+      'can_manage_duty_member',
       'task_assignee_is_allowed'
     )
     and procedure.prosecdef
     and procedure.proconfig @> array['search_path=pg_catalog'];
 
-  if helper_count <> 8 then
+  if helper_count <> 9 then
     raise exception
-      'Expected 8 SECURITY DEFINER helpers with search_path=pg_catalog in private; found %.',
+      'Expected 9 SECURITY DEFINER helpers with search_path=pg_catalog in private; found %.',
       helper_count;
   end if;
 
@@ -72,7 +75,8 @@ begin
         'is_officer',
         'current_access_level',
         'is_duty_admin',
-        'task_assignee_is_allowed'
+        'can_manage_duty_member',
+      'task_assignee_is_allowed'
       )
   ) then
     raise exception 'Legacy RLS helper functions still exist in schema public.';
@@ -113,13 +117,14 @@ begin
       'is_officer',
       'current_access_level',
       'is_duty_admin',
+      'can_manage_duty_member',
       'task_assignee_is_allowed'
     )
     and has_function_privilege('authenticated', procedure.oid, 'EXECUTE');
 
-  if authenticated_execute_count <> 4 then
+  if authenticated_execute_count <> 5 then
     raise exception
-      'authenticated must have EXECUTE on exactly 4 policy-facing helpers; found %.',
+      'authenticated must have EXECUTE on exactly 5 policy-facing helpers; found %.',
       authenticated_execute_count;
   end if;
 
@@ -223,9 +228,21 @@ select set_config(
   coalesce((
     select duty_member."id"
     from public."DutyMember" as duty_member
+    join public."AccessUser" as access_user
+      on access_user."id" = duty_member."accessUserId"
+    where access_user."role" in (
+      'regular'::public."AccessUserRole",
+      'manager'::public."AccessUserRole"
+    )
     order by duty_member."id"
     limit 1
   ), ''),
+  true
+);
+
+select set_config(
+  'duty.test.access_user_count',
+  (select count(*)::text from public."AccessUser"),
   true
 );
 
@@ -241,7 +258,7 @@ begin
     raise exception 'No active system_admin AccessUser linked to auth.users.';
   end if;
   if current_setting('duty.test.member_id', true) = '' then
-    raise exception 'No DutyMember row available for update-policy tests.';
+    raise exception 'No regular/manager DutyMember row available for update-policy tests.';
   end if;
 end
 $$;
@@ -295,7 +312,7 @@ begin
 end
 $$;
 
-create or replace function pg_temp.expect_access_user_read_only(actor_label text)
+create or replace function pg_temp.expect_access_user_read_only(actor_label text, expect_directory boolean)
 returns void
 language plpgsql
 security invoker
@@ -309,7 +326,15 @@ begin
   from public."AccessUser"
   where "authUserId"::text = auth.uid()::text;
 
-  if visible_rows <> 1 then
+  if expect_directory then
+    if visible_rows <> current_setting('duty.test.access_user_count')::integer then
+      raise exception
+        'AccessUser directory SELECT failed for %: expected %, got %',
+        actor_label,
+        current_setting('duty.test.access_user_count')::integer,
+        visible_rows;
+    end if;
+  elsif visible_rows <> 1 then
     raise exception 'AccessUser SELECT failed for %: expected own row, got %', actor_label, visible_rows;
   end if;
 
@@ -437,7 +462,7 @@ $$;
 
 set local role authenticated;
 select pg_temp.expect_working_crud('regular');
-select pg_temp.expect_access_user_read_only('regular');
+select pg_temp.expect_access_user_read_only('regular', false);
 select pg_temp.expect_row_count(
   'regular DutyMember SELECT',
   format(
@@ -489,7 +514,7 @@ $$;
 
 set local role authenticated;
 select pg_temp.expect_working_crud('officer');
-select pg_temp.expect_access_user_read_only('officer');
+select pg_temp.expect_access_user_read_only('officer', true);
 select pg_temp.expect_row_count(
   'officer DutyMember SELECT',
   format(
@@ -541,7 +566,7 @@ $$;
 
 set local role authenticated;
 select pg_temp.expect_working_crud('system-admin');
-select pg_temp.expect_access_user_read_only('system_admin');
+select pg_temp.expect_access_user_read_only('system_admin', true);
 select pg_temp.expect_row_count(
   'system_admin DutyMember SELECT',
   format(
@@ -568,5 +593,25 @@ select pg_temp.expect_denied(
   'delete from public."DutyMember" where false'
 );
 reset role;
+
+-- RPC exposure: browser can atomically rename a layer under RLS, but duty-member
+-- exclusion remains service-role-only behind the access-admin Edge Function.
+do $
+begin
+  if has_function_privilege('anon', 'public.rename_map_layer_transaction(text,text,text)', 'EXECUTE') then
+    raise exception 'anon must not execute rename_map_layer_transaction.';
+  end if;
+  if not has_function_privilege('authenticated', 'public.rename_map_layer_transaction(text,text,text)', 'EXECUTE') then
+    raise exception 'authenticated must execute rename_map_layer_transaction.';
+  end if;
+  if has_function_privilege('anon', 'public.exclude_duty_member_transaction(text)', 'EXECUTE')
+     or has_function_privilege('authenticated', 'public.exclude_duty_member_transaction(text)', 'EXECUTE') then
+    raise exception 'browser roles must not execute exclude_duty_member_transaction.';
+  end if;
+  if not has_function_privilege('service_role', 'public.exclude_duty_member_transaction(text)', 'EXECUTE') then
+    raise exception 'service_role must execute exclude_duty_member_transaction.';
+  end if;
+end
+$;
 
 rollback;
