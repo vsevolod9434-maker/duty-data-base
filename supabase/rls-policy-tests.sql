@@ -76,7 +76,7 @@ begin
         'current_access_level',
         'is_duty_admin',
         'can_manage_duty_member',
-      'task_assignee_is_allowed'
+        'task_assignee_is_allowed'
       )
   ) then
     raise exception 'Legacy RLS helper functions still exist in schema public.';
@@ -96,6 +96,7 @@ begin
         'is_officer',
         'current_access_level',
         'is_duty_admin',
+        'can_manage_duty_member',
         'task_assignee_is_allowed'
       )
       and has_function_privilege('anon', procedure.oid, 'EXECUTE')
@@ -166,9 +167,9 @@ begin
     and policy.polname like 'duty_pages_%'
     and (
       coalesce(pg_get_expr(policy.polqual, policy.polrelid), '')
-        ~ 'public\.(current_access|is_active_access|is_system_admin|is_officer|is_duty_admin|task_assignee)'
+        ~ 'public\.(current_access|is_active_access|is_system_admin|is_officer|is_duty_admin|can_manage_duty_member|task_assignee)'
       or coalesce(pg_get_expr(policy.polwithcheck, policy.polrelid), '')
-        ~ 'public\.(current_access|is_active_access|is_system_admin|is_officer|is_duty_admin|task_assignee)'
+        ~ 'public\.(current_access|is_active_access|is_system_admin|is_officer|is_duty_admin|can_manage_duty_member|task_assignee)'
     );
 
   if misplaced_policy_count <> 0 then
@@ -321,10 +322,16 @@ as $$
 declare
   visible_rows integer;
 begin
-  select count(*)
-  into visible_rows
-  from public."AccessUser"
-  where "authUserId"::text = auth.uid()::text;
+  if expect_directory then
+    select count(*)
+    into visible_rows
+    from public."AccessUser";
+  else
+    select count(*)
+    into visible_rows
+    from public."AccessUser"
+    where "authUserId"::text = auth.uid()::text;
+  end if;
 
   if expect_directory then
     if visible_rows <> current_setting('duty.test.access_user_count')::integer then
