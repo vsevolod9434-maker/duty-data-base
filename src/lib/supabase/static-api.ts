@@ -386,7 +386,7 @@ async function handleApartments(client: SupabaseClient, method: string, init?: R
         id: stringValue(record.id) || crypto.randomUUID(),
         apartmentId,
         paidAt: stringValue(record.paidAt) || nowIso(),
-        amount: Number(record.amount) || 0,
+        amount: Math.trunc(Number(record.amount) || 0),
         paymentType: nullableString(record.paymentType),
         paymentMethod: nullableString(record.paymentMethod),
         paidUntil: stringValue(record.paidUntil),
@@ -483,8 +483,8 @@ async function handleTradeOperations(client: SupabaseClient, method: string, ini
         id: stringValue(record.id) || crypto.randomUUID(),
         operationId,
         name: stringValue(record.name).trim(),
-        quantity: Math.max(1, Number(record.quantity) || 1),
-        price: Math.max(0, Number(record.price) || 0),
+        quantity: Math.max(1, Math.trunc(Number(record.quantity) || 1)),
+        price: Math.max(0, Math.trunc(Number(record.price) || 0)),
         notes: nullableString(record.notes),
       };
     });
@@ -599,6 +599,10 @@ async function handleMapLayers(client: SupabaseClient, method: string, init?: Re
     }
 
     const normalizedName = normalizeMapLayerKey(name);
+    if (normalizedName === normalizeMapLayerKey(DEFAULT_MAP_LAYER)) {
+      return errorResponse("Основной слой уже существует.");
+    }
+
     const { data: duplicate, error: duplicateError } = await client
       .from("MapLayer")
       .select("id")
@@ -652,6 +656,10 @@ async function handleMapLayers(client: SupabaseClient, method: string, init?: Re
     }
 
     const normalizedName = normalizeMapLayerKey(name);
+    if (normalizedName === normalizeMapLayerKey(DEFAULT_MAP_LAYER)) {
+      return errorResponse("Основной слой уже существует.");
+    }
+
     const { data: duplicate, error: duplicateError } = await client
       .from("MapLayer")
       .select("id")

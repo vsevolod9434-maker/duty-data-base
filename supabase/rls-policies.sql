@@ -102,9 +102,9 @@ language sql
 stable
 security definer
 set search_path = pg_catalog
-as $
+as $$
   select private.is_system_admin() or private.is_officer()
-$;
+$$;
 
 create or replace function private.can_manage_duty_member(target_access_user_id text)
 returns boolean
@@ -112,7 +112,7 @@ language sql
 stable
 security definer
 set search_path = pg_catalog
-as $
+as $$
   select case
     when target_access_user_id is null then false
     when target_access_user_id = private.current_access_user_id() then false
@@ -128,7 +128,7 @@ as $
     )
     else false
   end
-$;
+$$;
 
 create or replace function private.task_assignee_is_allowed(
   assignee_type public."TaskAssigneeType",
@@ -483,6 +483,7 @@ to authenticated
 with check (
   private.is_active_access_user()
   and "isDefault" = false
+  and "normalizedName" <> 'основной слой'
 );
 
 create policy duty_pages_update
@@ -496,6 +497,7 @@ using (
 with check (
   private.is_active_access_user()
   and "isDefault" = false
+  and "normalizedName" <> 'основной слой'
 );
 
 create policy duty_pages_delete
