@@ -603,7 +603,7 @@ reset role;
 
 -- RPC exposure: browser can atomically rename a layer under RLS, but duty-member
 -- exclusion remains service-role-only behind the access-admin Edge Function.
-do $
+do $$
 begin
   if has_function_privilege('anon', 'public.rename_map_layer_transaction(text,text,text)', 'EXECUTE') then
     raise exception 'anon must not execute rename_map_layer_transaction.';
@@ -619,6 +619,6 @@ begin
     raise exception 'service_role must execute exclude_duty_member_transaction.';
   end if;
 end
-$;
+$$;
 
 rollback;

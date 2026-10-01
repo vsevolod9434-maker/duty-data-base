@@ -37,7 +37,6 @@ import {
   SYSTEM_DATE_MAX,
   SYSTEM_DATE_MIN,
   STALKER_GROUPS_STORAGE_KEY,
-  STALKER_PROFILES_STORAGE_KEY,
   STALKER_TASKS_STORAGE_KEY,
   writeStoredCollection,
 } from "@/lib/stalker-utils";

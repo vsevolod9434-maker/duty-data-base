@@ -1,18 +1,18 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const rlsSource = readFileSync("supabase/rls-policies.sql", "utf8");
-const rlsLines = rlsSource.split(/\r?\n/);
+for (const sqlPath of ["supabase/rls-policies.sql", "supabase/rls-policy-tests.sql"]) {
+  const sqlLines = readFileSync(sqlPath, "utf8").split(/\r?\n/);
+  const invalidDollarQuoteLines = sqlLines
+    .map((line, index) => ({ line, number: index + 1 }))
+    .filter(({ line }) => /^\s*(?:as|do) \$(?!\$)/.test(line) || /^\s*\$;\s*$/.test(line));
 
-const invalidDollarQuoteLines = rlsLines
-  .map((line, index) => ({ line, number: index + 1 }))
-  .filter(({ line }) => /^\s*as \$(?!\$)/.test(line) || /^\s*\$;\s*$/.test(line));
-
-assert.deepEqual(
-  invalidDollarQuoteLines,
-  [],
-  "RLS SQL contains a malformed single-dollar function delimiter.",
-);
+  assert.deepEqual(
+    invalidDollarQuoteLines,
+    [],
+    `${sqlPath} contains a malformed single-dollar function delimiter.`,
+  );
+}
 
 const authoritativePages = [
   "src/app/stalkers/profiles/page.tsx",
@@ -49,6 +49,7 @@ for (const guard of [
   "const hasMembers = payload.members !== undefined;",
   "const hasPayments = payload.payments !== undefined;",
   "const hasItems = payload.items !== undefined;",
+  "const hasPoints = payload.points !== undefined;",
 ]) {
   assert.equal(
     staticApiSource.includes(guard),
