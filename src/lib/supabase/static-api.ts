@@ -387,46 +387,108 @@ async function handleApartments(client: SupabaseClient, method: string, init?: R
     const payload = await requestBody(init);
     const apartmentId = id ?? (stringValue(payload.id) || crypto.randomUUID());
     const actor = actorLabel(accessUser);
-    const tenants = asArray(payload.tenants).map((tenant) => {
-      const record = asRecord(tenant);
-      return {
-        id: stringValue(record.id) || crypto.randomUUID(),
-        apartmentId,
-        profileId: stringValue(record.profileId),
-        addedAt: stringValue(record.addedAt) || nowIso(),
-      };
-    });
-    const payments = asArray(payload.payments).map((payment) => {
-      const record = asRecord(payment);
-      return {
-        id: stringValue(record.id) || crypto.randomUUID(),
-        apartmentId,
-        paidAt: stringValue(record.paidAt) || nowIso(),
-        amount: Math.trunc(Number(record.amount) || 0),
-        paymentType: nullableString(record.paymentType),
-        paymentMethod: nullableString(record.paymentMethod),
-        paidUntil: stringValue(record.paidUntil),
-        notes: nullableString(record.notes),
-        createdAt: stringValue(record.createdAt) || nowIso(),
-        acceptedBy: nullableString(record.acceptedBy) ?? actor,
-        issuedBy: nullableString(record.issuedBy) ?? actor,
-        responsibleBy: nullableString(record.responsibleBy) ?? actor,
-      };
-    });
-    const apartment = normalizeParentPayload(
-      {
-        name: stringValue(payload.name).trim(),
-        status: tenants.length > 0 ? "occupied" : "free",
-        notes: nullableString(payload.notes),
-      },
-      apartmentId,
-      method === "POST",
-    );
-    const query = method === "POST" ? client.from("Apartment").insert(apartment) : client.from("Apartment").update(apartment).eq("id", apartmentId);
+    const hasTenants = payload.tenants !== undefined;
+    const hasPayments = payload.payments !== undefined;
+
+    const tenants = hasTenants
+      ? asArray(payload.tenants).map((tenant) => {
+          const record = asRecord(tenant);
+          return {
+            id: stringValue(record.id) || crypto.randomUUID(),
+            apartmentId,
+            profileId: stringValue(record.profileId),
+            addedAt: stringValue(record.addedAt) || nowIso(),
+          };
+        })
+      : [];
+
+    const existingAttributionById = new Map<
+      string,
+      { acceptedBy: string | null; issuedBy: string | null; responsibleBy: string | null }
+    >();
+
+    if (method === "PATCH" && hasPayments) {
+      const { data: existingPayments, error: existingPaymentsError } = await client
+        .from("ApartmentPayment")
+        .select("id, acceptedBy, issuedBy, responsibleBy")
+        .eq("apartmentId", apartmentId);
+
+      if (existingPaymentsError) throw existingPaymentsError;
+
+      for (const rawPayment of existingPayments ?? []) {
+        const payment = asRecord(rawPayment);
+        const paymentId = stringValue(payment.id);
+        if (!paymentId) continue;
+        existingAttributionById.set(paymentId, {
+          acceptedBy: nullableString(payment.acceptedBy),
+          issuedBy: nullableString(payment.issuedBy),
+          responsibleBy: nullableString(payment.responsibleBy),
+        });
+      }
+    }
+
+    const payments = hasPayments
+      ? asArray(payload.payments).map((payment) => {
+          const record = asRecord(payment);
+          const paymentId = stringValue(record.id) || crypto.randomUUID();
+          const existingAttribution = existingAttributionById.get(paymentId);
+          return {
+            id: paymentId,
+            apartmentId,
+            paidAt: stringValue(record.paidAt) || nowIso(),
+            amount: Math.trunc(Number(record.amount) || 0),
+            paymentType: nullableString(record.paymentType),
+            paymentMethod: nullableString(record.paymentMethod),
+            paidUntil: stringValue(record.paidUntil),
+            notes: nullableString(record.notes),
+            createdAt: stringValue(record.createdAt) || nowIso(),
+            acceptedBy: existingAttribution?.acceptedBy ?? actor,
+            issuedBy: existingAttribution?.issuedBy ?? actor,
+            responsibleBy: existingAttribution?.responsibleBy ?? actor,
+          };
+        })
+      : [];
+
+    const patch: JsonRecord = { updatedAt: nowIso() };
+
+    if (method === "POST" || payload.name !== undefined) {
+      const name = stringValue(payload.name).trim();
+      if (!name) return errorResponse("Укажите название квартиры.");
+      patch.name = name;
+    }
+
+    if (method === "POST" || payload.notes !== undefined) {
+      patch.notes = nullableString(payload.notes);
+    }
+
+    if (hasTenants) {
+      patch.status = tenants.length > 0 ? "occupied" : "free";
+    } else if (method === "POST") {
+      patch.status = "free";
+    } else if (payload.status !== undefined) {
+      const status = stringValue(payload.status);
+      if (status !== "free" && status !== "occupied") {
+        return errorResponse("Указан некорректный статус квартиры.");
+      }
+      patch.status = status;
+    }
+
+    const apartment = normalizeParentPayload(patch, apartmentId, method === "POST");
+    const query =
+      method === "POST"
+        ? client.from("Apartment").insert(apartment)
+        : client.from("Apartment").update(apartment).eq("id", apartmentId);
     const { error } = await query;
     if (error) throw error;
-    await replaceChildren(client, "ApartmentTenant", "apartmentId", apartmentId, tenants);
-    await replaceChildren(client, "ApartmentPayment", "apartmentId", apartmentId, payments);
+
+    if (method === "POST" || hasTenants) {
+      await replaceChildren(client, "ApartmentTenant", "apartmentId", apartmentId, tenants);
+    }
+
+    if (method === "POST" || hasPayments) {
+      await replaceChildren(client, "ApartmentPayment", "apartmentId", apartmentId, payments);
+    }
+
     const { data, error: readError } = await client.from("Apartment").select(select).eq("id", apartmentId).single();
     if (readError) throw readError;
     return json(data, method === "POST" ? 201 : 200);
