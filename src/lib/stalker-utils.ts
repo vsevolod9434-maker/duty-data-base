@@ -174,18 +174,32 @@ export function readStoredCollection<T>(key: string, fallback: T[]) {
   }
 }
 
-export function writeStoredCollection<T>(key: string, value: T[]) {
+const LEGACY_COLLECTION_STORAGE_KEYS = [
+  STALKER_PROFILES_STORAGE_KEY,
+  STALKER_TASKS_STORAGE_KEY,
+  STALKER_GROUPS_STORAGE_KEY,
+  TRADE_OPERATIONS_STORAGE_KEY,
+  VIOLATIONS_STORAGE_KEY,
+  APARTMENTS_STORAGE_KEY,
+  DUTY_MEMBERS_STORAGE_KEY,
+] as const;
+
+export function clearLegacyStoredCollections() {
   if (typeof window === "undefined") {
     return;
   }
 
-  const serializedValue = JSON.stringify(normalizeSystemDates(value));
-
-  if (window.localStorage.getItem(key) === serializedValue) {
-    return;
+  for (const key of LEGACY_COLLECTION_STORAGE_KEYS) {
+    window.localStorage.removeItem(key);
   }
+}
 
-  window.localStorage.setItem(key, serializedValue);
+export function writeStoredCollection<T>(key: string, value: T[]) {
+  // Legacy compatibility shim. Supabase/React Query is the only authoritative
+  // storage now; do not create browser-side copies that can later reappear as
+  // import candidates.
+  void key;
+  void value;
 }
 
 export function getPageCount(totalItems: number) {
