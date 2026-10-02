@@ -2168,3 +2168,137 @@ body {
   font-size: .86rem;
   padding: .3rem .5rem;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Empty states: one terse system message instead of striped slabs            */
+/* -------------------------------------------------------------------------- */
+
+.pda-screen .empty-state {
+  display: grid !important;
+  align-content: center;
+  justify-items: start;
+  gap: .25rem !important;
+  height: auto !important;
+  min-height: 0 !important;
+  border: 1px dashed #3a3e40 !important;
+  border-radius: 1px !important;
+  background: #0b0c0d !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  padding: .7rem .85rem !important;
+  text-align: left !important;
+}
+
+.pda-screen .empty-state::before {
+  content: none !important;
+}
+
+.pda-screen .empty-state p {
+  margin: 0 !important;
+  color: #c9cccd !important;
+  font-size: .84rem !important;
+  font-weight: 700 !important;
+}
+
+.pda-screen .empty-state p::before {
+  content: "■ ";
+  color: #6f7577;
+  font-size: .7em;
+}
+
+.pda-screen .empty-state span {
+  color: #8d9294 !important;
+  font-size: .76rem !important;
+}
+
+.pda-screen .empty-state .primary-command,
+.pda-screen .empty-state .command-row {
+  width: auto !important;
+  margin-top: .35rem !important;
+}
+
+.pda-screen .profile-detail-empty {
+  min-height: 9rem !important;
+  justify-items: center;
+  text-align: center !important;
+}
+
+/* --- registry column wide enough for full names --- */
+
+@media (min-width: 1181px) {
+  .pda-screen .profiles-page .profiles-command-grid,
+  .pda-screen .groups-page .groups-command-grid,
+  .profiles-page .profiles-command-grid,
+  .groups-page .groups-command-grid,
+  .apartments-page .apartments-two-column-layout {
+    grid-template-columns: minmax(23rem, 27rem) minmax(0, 1fr) !important;
+  }
+}
+
+/* --- affiliation is information, not an alarm --- */
+
+.pda-screen .badge-affiliation-duty,
+.pda-screen .badge-chip.badge-affiliation-duty,
+.pda-screen .profile-affiliation-badge.badge-affiliation-duty {
+  border-color: #5a3034 !important;
+  background: linear-gradient(180deg, #24191a, #161112) !important;
+  color: #d9c4c6 !important;
+  box-shadow: inset 2px 0 0 #7a2b31 !important;
+}
+
+.pda-screen .duty-badge-access-level-officer,
+.pda-screen .duty-badge-access-level-basic,
+.pda-screen .duty-badge-access-neutral {
+  border-color: #4c5153 !important;
+  background: linear-gradient(180deg, #24282a, #151718) !important;
+  color: #d7dada !important;
+}
+
+/* --- duty service badges: muted signal colours --- */
+
+.pda-screen .duty-badge-service-active,
+.pda-screen .duty-badge-access-active {
+  border-color: #46503c !important;
+  background: linear-gradient(180deg, #1d2219, #121510) !important;
+  color: #b9c6a9 !important;
+  box-shadow: inset 2px 0 0 #6f8059 !important;
+}
+
+.pda-screen .duty-badge-service-reserve,
+.pda-screen .duty-badge-service-suspended {
+  border-color: #5a5236 !important;
+  background: linear-gradient(180deg, #221f15, #15130d) !important;
+  color: #d3c89f !important;
+}
+
+.pda-screen .duty-badge-access-blocked {
+  border-color: #79232a !important;
+  background: linear-gradient(180deg, #3b1115, #210b0e) !important;
+  color: #eea8ad !important;
+}
+
+.pda-screen .duty-member-hero-actions {
+  display: flex !important;
+  flex-direction: column;
+  grid-auto-rows: auto !important;
+}
+
+.pda-screen .duty-member-hero-actions > * {
+  flex: 0 0 auto;
+  height: auto !important;
+}
+
+/* --- decorative red rails removed: red marks state, not decoration --- */
+
+.pda-screen :is(.profile-hero-note, .group-hero-note, .apartment-hero-notes, .duty-member-notes, .calculator-total-block) {
+  border-left-color: #4a4e50 !important;
+}
+
+.pda-screen :is(.calculator-info-button, .calculator-info-tooltip, .calculator-composition-tooltip) {
+  border-top-color: #4a4e50 !important;
+}
+
+.pda-screen .calculator-total-block,
+.pda-screen .calculator-cart-sums {
+  background: #0c0e0f !important;
+}

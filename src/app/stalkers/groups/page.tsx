@@ -9,6 +9,7 @@ import { PdaTopbar } from "@/components/layout/PdaTopbar";
 import { ActionAuthorLine } from "@/components/ui/ActionAuthorLine";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { MobileBackButton } from "@/components/ui/MobileBackButton";
+import { Pagination } from "@/components/ui/Pagination";
 import { getTaskActionVisibility, TaskRecordCard } from "@/components/ui/TaskRecordCard";
 import { addActivityLogEntry } from "@/lib/activity-log";
 import { apiFetch, apiFetchJson } from "@/lib/api-client";
@@ -125,31 +126,6 @@ const emptyGroupTaskDraft = {
   status: "active" as Task["status"],
 };
 
-function Pagination({
-  page,
-  pageCount,
-  onPageChange,
-}: {
-  page: number;
-  pageCount: number;
-  onPageChange: (page: number) => void;
-}) {
-  if (pageCount <= 1) {
-    return null;
-  }
-
-  return (
-    <div className="pagination-row">
-      <button className="command-row pagination-button" disabled={page <= 1} onClick={() => onPageChange(page - 1)} type="button">
-        Назад
-      </button>
-      <span>Страница {page} из {pageCount}</span>
-      <button className="command-row pagination-button" disabled={page >= pageCount} onClick={() => onPageChange(page + 1)} type="button">
-        Вперёд
-      </button>
-    </div>
-  );
-}
 
 function formatDate(value: string) {
   return value ? new Date(value).toLocaleDateString("ru-RU") : "Не указана";
