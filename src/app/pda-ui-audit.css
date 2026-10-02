@@ -487,3 +487,495 @@ body {
     font-size: clamp(1.45rem, 7vw, 1.8rem);
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Topbar v2: tabs sized by label, status never overlaps navigation           */
+/* -------------------------------------------------------------------------- */
+
+.pda-tab,
+.registry-nav-tab {
+  min-width: 5.4rem;
+  padding-inline: .78rem;
+}
+
+.pda-status,
+.registry-status {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.pda-user-email {
+  max-width: 13rem;
+}
+
+.pda-brand-copy strong::after {
+  font-size: 8px;
+}
+
+.pda-signal {
+  width: .5rem;
+  height: .5rem;
+  flex: 0 0 auto;
+  border-radius: 0;
+  opacity: 1;
+}
+
+.pda-signal-online {
+  background: #8fa07a;
+  box-shadow: 0 0 0 1px #050606, 0 0 4px rgba(143, 160, 122, .45);
+}
+
+.pda-signal-offline {
+  background: #c42b33;
+  box-shadow: 0 0 0 1px #050606, 0 0 5px rgba(196, 43, 51, .65);
+}
+
+@media (min-width: 1121px) and (max-width: 1279px) {
+  .pda-user-email {
+    display: none;
+  }
+}
+
+@media (max-width: 1120px) {
+  .pda-main-nav,
+  .registry-main-nav {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .pda-tab,
+  .registry-nav-tab {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .pda-shell-header,
+  .registry-shell-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: .4rem;
+  }
+
+  .pda-status,
+  .registry-status {
+    grid-column: 2;
+    grid-row: 1;
+    width: auto;
+    justify-self: end;
+    flex-wrap: nowrap;
+  }
+
+  .pda-user-email {
+    display: none;
+  }
+
+  .pda-main-nav,
+  .registry-main-nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 460px) {
+  .pda-brand-copy strong::after {
+    display: none;
+  }
+
+  .pda-brand-copy strong {
+    font-size: .74rem;
+    letter-spacing: .05em;
+  }
+
+  .pda-main-nav,
+  .registry-main-nav {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .pda-tab,
+  .registry-nav-tab {
+    min-height: 2.35rem;
+    padding-inline: .2rem;
+    font-size: .64rem;
+    letter-spacing: .01em;
+  }
+
+  .pda-status,
+  .registry-status {
+    justify-content: flex-end;
+    padding: .25rem .35rem;
+  }
+
+  .pda-clock {
+    margin-left: 0;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Map: object panel is a dedicated right column, not lost under the map      */
+/* -------------------------------------------------------------------------- */
+
+@media (min-width: 821px) {
+  .pda-screen .map-page-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 21.25rem;
+    gap: .5rem;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .pda-screen .map-side-panel {
+    position: relative;
+    top: auto;
+    right: auto;
+    width: auto;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+}
+
+@media (min-width: 821px) and (max-width: 1100px) {
+  .pda-screen .map-page-layout {
+    grid-template-columns: minmax(0, 1fr) 18rem;
+  }
+}
+
+@media (max-width: 820px) {
+  .pda-screen .map-page-layout {
+    position: relative;
+  }
+
+  .pda-screen .map-side-panel {
+    position: absolute;
+  }
+}
+
+.pda-screen .map-side-panel {
+  padding: .7rem .75rem;
+}
+
+.pda-screen .map-panel-tabs button {
+  min-width: 0;
+  overflow: hidden;
+  padding-inline: .2rem;
+  font-size: .68rem;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pda-screen .map-panel-message {
+  border-left: 0;
+  padding: .45rem 0;
+}
+
+@media (min-width: 821px) and (max-width: 1100px) {
+  .pda-screen .map-panel-tabs-primary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Long names never escape their cards                                        */
+/* -------------------------------------------------------------------------- */
+
+.pda-screen .apartment-tenant-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.pda-screen .apartment-tenant-row .member-identity,
+.pda-screen .apartment-tenant-title-row {
+  min-width: 0;
+}
+
+.pda-screen .apartment-tenant-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .3rem .4rem;
+}
+
+.pda-screen .apartment-tenant-title-row strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pda-screen .apartment-tenant-group-badge {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pda-screen .apartment-tenant-row .task-actions {
+  align-self: center;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Registry ↔ card on narrow screens: one view at a time, explicit way back    */
+/* -------------------------------------------------------------------------- */
+
+.mobile-back-button {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .pda-screen .profile-card-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-auto-rows: auto;
+    height: auto;
+    max-height: none;
+  }
+
+  .pda-screen .profile-card-grid > .profile-column {
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .pda-screen .profile-card-grid.has-selection > .profile-column:not(.detail-host-column),
+  .pda-screen .profile-card-grid:not(.has-selection) > .detail-host-column {
+    display: none;
+  }
+
+  .pda-screen .mobile-back-button {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    justify-self: start;
+    width: max-content;
+    max-width: 100%;
+    margin-bottom: .5rem;
+  }
+}
+
+.pda-screen .apartment-profile-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .5rem .75rem;
+}
+
+.pda-screen .apartment-profile-title {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.pda-screen .apartment-profile-title h3 {
+  overflow-wrap: anywhere;
+}
+
+.pda-screen .apartment-profile-controls {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* --- login heading scales with its own panel, never clipped --- */
+
+.login-briefing {
+  container-type: inline-size;
+}
+
+.login-briefing h1,
+.login-briefing-copy h1 {
+  max-width: 100%;
+  font-size: clamp(1.9rem, 11.5cqi, 4.4rem);
+  letter-spacing: 0;
+  line-height: .95;
+  overflow-wrap: normal;
+}
+
+.login-card input::placeholder {
+  font-weight: 400;
+}
+
+/* --- profile service marks: short labels, author visible, nothing clipped --- */
+
+.pda-screen .dossier-service-grid > div {
+  min-width: 0;
+}
+
+.pda-screen .dossier-service-grid span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pda-screen .dossier-service-grid small {
+  display: block;
+  margin-top: .15rem;
+  overflow: hidden;
+  color: #8d9294;
+  font-size: .72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Calculator: columns that fit, readable prices, cart rows without overlap    */
+/* -------------------------------------------------------------------------- */
+
+@media (min-width: 901px) {
+  .calculator-page .calculator-catalog-heading,
+  .calculator-page .calculator-catalog-card {
+    grid-template-columns: minmax(9rem, 1fr) repeat(3, minmax(5.6rem, 7.6rem)) minmax(6.8rem, auto);
+    column-gap: .5rem;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1180px) {
+  .calculator-page .calculator-catalog-heading span {
+    font-size: .62rem;
+    letter-spacing: .02em;
+  }
+}
+
+.calculator-page .calculator-card-title-line h3 {
+  overflow-wrap: normal;
+  hyphens: auto;
+}
+
+.calculator-page .calculator-catalog-heading span {
+  min-width: 0;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.calculator-page .calculator-cart-card-head {
+  flex-wrap: wrap;
+  row-gap: .45rem;
+}
+
+.calculator-page .calculator-cart-card-head strong {
+  flex: 1 1 8rem;
+  overflow-wrap: normal;
+}
+
+.calculator-page .calculator-card-title-line {
+  flex-wrap: wrap;
+  row-gap: .3rem;
+}
+
+.pda-screen .calculator-price-value-tenant,
+.pda-screen .calculator-cart-sum-tenant {
+  color: #c9cccd;
+}
+
+.pda-screen .calculator-price-value-general,
+.pda-screen .calculator-cart-sum-general {
+  color: #e2e4e4;
+}
+
+.calculator-page .calculator-price-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.calculator-page .calculator-add-button {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.pda-screen .calculator-add-button-in-cart {
+  border-color: #6b2a2f;
+  color: #f0d6d8;
+  box-shadow: inset 3px 0 0 #a52830;
+}
+
+.pda-screen .calculator-composition-button {
+  width: auto;
+  padding-inline: .35rem;
+  font-size: .62rem;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.calculator-page .calculator-cart-sums,
+.pda-screen .calculator-page .calculator-cart-sums {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1px;
+}
+
+.calculator-page .calculator-cart-sums div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .6rem;
+  padding: .3rem .5rem;
+}
+
+.calculator-page .calculator-cart-sums span {
+  min-width: 0;
+}
+
+.calculator-page .calculator-cart-sums p {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.calculator-page .calculator-total-hint {
+  display: block;
+  color: #8d9294;
+  font-size: .72rem;
+  line-height: 1.35;
+}
+
+@media (max-width: 900px) {
+  .calculator-page .calculator-price-value {
+    display: grid;
+    gap: .1rem;
+  }
+
+  .calculator-page .calculator-price-value::before {
+    content: attr(data-label);
+    color: #8d9294;
+    font-size: .64rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+}
+
+@media (max-width: 560px) {
+  .calculator-page .calculator-price-value {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: .6rem;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Journals: content never wider than the screen                               */
+/* -------------------------------------------------------------------------- */
+
+.pda-screen .journal-workspace,
+.pda-screen .journals-shell {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+.pda-screen .journal-filter-bar {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.pda-screen .journal-filter-bar .list-tab {
+  flex: 0 0 auto;
+}
+
+.pda-screen .task-record-header,
+.pda-screen .profile-record-title {
+  min-width: 0;
+  flex-wrap: wrap;
+}

@@ -1102,7 +1102,7 @@ export default function DutyMembersPage() {
   return (
     <main className="pda-page duty-members-page">
       <section className="pda-screen">
-        <PdaTopbar activeLabel="Состав" activeSubtabLabel="Профили состава" />
+        <PdaTopbar activeLabel="Состав" />
 
         <div className="pda-content duty-members-content">
           <section className="duty-members-shell">

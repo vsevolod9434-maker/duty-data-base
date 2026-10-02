@@ -540,7 +540,6 @@ button,
 :is(
   .profile-create-button,
   .duty-member-add-button,
-  .calculator-add-button,
   .journal-modal-submit,
   .journal-modal-submit-confirm,
   .login-submit,
@@ -564,7 +563,6 @@ button,
 :is(
   .profile-create-button,
   .duty-member-add-button,
-  .calculator-add-button,
   .journal-modal-submit,
   .journal-modal-submit-confirm,
   .login-submit,
@@ -749,7 +747,7 @@ button:disabled,
 }
 
 .login-shell::before {
-  content: "PDA // ACCESS TERMINAL // 2009";
+  content: "КПК // ПОСТ ДОСТУПА // 2009";
   position: absolute;
   top: -1.55rem;
   left: 0;

@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
 import { ActionAuthorLine } from "@/components/ui/ActionAuthorLine";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { MobileBackButton } from "@/components/ui/MobileBackButton";
 import { Pagination } from "@/components/ui/Pagination";
 import { getTaskActionVisibility, TaskRecordCard } from "@/components/ui/TaskRecordCard";
 import { TradeRecordCard } from "@/components/ui/TradeRecordCard";
@@ -1487,6 +1488,11 @@ export default function StalkerProfilesPage() {
     }
   }
 
+  function closeProfileDetail() {
+    setSelectedProfileId("");
+    router.replace("/stalkers/profiles", { scroll: false });
+  }
+
   function selectProfile(profileId: string) {
     setSelectedProfileId(profileId);
     setActiveProfileTab("Задания");
@@ -2260,7 +2266,7 @@ export default function StalkerProfilesPage() {
 
         <div className="pda-content">
           <section className="section-panel profiles-workspace-panel">
-            <div className="profile-card-grid profiles-command-grid">
+            <div className={`profile-card-grid profiles-command-grid ${selectedProfile ? "has-selection" : ""}`}>
               <section className="profile-column profiles-list-column">
                 <div className="list-header-block">
                   <div className="column-header list-column-header">
@@ -2385,6 +2391,7 @@ export default function StalkerProfilesPage() {
               </section>
 
               <section className="profile-column detail-host-column">
+                {selectedProfile ? <MobileBackButton label="К реестру сталкеров" onClick={closeProfileDetail} /> : null}
                 {!isStorageReady || isProfileLoading ? (
                   <div className="empty-state">
                     <p>Загрузка профилей…</p>
@@ -2568,13 +2575,15 @@ export default function StalkerProfilesPage() {
                             <span>Служебные отметки</span>
                           </div>
                           <div className="dossier-service-grid">
-                            <div title={`Кто внёс профиль: ${getProfileCreatedBy(selectedProfile)}`}>
-                              <span>Когда внесли профиль</span>
+                            <div>
+                              <span>Внесён</span>
                               <p>{formatDate(selectedProfile.createdAt)}</p>
+                              <small>{getProfileCreatedBy(selectedProfile)}</small>
                             </div>
-                            <div title={`Кто отредактировал профиль: ${getProfileUpdatedBy(selectedProfile)}`}>
-                              <span>Дата последнего редактирования</span>
+                            <div>
+                              <span>Изменён</span>
                               <p>{formatDate(selectedProfile.updatedAt)}</p>
+                              <small>{getProfileUpdatedBy(selectedProfile)}</small>
                             </div>
                           </div>
                         </section>

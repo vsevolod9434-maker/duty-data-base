@@ -1,4 +1,4 @@
-﻿export type NavigationSubtab = {
+export type NavigationSubtab = {
   label: string;
   href: string;
 };
@@ -9,15 +9,18 @@ export type NavigationItem = {
   subtabs: NavigationSubtab[];
 };
 
+export const journalTabQueryValues = {
+  Задания: "tasks",
+  Продажи: "sales",
+  Покупки: "purchases",
+  Нарушения: "violations",
+} as const;
+
 export const navigation: NavigationItem[] = [
   {
     label: "Главная",
     href: "/",
-    subtabs: [
-      { label: "Обзор", href: "#overview" },
-      { label: "Сводка", href: "#summary" },
-      { label: "Состояние", href: "#system" },
-    ],
+    subtabs: [],
   },
   {
     label: "Сталкеры",
@@ -25,17 +28,21 @@ export const navigation: NavigationItem[] = [
     subtabs: [
       { label: "Профили", href: "/stalkers/profiles" },
       { label: "Группы", href: "/stalkers/groups" },
-      { label: "Квартиры", href: "/apartments" },
     ],
+  },
+  {
+    label: "Квартиры",
+    href: "/apartments",
+    subtabs: [],
   },
   {
     label: "Журналы",
     href: "/journals",
     subtabs: [
-      { label: "Задания", href: "#" },
-      { label: "Продажи", href: "#" },
-      { label: "Покупки", href: "#" },
-      { label: "Нарушения", href: "#" },
+      { label: "Задания", href: `/journals?tab=${journalTabQueryValues.Задания}` },
+      { label: "Продажи", href: `/journals?tab=${journalTabQueryValues.Продажи}` },
+      { label: "Покупки", href: `/journals?tab=${journalTabQueryValues.Покупки}` },
+      { label: "Нарушения", href: `/journals?tab=${journalTabQueryValues.Нарушения}` },
     ],
   },
   {

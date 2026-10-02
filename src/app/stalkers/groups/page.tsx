@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
 import { ActionAuthorLine } from "@/components/ui/ActionAuthorLine";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { MobileBackButton } from "@/components/ui/MobileBackButton";
 import { getTaskActionVisibility, TaskRecordCard } from "@/components/ui/TaskRecordCard";
 import { addActivityLogEntry } from "@/lib/activity-log";
 import { apiFetch, apiFetchJson } from "@/lib/api-client";
@@ -1274,6 +1275,11 @@ export default function StalkerGroupsPage() {
     closeCompleteGroupTaskModal();
   }
 
+  function closeGroupDetail() {
+    setSelectedGroupId("");
+    router.replace("/stalkers/groups", { scroll: false });
+  }
+
   function openGroup(groupId: string) {
     setSelectedGroupId(groupId);
     setActiveGroupTab("Состав");
@@ -1350,7 +1356,7 @@ export default function StalkerGroupsPage() {
 
         <div className="pda-content">
           <section className="section-panel groups-workspace-panel">
-            <div className="profile-card-grid groups-command-grid">
+            <div className={`profile-card-grid groups-command-grid ${selectedGroup ? "has-selection" : ""}`}>
               <section className="profile-column groups-list-column">
                 <div className="list-header-block">
                   <div className="column-header list-column-header">
@@ -1462,6 +1468,7 @@ export default function StalkerGroupsPage() {
               </section>
 
               <section className="profile-column detail-host-column">
+                {selectedGroup ? <MobileBackButton label="К реестру групп" onClick={closeGroupDetail} /> : null}
                 {!isStorageReady || isGroupLoading ? (
                   <div className="empty-state">
                     <p>Загрузка групп…</p>

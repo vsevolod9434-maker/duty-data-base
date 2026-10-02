@@ -612,7 +612,6 @@
   .primary-command,
   .profile-create-button,
   .duty-member-add-button,
-  .calculator-add-button,
   .tenant-modal-command,
   .journal-modal-submit,
   .journal-modal-submit-confirm
@@ -849,7 +848,7 @@
 }
 
 .login-shell::after {
-  content: "SECURE ACCESS // DUTY PDA-09";
+  content: "ЗАЩИЩЁННЫЙ КАНАЛ // КПК «ДОЛГ-09»";
   position: absolute;
   right: 12px;
   top: 9px;

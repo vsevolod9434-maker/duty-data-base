@@ -9,6 +9,7 @@ import { ActionAuthorLine } from "@/components/ui/ActionAuthorLine";
 import { addActivityLogEntry } from "@/lib/activity-log";
 import { apiFetchJson } from "@/lib/api-client";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { MobileBackButton } from "@/components/ui/MobileBackButton";
 import { Pagination } from "@/components/ui/Pagination";
 import { cachePolicy, dutyDataKeys, scheduleClientStateSync, useCurrentUserCacheKey, useDutyQueryClient } from "@/lib/data-cache";
 import { isStaticExportEnabled, transactionalImportMessage } from "@/lib/static-hosting";
@@ -1142,7 +1143,6 @@ export default function ApartmentsPage() {
             <div className="apartment-profile-header">
               <div className="profile-case-title apartment-profile-title">
                 <h3>{selectedApartment.name}</h3>
-                <p>Профиль квартиры: жильцы, оплата и служебные заметки.</p>
               </div>
 
               <div className="apartment-profile-controls">
@@ -1151,7 +1151,6 @@ export default function ApartmentsPage() {
                     {apartmentStatusLabels[selectedApartment.status]}
                   </span>
                   {renderPaymentBadge(selectedApartment)}
-                  <span className="profile-badge badge-chip badge-neutral apartment-count-badge">Жильцов: {selectedApartment.tenants.length}</span>
                 </div>
               </div>
             </div>
@@ -1252,7 +1251,11 @@ export default function ApartmentsPage() {
                           {tenantGroupNames.length > 0 ? (
                             <>
                               {tenantGroupNames.map((groupName) => (
-                                <span className="profile-state-badge badge-chip badge-state-group apartment-tenant-group-badge" key={groupName}>
+                                <span
+                                  className="profile-state-badge badge-chip badge-state-group apartment-tenant-group-badge"
+                                  key={groupName}
+                                  title={`В группе: ${groupName}`}
+                                >
                                   В группе: {groupName}
                                 </span>
                               ))}
@@ -1370,15 +1373,16 @@ export default function ApartmentsPage() {
   return (
     <main className="pda-page apartments-page">
       <section className="pda-screen">
-        <PdaTopbar activeLabel="Сталкеры" activeSubtabLabel="Квартиры" />
+        <PdaTopbar activeLabel="Квартиры" />
 
         <div className="pda-content">
           <section className="section-panel apartments-workspace-panel">
-            <div className="profile-card-grid apartments-two-column-layout">
+            <div className={`profile-card-grid apartments-two-column-layout ${selectedApartment ? "has-selection" : ""}`}>
               <section className="profile-column apartments-list-column">
                 {renderApartmentList()}
               </section>
               <section className="profile-column detail-host-column apartments-detail-column">
+                {selectedApartment ? <MobileBackButton label="К реестру квартир" onClick={() => setSelectedApartmentId("")} /> : null}
                 {selectedApartment ? (
                   renderApartmentProfile()
                 ) : (

@@ -13,6 +13,10 @@ type AccessUserResponse = {
   displayName?: string | null;
 };
 
+function getPathWithoutQuery(href: string) {
+  return href.split("?")[0] || "/";
+}
+
 type PdaTopbarProps = {
   activeLabel: string;
   activeSubtab?: string;
@@ -31,6 +35,8 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel, onSubt
   const [moscowTime, setMoscowTime] = useState<string | null>(null);
   const [openDropdownLabel, setOpenDropdownLabel] = useState<string | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+  const lastPointerTypeRef = useRef<string>("mouse");
   const user = currentUserQuery.data as AccessUserResponse | undefined;
   const userLabel = user?.displayName || user?.login || "";
 
@@ -55,8 +61,9 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel, onSubt
   }
 
   const tabFromPath =
-    navigation.find((tab) => tab.href === pathname || tab.subtabs.some((subtab) => subtab.href === pathname)) ??
-    navigation[0];
+    navigation.find(
+      (tab) => tab.href === pathname || tab.subtabs.some((subtab) => getPathWithoutQuery(subtab.href) === pathname),
+    ) ?? navigation[0];
   const activeTab = navigation.find((tab) => tab.label === activeLabel) ?? tabFromPath;
   const currentSubtabLabel =
     activeSubtabLabel ??
@@ -106,6 +113,19 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel, onSubt
     const intervalHandle = window.setInterval(updateTime, 30_000);
 
     return () => window.clearInterval(intervalHandle);
+  }, []);
+
+  useEffect(() => {
+    const updateOnlineState = () => setIsOnline(navigator.onLine);
+
+    updateOnlineState();
+    window.addEventListener("online", updateOnlineState);
+    window.addEventListener("offline", updateOnlineState);
+
+    return () => {
+      window.removeEventListener("online", updateOnlineState);
+      window.removeEventListener("offline", updateOnlineState);
+    };
   }, []);
 
   useEffect(() => {
@@ -159,9 +179,7 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel, onSubt
         <nav className="pda-main-nav registry-main-nav" aria-label="Основные разделы" ref={navMenuRef}>
           {navigation.map((tab) => {
             const isActive = tab.label === activeTab.label;
-            const hasRouteDropdown = tab.subtabs.some((subtab) => subtab.href.startsWith("/"));
-            const hasActionDropdown = tab.label === activeTab.label && Boolean(onSubtabChange) && tab.subtabs.length > 0;
-            const hasDropdown = hasRouteDropdown || hasActionDropdown;
+            const hasDropdown = tab.subtabs.length > 0;
             const isDropdownOpen = openDropdownLabel === tab.label;
 
             if (hasDropdown) {
@@ -169,8 +187,16 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel, onSubt
                 <div
                   className="pda-nav-dropdown"
                   key={tab.label}
-                  onMouseEnter={() => openDropdown(tab.label)}
-                  onMouseLeave={scheduleDropdownClose}
+                  onPointerEnter={(event) => {
+                    if (event.pointerType === "mouse") {
+                      openDropdown(tab.label);
+                    }
+                  }}
+                  onPointerLeave={(event) => {
+                    if (event.pointerType === "mouse") {
+                      scheduleDropdownClose();
+                    }
+                  }}
                 >
                   <button
                     aria-current={isActive ? "page" : undefined}
@@ -178,10 +204,37 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel, onSubt
                     className={`pda-tab registry-nav-tab pda-nav-dropdown-trigger ${isActive ? "pda-tab-active registry-nav-tab-active" : ""}`}
                     onClick={() => {
                       cancelDropdownClose();
+
+                      if (lastPointerTypeRef.current !== "mouse") {
+                        setOpenDropdownLabel(isDropdownOpen ? null : tab.label);
+                        return;
+                      }
+
                       setOpenDropdownLabel(null);
                       router.push(tab.href);
                     }}
-                    onFocus={() => openDropdown(tab.label)}
+                    onFocus={(event) => {
+                      if (event.currentTarget.matches(":focus-visible")) {
+                        openDropdown(tab.label);
+                      }
+                    }}
+                    onKeyDown={(event) => {
+                      lastPointerTypeRef.current = "mouse";
+
+                      if (event.key === "ArrowDown") {
+                        const dropdownElement = event.currentTarget.parentElement;
+
+                        event.preventDefault();
+                        openDropdown(tab.label);
+                        window.requestAnimationFrame(() => {
+                          dropdownElement?.querySelector<HTMLElement>(".pda-nav-dropdown-option")?.focus();
+                        });
+                      }
+                    }}
+                    onPointerDown={(event) => {
+                      lastPointerTypeRef.current = event.pointerType || "mouse";
+                    }}
+                    title={`${tab.label}: открыть раздел`}
                     type="button"
                   >
                     <span>{tab.label}</span>
@@ -192,16 +245,16 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel, onSubt
                   {isDropdownOpen ? (
                     <div className="pda-nav-dropdown-menu" onMouseEnter={cancelDropdownClose} role="menu">
                       {tab.subtabs.map((subtab) => {
-                        const isSubtabActive = subtab.label === currentSubtabLabel || subtab.href === pathname;
+                        const isSubtabActive = isActive && (subtab.label === currentSubtabLabel || subtab.href === pathname);
 
                         return (
                           <a
                             aria-current={isSubtabActive ? "page" : undefined}
                             className={`pda-nav-dropdown-option ${isSubtabActive ? "pda-nav-dropdown-option-active" : ""}`}
-                            href={subtab.href === "#" ? "#" : withBasePath(subtab.href)}
+                            href={withBasePath(subtab.href)}
                             key={subtab.label}
                             onClick={(event) => {
-                              if (subtab.href === "#" && onSubtabChange) {
+                              if (isActive && onSubtabChange) {
                                 event.preventDefault();
                                 onSubtabChange(subtab.label);
                               }
@@ -241,9 +294,15 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel, onSubt
           <button className="pda-signout-button" disabled={isSigningOut} onClick={signOut} type="button">
             {isSigningOut ? "Выход…" : "Выйти"}
           </button>
-          <span className="pda-clock">{moscowTime ?? "--:--"}</span>
-          <span className="pda-signal" aria-hidden="true" />
-          <span className="battery" aria-label="Батарея" />
+          <span className="pda-clock" title="Время по Москве">
+            {moscowTime ?? "--:--"}
+          </span>
+          <span
+            aria-label={isOnline ? "Связь есть" : "Нет связи"}
+            className={`pda-signal ${isOnline ? "pda-signal-online" : "pda-signal-offline"}`}
+            role="status"
+            title={isOnline ? "Связь есть" : "Нет связи"}
+          />
         </div>
       </div>
     </header>

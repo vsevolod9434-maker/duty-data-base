@@ -11,6 +11,7 @@ import { TaskRecordCard } from "@/components/ui/TaskRecordCard";
 import { TradeRecordCard } from "@/components/ui/TradeRecordCard";
 import { ViolationRecordCard } from "@/components/ui/ViolationRecordCard";
 import { addActivityLogEntry } from "@/lib/activity-log";
+import { journalTabQueryValues } from "@/lib/navigation";
 import { apiFetchJson } from "@/lib/api-client";
 import { dutyDataKeys, scheduleClientStateSync, useCurrentUserCacheKey, useDutyQueryClient } from "@/lib/data-cache";
 import {
@@ -1724,7 +1725,30 @@ export default function JournalsPage() {
     }
 
     setActiveJournalTab(tab as JournalTab);
+
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.set("tab", journalTabQueryValues[tab as JournalTab]);
+    window.history.replaceState(window.history.state, "", nextUrl);
   }
+
+  useEffect(() => {
+    const syncTabFromUrl = () => {
+      const queryValue = new URLSearchParams(window.location.search).get("tab");
+      const tabFromUrl = journalTabs.find((tab) => journalTabQueryValues[tab] === queryValue);
+
+      if (tabFromUrl) {
+        setActiveJournalTab(tabFromUrl);
+      }
+    };
+    const syncHandle = window.setTimeout(syncTabFromUrl, 0);
+
+    window.addEventListener("popstate", syncTabFromUrl);
+
+    return () => {
+      window.clearTimeout(syncHandle);
+      window.removeEventListener("popstate", syncTabFromUrl);
+    };
+  }, []);
 
   function renderTasksJournal() {
     return (

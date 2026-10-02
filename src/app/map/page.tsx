@@ -2614,272 +2614,272 @@ export default function MapPage() {
                 visibleLayers={visibleLayers}
                 zones={viewerZones}
               />
-              <aside className="map-side-panel">
-                <div className="map-side-panel-head">
-                  <h1>Объекты карты</h1>
-                  <div className="map-panel-tabs map-panel-tabs-primary" role="tablist" aria-label="Разделы объектов карты">
-                    <button className={activePanel === "markers" ? "map-panel-tab-active" : ""} onClick={() => handlePanelChange("markers")} type="button">
-                      Метки
-                    </button>
-                    <button className={activePanel === "zones" ? "map-panel-tab-active" : ""} onClick={() => handlePanelChange("zones")} type="button">
-                      Зоны
-                    </button>
-                    <button className={activePanel === "routes" ? "map-panel-tab-active" : ""} onClick={() => handlePanelChange("routes")} type="button">
-                      Маршруты
-                    </button>
-                    <button className={activePanel === "labels" ? "map-panel-tab-active" : ""} onClick={() => handlePanelChange("labels")} type="button">
-                      Надписи
-                    </button>
-                  </div>
-                  <div className="map-panel-tabs map-panel-tabs-layers" role="tablist" aria-label="Управление слоями">
-                    <button className={activePanel === "layers" ? "map-panel-tab-active" : ""} onClick={() => handlePanelChange("layers")} type="button">
-                      Слои
-                    </button>
-                  </div>
+            </div>
+            <aside className="map-side-panel">
+              <div className="map-side-panel-head">
+                <h1>Объекты карты</h1>
+                <div className="map-panel-tabs map-panel-tabs-primary" role="tablist" aria-label="Разделы объектов карты">
+                  <button className={activePanel === "markers" ? "map-panel-tab-active" : ""} onClick={() => handlePanelChange("markers")} type="button">
+                    Метки
+                  </button>
+                  <button className={activePanel === "zones" ? "map-panel-tab-active" : ""} onClick={() => handlePanelChange("zones")} type="button">
+                    Зоны
+                  </button>
+                  <button className={activePanel === "routes" ? "map-panel-tab-active" : ""} onClick={() => handlePanelChange("routes")} type="button">
+                    Маршруты
+                  </button>
+                  <button className={activePanel === "labels" ? "map-panel-tab-active" : ""} onClick={() => handlePanelChange("labels")} type="button">
+                    Надписи
+                  </button>
                 </div>
+                <div className="map-panel-tabs map-panel-tabs-layers" role="tablist" aria-label="Управление слоями">
+                  <button className={activePanel === "layers" ? "map-panel-tab-active" : ""} onClick={() => handlePanelChange("layers")} type="button">
+                    Слои
+                  </button>
+                </div>
+              </div>
 
-                {isLoadingObjects ? <p className="map-panel-message">Загрузка объектов карты…</p> : null}
-                {!isLoadingObjects && (objectError || objectLoadError) ? (
-                  <p className="map-panel-message map-panel-message-danger">{objectError || objectLoadError}</p>
-                ) : null}
+              {isLoadingObjects ? <p className="map-panel-message">Загрузка объектов карты…</p> : null}
+              {!isLoadingObjects && (objectError || objectLoadError) ? (
+                <p className="map-panel-message map-panel-message-danger">{objectError || objectLoadError}</p>
+              ) : null}
 
-                {activePanel === "markers" ? (
-                  <section className="map-panel-section map-panel-section-last">
-                    {markerDraft ? (
-                      renderMarkerEditor()
-                    ) : (
-                      <>
-                        <button className="primary-command interactive-button" onClick={() => startDrawing("marker", "markers")} type="button">
-                          Добавить метку
-                        </button>
-                        <div className="map-panel-action-grid">
-                          <button className="command-row interactive-button" disabled={!selectedMarker || hasOpenEditor()} onClick={copySelectedMarker} type="button">
-                            Копировать метку
-                          </button>
-                          <button
-                            className={`command-row interactive-button ${drawingMode === "marker-copy" ? "map-command-active" : ""}`}
-                            disabled={!copiedMarkerDraft || (hasOpenEditor() && drawingMode !== "marker-copy")}
-                            onClick={startMarkerCopyPlacement}
-                            type="button"
-                          >
-                            Разместить копию
-                          </button>
-                        </div>
-                        {markerCopyMessage ? <p className="map-panel-message map-panel-message-strong">{markerCopyMessage}</p> : null}
-                        {markers.length > 0 ? (
-                          <div className="map-object-list">
-                            {markers.map((marker) => (
-                              <button className={selectedMarkerId === marker.id ? "map-object-row map-object-row-active" : "map-object-row"} key={marker.id} onClick={() => selectMarker(marker)} type="button">
-                                <span>{marker.title}</span>
-                                <small>{marker.layer}</small>
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="map-panel-message">Метки пока не добавлены.</p>
-                        )}
-                      </>
-                    )}
-                  </section>
-                ) : null}
-
-                {activePanel === "zones" ? (
-                  <section className="map-panel-section map-panel-section-last">
-                    {zoneDraft ? (
-                      renderZoneEditor()
-                    ) : drawingMode === "zone-polygon" ? (
-                      renderPolygonDrawingBuilder()
-                    ) : (
-                      <>
-                        <div className="map-panel-action-grid">
-                          <button className="primary-command interactive-button" onClick={() => startDrawing("zone", "zones")} type="button">
-                            Добавить круг
-                          </button>
-                          <button className="primary-command interactive-button" onClick={() => startDrawing("zone-polygon", "zones")} type="button">
-                            Добавить полигон
-                          </button>
-                        </div>
-                        <input className="map-search-input" onChange={(event) => setZoneSearch(event.target.value)} placeholder="Поиск зон" type="search" value={zoneSearch} />
-                        {zones.length > 0 ? (
-                          <div className="map-object-list">
-                            {filteredZones.map((zone) => (
-                              <button className={selectedZoneId === zone.id ? "map-object-row map-object-row-active" : "map-object-row"} key={zone.id} onClick={() => selectZone(zone)} type="button">
-                                <span>{zone.title}</span>
-                                <small>
-                                  {getMapZoneShapeLabel(zone.shape)} · {zone.layer}
-                                </small>
-                                <small>{getZoneColorPreset(zone.colorKey).label}</small>
-                                <small>{zone.shape === "polygon" ? `Точек: ${zone.points.length}` : `Радиус: ${zone.radius}`}</small>
-                              </button>
-                            ))}
-                            {filteredZones.length === 0 ? <p className="map-panel-message">Зоны не найдены.</p> : null}
-                          </div>
-                        ) : (
-                          <p className="map-panel-message">Зоны пока не добавлены.</p>
-                        )}
-                      </>
-                    )}
-                  </section>
-                ) : null}
-
-                {activePanel === "labels" ? (
-                  <section className="map-panel-section map-panel-section-last">
-                    {labelDraft ? (
-                      renderLabelEditor()
-                    ) : (
-                      <>
-                        <button className="primary-command interactive-button" onClick={() => startDrawing("label", "labels")} type="button">
-                          Добавить надпись
-                        </button>
-                        {labels.length > 0 ? (
-                          <div className="map-object-list">
-                            {labels.map((label) => (
-                              <button className={selectedLabelId === label.id ? "map-object-row map-object-row-active" : "map-object-row"} key={label.id} onClick={() => selectLabel(label)} type="button">
-                                <span>{label.text}</span>
-                                <small>{label.layer}</small>
-                                <small>
-                                  {getRouteColorPreset(label.colorKey).label} · {label.size}
-                                </small>
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="map-panel-message">Надписи пока не добавлены.</p>
-                        )}
-                      </>
-                    )}
-                  </section>
-                ) : null}
-
-                {activePanel === "routes" ? (
-                  <section className="map-panel-section map-panel-section-last">
-                    {routeDraft ? (
-                      renderRouteEditor()
-                    ) : drawingMode === "route" ? (
-                      renderRouteDrawingBuilder()
-                    ) : (
-                      <>
-                        <div className="map-route-panel-overview">
-                          <button className="primary-command interactive-button" onClick={() => startDrawing("route", "routes")} type="button">
-                            Добавить маршрут
-                          </button>
-                          <input className="map-search-input" onChange={(event) => setRouteSearch(event.target.value)} placeholder="Поиск маршрутов" type="search" value={routeSearch} />
-                        </div>
-                        {routes.length > 0 ? (
-                          <div className="map-object-list map-route-list">
-                            {filteredRoutes.map((route) => (
-                              <button className={selectedRouteId === route.id ? "map-object-row map-route-row map-object-row-active" : "map-object-row map-route-row"} key={route.id} onClick={() => selectRoute(route)} type="button">
-                                <span>{route.title}</span>
-                                <small>Слой: {route.layer}</small>
-                                <small>Формат линии: {getLinePatternPreset(route.linePattern).label}</small>
-                              </button>
-                            ))}
-                            {filteredRoutes.length === 0 ? <p className="map-panel-message">Маршруты не найдены.</p> : null}
-                          </div>
-                        ) : (
-                          <p className="map-panel-message">Маршруты пока не добавлены.</p>
-                        )}
-                      </>
-                    )}
-                  </section>
-                ) : null}
-
-                {activePanel === "layers" ? (
-                  <section className="map-panel-section map-panel-section-last">
-                    <h2>Слои</h2>
-                    <form className="map-layer-create-form" onSubmit={handleCreateLayer}>
-                      <input disabled={isSaving} maxLength={80} onChange={(event) => setNewLayerName(event.target.value)} placeholder="Новый слой" type="text" value={newLayerName} />
-                      <button className="primary-command interactive-button" disabled={isSaving} type="submit">
-                        Создать
+              {activePanel === "markers" ? (
+                <section className="map-panel-section map-panel-section-last">
+                  {markerDraft ? (
+                    renderMarkerEditor()
+                  ) : (
+                    <>
+                      <button className="primary-command interactive-button" onClick={() => startDrawing("marker", "markers")} type="button">
+                        Добавить метку
                       </button>
-                    </form>
-                    {layerMessage ? <p className="map-panel-message map-panel-message-danger">{layerMessage}</p> : null}
-                    {layers.length > 0 ? (
-                      <div className="map-layer-list">
-                        {layers.map((layer) => {
-                          const persistedLayer = mapLayers.find((mapLayer) => mapLayer.name === layer);
-                          const isEditing = persistedLayer ? editingLayerId === persistedLayer.id : false;
-                          const isDefaultLayer = layer === DEFAULT_MAP_LAYER || Boolean(persistedLayer?.isDefault);
+                      <div className="map-panel-action-grid">
+                        <button className="command-row interactive-button" disabled={!selectedMarker || hasOpenEditor()} onClick={copySelectedMarker} type="button">
+                          Копировать метку
+                        </button>
+                        <button
+                          className={`command-row interactive-button ${drawingMode === "marker-copy" ? "map-command-active" : ""}`}
+                          disabled={!copiedMarkerDraft || (hasOpenEditor() && drawingMode !== "marker-copy")}
+                          onClick={startMarkerCopyPlacement}
+                          type="button"
+                        >
+                          Разместить копию
+                        </button>
+                      </div>
+                      {markerCopyMessage ? <p className="map-panel-message map-panel-message-strong">{markerCopyMessage}</p> : null}
+                      {markers.length > 0 ? (
+                        <div className="map-object-list">
+                          {markers.map((marker) => (
+                            <button className={selectedMarkerId === marker.id ? "map-object-row map-object-row-active" : "map-object-row"} key={marker.id} onClick={() => selectMarker(marker)} type="button">
+                              <span>{marker.title}</span>
+                              <small>{marker.layer}</small>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="map-panel-message">Метки пока не добавлены.</p>
+                      )}
+                    </>
+                  )}
+                </section>
+              ) : null}
 
-                          return (
-                            <div className="map-layer-row" key={layer}>
-                              <label className="map-layer-toggle">
-                                <input checked={visibleLayers.includes(layer)} onChange={() => toggleLayer(layer)} type="checkbox" />
+              {activePanel === "zones" ? (
+                <section className="map-panel-section map-panel-section-last">
+                  {zoneDraft ? (
+                    renderZoneEditor()
+                  ) : drawingMode === "zone-polygon" ? (
+                    renderPolygonDrawingBuilder()
+                  ) : (
+                    <>
+                      <div className="map-panel-action-grid">
+                        <button className="primary-command interactive-button" onClick={() => startDrawing("zone", "zones")} type="button">
+                          Добавить круг
+                        </button>
+                        <button className="primary-command interactive-button" onClick={() => startDrawing("zone-polygon", "zones")} type="button">
+                          Добавить полигон
+                        </button>
+                      </div>
+                      <input className="map-search-input" onChange={(event) => setZoneSearch(event.target.value)} placeholder="Поиск зон" type="search" value={zoneSearch} />
+                      {zones.length > 0 ? (
+                        <div className="map-object-list">
+                          {filteredZones.map((zone) => (
+                            <button className={selectedZoneId === zone.id ? "map-object-row map-object-row-active" : "map-object-row"} key={zone.id} onClick={() => selectZone(zone)} type="button">
+                              <span>{zone.title}</span>
+                              <small>
+                                {getMapZoneShapeLabel(zone.shape)} · {zone.layer}
+                              </small>
+                              <small>{getZoneColorPreset(zone.colorKey).label}</small>
+                              <small>{zone.shape === "polygon" ? `Точек: ${zone.points.length}` : `Радиус: ${zone.radius}`}</small>
+                            </button>
+                          ))}
+                          {filteredZones.length === 0 ? <p className="map-panel-message">Зоны не найдены.</p> : null}
+                        </div>
+                      ) : (
+                        <p className="map-panel-message">Зоны пока не добавлены.</p>
+                      )}
+                    </>
+                  )}
+                </section>
+              ) : null}
+
+              {activePanel === "labels" ? (
+                <section className="map-panel-section map-panel-section-last">
+                  {labelDraft ? (
+                    renderLabelEditor()
+                  ) : (
+                    <>
+                      <button className="primary-command interactive-button" onClick={() => startDrawing("label", "labels")} type="button">
+                        Добавить надпись
+                      </button>
+                      {labels.length > 0 ? (
+                        <div className="map-object-list">
+                          {labels.map((label) => (
+                            <button className={selectedLabelId === label.id ? "map-object-row map-object-row-active" : "map-object-row"} key={label.id} onClick={() => selectLabel(label)} type="button">
+                              <span>{label.text}</span>
+                              <small>{label.layer}</small>
+                              <small>
+                                {getRouteColorPreset(label.colorKey).label} · {label.size}
+                              </small>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="map-panel-message">Надписи пока не добавлены.</p>
+                      )}
+                    </>
+                  )}
+                </section>
+              ) : null}
+
+              {activePanel === "routes" ? (
+                <section className="map-panel-section map-panel-section-last">
+                  {routeDraft ? (
+                    renderRouteEditor()
+                  ) : drawingMode === "route" ? (
+                    renderRouteDrawingBuilder()
+                  ) : (
+                    <>
+                      <div className="map-route-panel-overview">
+                        <button className="primary-command interactive-button" onClick={() => startDrawing("route", "routes")} type="button">
+                          Добавить маршрут
+                        </button>
+                        <input className="map-search-input" onChange={(event) => setRouteSearch(event.target.value)} placeholder="Поиск маршрутов" type="search" value={routeSearch} />
+                      </div>
+                      {routes.length > 0 ? (
+                        <div className="map-object-list map-route-list">
+                          {filteredRoutes.map((route) => (
+                            <button className={selectedRouteId === route.id ? "map-object-row map-route-row map-object-row-active" : "map-object-row map-route-row"} key={route.id} onClick={() => selectRoute(route)} type="button">
+                              <span>{route.title}</span>
+                              <small>Слой: {route.layer}</small>
+                              <small>Формат линии: {getLinePatternPreset(route.linePattern).label}</small>
+                            </button>
+                          ))}
+                          {filteredRoutes.length === 0 ? <p className="map-panel-message">Маршруты не найдены.</p> : null}
+                        </div>
+                      ) : (
+                        <p className="map-panel-message">Маршруты пока не добавлены.</p>
+                      )}
+                    </>
+                  )}
+                </section>
+              ) : null}
+
+              {activePanel === "layers" ? (
+                <section className="map-panel-section map-panel-section-last">
+                  <h2>Слои</h2>
+                  <form className="map-layer-create-form" onSubmit={handleCreateLayer}>
+                    <input disabled={isSaving} maxLength={80} onChange={(event) => setNewLayerName(event.target.value)} placeholder="Новый слой" type="text" value={newLayerName} />
+                    <button className="primary-command interactive-button" disabled={isSaving} type="submit">
+                      Создать
+                    </button>
+                  </form>
+                  {layerMessage ? <p className="map-panel-message map-panel-message-danger">{layerMessage}</p> : null}
+                  {layers.length > 0 ? (
+                    <div className="map-layer-list">
+                      {layers.map((layer) => {
+                        const persistedLayer = mapLayers.find((mapLayer) => mapLayer.name === layer);
+                        const isEditing = persistedLayer ? editingLayerId === persistedLayer.id : false;
+                        const isDefaultLayer = layer === DEFAULT_MAP_LAYER || Boolean(persistedLayer?.isDefault);
+
+                        return (
+                          <div className="map-layer-row" key={layer}>
+                            <label className="map-layer-toggle">
+                              <input checked={visibleLayers.includes(layer)} onChange={() => toggleLayer(layer)} type="checkbox" />
+                              {isEditing ? (
+                                <input disabled={isSaving} maxLength={80} onChange={(event) => setEditingLayerName(event.target.value)} type="text" value={editingLayerName} />
+                              ) : (
+                                <span className="map-layer-name" title={layer}>
+                                  {layer}
+                                </span>
+                              )}
+                            </label>
+                            {persistedLayer ? (
+                              <div className="map-layer-actions">
                                 {isEditing ? (
-                                  <input disabled={isSaving} maxLength={80} onChange={(event) => setEditingLayerName(event.target.value)} type="text" value={editingLayerName} />
+                                  <>
+                                    <button className="command-row interactive-button" disabled={isSaving} onClick={() => handleSaveLayerRename(persistedLayer)} type="button">
+                                      Сохранить
+                                    </button>
+                                    <button
+                                      className="command-row interactive-button"
+                                      disabled={isSaving}
+                                      onClick={() => {
+                                        setEditingLayerId(null);
+                                        setEditingLayerName("");
+                                        setLayerMessage("");
+                                      }}
+                                      type="button"
+                                    >
+                                      Отмена
+                                    </button>
+                                  </>
                                 ) : (
-                                  <span className="map-layer-name" title={layer}>
-                                    {layer}
-                                  </span>
-                                )}
-                              </label>
-                              {persistedLayer ? (
-                                <div className="map-layer-actions">
-                                  {isEditing ? (
-                                    <>
-                                      <button className="command-row interactive-button" disabled={isSaving} onClick={() => handleSaveLayerRename(persistedLayer)} type="button">
-                                        Сохранить
-                                      </button>
+                                  <>
+                                    {!isDefaultLayer ? (
                                       <button
-                                        className="command-row interactive-button"
+                                        aria-label="Редактировать слой"
+                                        className="map-layer-action-button map-layer-action-button-edit interactive-button"
                                         disabled={isSaving}
                                         onClick={() => {
-                                          setEditingLayerId(null);
-                                          setEditingLayerName("");
+                                          setEditingLayerId(persistedLayer.id);
+                                          setEditingLayerName(persistedLayer.name);
                                           setLayerMessage("");
                                         }}
+                                        title="Редактировать слой"
                                         type="button"
                                       >
-                                        Отмена
+                                        <LayerEditIcon />
                                       </button>
-                                    </>
-                                  ) : (
-                                    <>
-                                      {!isDefaultLayer ? (
-                                        <button
-                                          aria-label="Редактировать слой"
-                                          className="map-layer-action-button map-layer-action-button-edit interactive-button"
-                                          disabled={isSaving}
-                                          onClick={() => {
-                                            setEditingLayerId(persistedLayer.id);
-                                            setEditingLayerName(persistedLayer.name);
-                                            setLayerMessage("");
-                                          }}
-                                          title="Редактировать слой"
-                                          type="button"
-                                        >
-                                          <LayerEditIcon />
-                                        </button>
-                                      ) : null}
-                                      <button
-                                        aria-label={isDefaultLayer ? "Основной слой нельзя удалить" : "Удалить слой"}
-                                        className="map-layer-action-button map-layer-action-button-delete interactive-button"
-                                        disabled={isSaving || isDefaultLayer}
-                                        onClick={() => {
-                                          if (!isDefaultLayer) {
-                                            requestDeleteLayer(persistedLayer);
-                                          }
-                                        }}
-                                        title={isDefaultLayer ? "Основной слой нельзя удалить" : "Удалить слой"}
-                                        type="button"
-                                      >
-                                        <LayerDeleteIcon />
-                                      </button>
-                                    </>
-                                  )}
-                                </div>
-                              ) : null}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <p className="map-panel-message">Объекты пока не добавлены.</p>
-                    )}
-                  </section>
-                ) : null}
-              </aside>
-            </div>
+                                    ) : null}
+                                    <button
+                                      aria-label={isDefaultLayer ? "Основной слой нельзя удалить" : "Удалить слой"}
+                                      className="map-layer-action-button map-layer-action-button-delete interactive-button"
+                                      disabled={isSaving || isDefaultLayer}
+                                      onClick={() => {
+                                        if (!isDefaultLayer) {
+                                          requestDeleteLayer(persistedLayer);
+                                        }
+                                      }}
+                                      title={isDefaultLayer ? "Основной слой нельзя удалить" : "Удалить слой"}
+                                      type="button"
+                                    >
+                                      <LayerDeleteIcon />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="map-panel-message">Объекты пока не добавлены.</p>
+                  )}
+                </section>
+              ) : null}
+            </aside>
           </div>
         </div>
 
