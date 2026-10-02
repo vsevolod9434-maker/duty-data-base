@@ -2638,7 +2638,7 @@ export default function StalkerProfilesPage() {
                                       {canManageNoteActions ? (
                                         <div className="stalker-note-inline-actions">
                                           <button className="command-row task-action-button" onClick={() => openEditNote(note)} type="button">
-                                            Изменить
+                                            Редактировать
                                           </button>
                                           <button className="command-row danger-command task-action-button" onClick={() => requestDeleteNote(note)} type="button">
                                             Удалить
@@ -2703,7 +2703,7 @@ export default function StalkerProfilesPage() {
                                           ) : null}
                                           {taskActions.canComplete ? (
                                             <button className="command-row task-action-button" onClick={() => openCompleteTask(task)} type="button">
-                                              Засчитать
+                                              Зачесть
                                             </button>
                                           ) : null}
                                           {taskActions.canCancel ? (
@@ -3117,7 +3117,7 @@ export default function StalkerProfilesPage() {
             <div className="section-header modal-header">
               <ModalCloseButton />
               <div className="min-w-0">
-                <h1>Засчитать выполнение задания</h1>
+                <h1>Зачёт задания</h1>
                 <p>Статус выполнения будет закреплён в журнале после подтверждения</p>
               </div>
             </div>
@@ -3147,7 +3147,7 @@ export default function StalkerProfilesPage() {
                 Отмена
               </button>
               <button className="primary-command" type="submit">
-                Засчитать
+                Зачесть
               </button>
             </div>
           </form>

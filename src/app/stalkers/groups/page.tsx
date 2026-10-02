@@ -1544,7 +1544,7 @@ export default function StalkerGroupsPage() {
                                       ) : null}
                                       {taskActions.canComplete ? (
                                         <button className="command-row task-action-button" onClick={() => completeGroupTask(task.id)} type="button">
-                                          Засчитать
+                                          Зачесть
                                         </button>
                                       ) : null}
                                       {taskActions.canCancel ? (
@@ -2188,7 +2188,7 @@ export default function StalkerGroupsPage() {
             <div className="section-header modal-header">
               <ModalCloseButton />
               <div className="min-w-0">
-                <h1>Засчитать групповое задание</h1>
+                <h1>Зачёт группового задания</h1>
                 <p>Выполнение будет засчитано текущим пользователем.</p>
               </div>
             </div>
@@ -2216,7 +2216,7 @@ export default function StalkerGroupsPage() {
                 Отмена
               </button>
               <button className="primary-command" type="submit">
-                Засчитать
+                Зачесть
               </button>
             </div>
           </form>
