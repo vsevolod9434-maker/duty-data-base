@@ -2616,3 +2616,13 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+.pda-screen .duty-member-actions-note {
+  display: block;
+  border: 1px dashed #3a3e40;
+  background: #0b0c0d;
+  color: #a9adae;
+  font-size: .76rem;
+  line-height: 1.35;
+  padding: .45rem .55rem;
+}

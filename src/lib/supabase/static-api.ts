@@ -859,6 +859,58 @@ async function handleCalculatorCatalog(client: SupabaseClient) {
   });
 }
 
+async function handleOwnPasswordChange(client: SupabaseClient, method: string, init?: RequestInit) {
+  if (method !== "PATCH") {
+    return errorResponse("Этот приказ недоступен в текущем режиме допуска.", 405);
+  }
+
+  const accessUser = await assertAuthenticated(client);
+  const role = stringValue(accessUser.role);
+
+  if (role !== "system_admin" && role !== "officer") {
+    return errorResponse("Недостаточно прав для изменения пароля.", 403);
+  }
+
+  const payload = await requestBody(init);
+  const currentPassword = stringValue(payload.currentPassword);
+  const newPassword = stringValue(payload.newPassword);
+  const repeatPassword = stringValue(payload.repeatPassword);
+
+  if (!currentPassword || !newPassword || !repeatPassword) {
+    return errorResponse("Заполните все поля.");
+  }
+
+  if (newPassword !== repeatPassword) {
+    return errorResponse("Новый пароль и повтор не совпадают.");
+  }
+
+  if (newPassword.length < 8 || newPassword.length > 128) {
+    return errorResponse("Новый пароль должен быть от 8 до 128 символов.");
+  }
+
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+
+  if (!user?.email) {
+    return errorResponse("Требуется вход в систему.", 401);
+  }
+
+  const { error: signInError } = await client.auth.signInWithPassword({ email: user.email, password: currentPassword });
+
+  if (signInError) {
+    return errorResponse("Пароль не изменён. Проверьте текущий пароль.");
+  }
+
+  const { error: updateError } = await client.auth.updateUser({ password: newPassword });
+
+  if (updateError) {
+    return errorResponse("Пароль не изменён. Повторите попытку позже.");
+  }
+
+  return json({ message: "Пароль изменён." });
+}
+
 const catalogItemColumns =
   "id, categoryId, kind, name, contents, traderPrice, basePrice, generalPrice, partnerPrice, tenantPrice, note";
 
@@ -1184,7 +1236,8 @@ export async function staticSupabaseFetch(input: RequestInfo | URL, init?: Reque
     }
     if (path === "/api/duty-members/access-users") return await handleAccessUsers(client);
     if (path === "/api/apartments/defaults") return await handleDefaultApartments(client, method);
-    if (path === "/api/duty-members/users" || path.endsWith("/password") || path === "/api/duty-members/password") {
+    if (path === "/api/duty-members/password") return await handleOwnPasswordChange(client, method, init);
+    if (path === "/api/duty-members/users" || path.endsWith("/password")) {
       return errorResponse(blockedAdminMessage, 501);
     }
     if (/^\/api\/duty-members\/[^/]+\/access$/.test(path)) {
