@@ -1576,3 +1576,284 @@ body {
 .trade-items-total strong {
   white-space: nowrap;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Home: duty officer summary                                                 */
+/* -------------------------------------------------------------------------- */
+
+.pda-screen .dashboard-page {
+  display: grid;
+  align-content: start;
+  gap: .6rem;
+  padding: .6rem;
+}
+
+.dashboard-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: .3rem .9rem;
+  border: 1px solid #34383a;
+  border-top: 2px solid #535759;
+  background: linear-gradient(180deg, #17191b, #0e1011);
+  padding: .55rem .8rem;
+}
+
+.dashboard-header h1 {
+  margin: 0;
+  color: #e7e9e9;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.dashboard-header p {
+  margin: 0;
+  color: #8d9294;
+  font-size: .8rem;
+}
+
+.dashboard {
+  display: grid;
+  gap: .6rem;
+}
+
+.dashboard-date {
+  margin: 0;
+  color: #8d9294;
+  font-size: .72rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.dashboard-state {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  border: 1px dashed #34383a;
+  color: #a9adae;
+  padding: .8rem;
+}
+
+.dashboard-state p {
+  margin: 0;
+}
+
+.dashboard-counters {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 2px;
+  border: 1px solid #34383a;
+  background: #050606;
+  padding: 2px;
+}
+
+.dashboard-counter {
+  display: grid;
+  gap: .15rem;
+  min-width: 0;
+  border: 1px solid #2b2f31;
+  border-top-color: #3d4143;
+  background: linear-gradient(180deg, #1a1c1e, #101213);
+  color: inherit;
+  padding: .55rem .7rem;
+  text-decoration: none;
+}
+
+.dashboard-counter:hover,
+.dashboard-counter:focus-visible {
+  border-color: #6b2a2f;
+  background: linear-gradient(180deg, #241517, #120b0c);
+}
+
+.dashboard-counter:focus-visible {
+  outline: 2px solid #c42b33;
+  outline-offset: 1px;
+}
+
+.dashboard-counter-label {
+  color: #a9adae;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.dashboard-counter-value {
+  color: #eef0f0;
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.dashboard-counter-note {
+  overflow: hidden;
+  color: #80868a;
+  font-size: .7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-counter-alert {
+  box-shadow: inset 3px 0 0 #a52830;
+}
+
+.dashboard-counter-alert .dashboard-counter-note {
+  color: #e2878d;
+}
+
+.dashboard-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  align-items: start;
+  gap: .6rem;
+}
+
+.dashboard-panel {
+  display: grid;
+  gap: .55rem;
+  min-width: 0;
+  border: 1px solid #34383a;
+  border-top: 2px solid #535759;
+  background: linear-gradient(180deg, #151719, #0d0f10 76%);
+  padding: .6rem .7rem .7rem;
+}
+
+.dashboard-panel-attention {
+  border-top-color: #842027;
+}
+
+.dashboard-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .6rem;
+  border-bottom: 1px solid #2b2f31;
+  padding-bottom: .4rem;
+}
+
+.dashboard-panel-head h2 {
+  margin: 0;
+  color: #e7e9e9;
+  font-size: .82rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.dashboard-panel-head span {
+  color: #80868a;
+  font-size: .7rem;
+  text-transform: uppercase;
+}
+
+.dashboard-list {
+  display: grid;
+  gap: 1px;
+}
+
+.dashboard-list h3 {
+  margin: .2rem 0 .2rem;
+  color: #8d9294;
+  font-size: .66rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.dashboard-row {
+  display: grid;
+  grid-template-columns: 5.6rem minmax(0, 1fr) minmax(0, 12rem);
+  align-items: baseline;
+  gap: .6rem;
+  border-left: 2px solid transparent;
+  background: #0c0d0e;
+  color: inherit;
+  padding: .32rem .5rem;
+  text-decoration: none;
+}
+
+.dashboard-row:nth-child(even) {
+  background: #101213;
+}
+
+.dashboard-row:hover,
+.dashboard-row:focus-visible {
+  border-left-color: #a52830;
+  background: #191113;
+}
+
+.dashboard-row:focus-visible {
+  outline: 1px solid #c42b33;
+  outline-offset: -1px;
+}
+
+.dashboard-row-date {
+  color: #a9adae;
+  font-size: .78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-row-date-alert {
+  color: #ef8f95;
+  font-weight: 700;
+}
+
+.dashboard-row-main {
+  overflow: hidden;
+  color: #dfe1e1;
+  font-size: .84rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-row-meta {
+  overflow: hidden;
+  color: #8d9294;
+  font-size: .76rem;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-more {
+  color: #c9cccd;
+  font-size: .74rem;
+  padding: .3rem .5rem;
+}
+
+.dashboard-empty {
+  margin: 0;
+  color: #8d9294;
+  font-size: .82rem;
+  padding: .3rem 0;
+}
+
+@media (max-width: 1180px) {
+  .dashboard-counters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .dashboard-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .dashboard-counters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-row {
+    grid-template-columns: 5rem minmax(0, 1fr);
+  }
+
+  .dashboard-row-meta {
+    grid-column: 2;
+    text-align: left;
+  }
+}
