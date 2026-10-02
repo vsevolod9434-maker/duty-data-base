@@ -12,6 +12,7 @@ import { TradeRecordCard } from "@/components/ui/TradeRecordCard";
 import { ViolationRecordCard } from "@/components/ui/ViolationRecordCard";
 import { addActivityLogEntry } from "@/lib/activity-log";
 import { journalTabQueryValues } from "@/lib/navigation";
+import { getTaskStatusClass, getTaskStatusLabel } from "@/lib/task-status";
 import { apiFetchJson } from "@/lib/api-client";
 import { dutyDataKeys, scheduleClientStateSync, useCurrentUserCacheKey, useDutyQueryClient } from "@/lib/data-cache";
 import {
@@ -37,7 +38,6 @@ import type {
   StalkerProfile,
   Task,
   TaskAssigneeType,
-  TaskStatus,
   TradeOperation,
   TradeSubjectType,
   TradeType,
@@ -118,12 +118,6 @@ type JournalConfirmDialogState = {
   confirmTone?: "primary" | "warning" | "danger";
   onConfirm: () => void;
 } | null;
-
-const taskStatusLabels: Record<TaskStatus, string> = {
-  active: "Активно",
-  completed: "Выполнено",
-  cancelled: "Отменено",
-};
 
 const tradeTypeLabels: Record<TradeType, string> = {
   sale: "Продажа",
@@ -291,17 +285,6 @@ function SearchableEntityPicker({
   );
 }
 
-function getTaskStatusClass(status: TaskStatus) {
-  if (status === "completed") {
-    return "badge-task-completed";
-  }
-
-  if (status === "cancelled") {
-    return "badge-task-cancelled";
-  }
-
-  return "badge-task-active";
-}
 
 function getViolationStatus(violation: Violation) {
   return violation.status ?? "active";
@@ -1809,7 +1792,7 @@ export default function JournalsPage() {
                             Отменить
                           </button>
                         ) : null}
-                        <button className="command-row task-action-button" onClick={() => deleteTask(task.id)} type="button">
+                        <button className="command-row danger-command task-action-button" onClick={() => deleteTask(task.id)} type="button">
                           Удалить
                         </button>
                       </>
@@ -1817,8 +1800,8 @@ export default function JournalsPage() {
                     assigneeLabel={getTaskAssigneeLabel(task)}
                     formatDate={formatDate}
                     key={task.id}
-                    statusClassName={getTaskStatusClass(task.status)}
-                    statusLabel={taskStatusLabels[task.status]}
+                    statusClassName={getTaskStatusClass(task)}
+                    statusLabel={getTaskStatusLabel(task)}
                     task={task}
                   />
                 ))
@@ -1882,7 +1865,7 @@ export default function JournalsPage() {
                         <button className="command-row task-action-button" onClick={() => openEditTradeModal(operation)} type="button">
                           Редактировать
                         </button>
-                        <button className="command-row task-action-button" onClick={() => deleteTradeOperation(operation.id, operation.type)} type="button">
+                        <button className="command-row danger-command task-action-button" onClick={() => deleteTradeOperation(operation.id, operation.type)} type="button">
                           Удалить
                         </button>
                       </>
@@ -1969,7 +1952,7 @@ export default function JournalsPage() {
                             Закрыть нарушение
                           </button>
                         ) : null}
-                        <button className="command-row task-action-button" onClick={() => deleteViolation(violation.id)} type="button">
+                        <button className="command-row danger-command task-action-button" onClick={() => deleteViolation(violation.id)} type="button">
                           Удалить
                         </button>
                       </>

@@ -977,7 +977,13 @@ body {
 .pda-screen .task-record-header,
 .pda-screen .profile-record-title {
   min-width: 0;
-  flex-wrap: wrap;
+}
+
+@media (max-width: 760px) {
+  .pda-screen .task-record-header,
+  .pda-screen .profile-record-title {
+    flex-wrap: wrap;
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1171,4 +1177,93 @@ body {
 .pda-modal :is(input, select, textarea)[aria-invalid="true"] {
   border-color: #b3333a !important;
   box-shadow: 0 0 0 1px rgba(196, 43, 51, .45), inset 0 2px 5px rgba(0, 0, 0, .6) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Status badges: red only for overdue, violations and danger                  */
+/* -------------------------------------------------------------------------- */
+
+.pda-screen .badge-service-task-active,
+.pda-screen .badge-chip.badge-service-task-active,
+.pda-screen .profile-badge.badge-service-task-active {
+  border-color: #4c5153 !important;
+  background: linear-gradient(180deg, #24282a, #151718) !important;
+  color: #cfd2d3 !important;
+  box-shadow: inset 2px 0 0 #6f7577 !important;
+}
+
+.pda-screen .badge-service-task-overdue,
+.pda-screen .badge-chip.badge-service-task-overdue,
+.pda-screen .profile-badge.badge-service-task-overdue,
+.pda-screen .badge-service-violation-active,
+.pda-screen .badge-chip.badge-service-violation-active {
+  border-color: #79232a !important;
+  background: linear-gradient(180deg, #3b1115, #210b0e) !important;
+  color: #eea8ad !important;
+  box-shadow: inset 2px 0 0 #a52830 !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Button roles: primary (one per screen), secondary, danger                   */
+/* -------------------------------------------------------------------------- */
+
+:is(.pda-screen, .pda-modal, .pda-page) .danger-command,
+.danger-command {
+  border: 1px solid #5e2026 !important;
+  border-top-color: #7a2b31 !important;
+  border-bottom-color: #2a0b0e !important;
+  border-radius: 1px !important;
+  background: linear-gradient(180deg, #221214, #140a0b) !important;
+  color: #eda9ae !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04), inset 0 -1px 0 rgba(0, 0, 0, .7) !important;
+  text-shadow: none !important;
+}
+
+:is(.pda-screen, .pda-modal, .pda-page) .danger-command:hover:not(:disabled),
+.danger-command:hover:not(:disabled) {
+  border-color: #a52830 !important;
+  background: linear-gradient(180deg, #4a161a, #260c0f) !important;
+  color: #fff !important;
+}
+
+.pda-modal .confirm-dialog-confirm-danger,
+.confirm-dialog .confirm-dialog-confirm-danger {
+  border: 1px solid #87242a !important;
+  border-top-color: #b64046 !important;
+  border-bottom-color: #460b0f !important;
+  background: linear-gradient(180deg, #a5262d 0, #77171c 49%, #540f13 51%, #681218 100%) !important;
+  color: #fff !important;
+}
+
+.pda-modal .confirm-dialog-confirm-warning,
+.confirm-dialog .confirm-dialog-confirm-warning {
+  border: 1px solid #5e2026 !important;
+  background: linear-gradient(180deg, #2c1416, #170a0c) !important;
+  color: #f3c2c5 !important;
+}
+
+/* --- label / value fields: label always above value, no empty filler cells --- */
+
+.pda-screen .registry-info-grid {
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.pda-screen .registry-info-field > span {
+  display: block;
+  margin-bottom: .2rem;
+  color: #8d9294;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.pda-screen .registry-info-field > strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.pda-screen .member-avatar {
+  font-weight: 800;
+  letter-spacing: .04em;
 }

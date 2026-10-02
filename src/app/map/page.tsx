@@ -2855,7 +2855,7 @@ export default function MapPage() {
                                     ) : null}
                                     <button
                                       aria-label={isDefaultLayer ? "Основной слой нельзя удалить" : "Удалить слой"}
-                                      className="map-layer-action-button map-layer-action-button-delete interactive-button"
+                                      className="command-row danger-command map-layer-action-button map-layer-action-button-delete interactive-button"
                                       disabled={isSaving || isDefaultLayer}
                                       onClick={() => {
                                         if (!isDefaultLayer) {

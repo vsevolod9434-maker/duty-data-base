@@ -26,6 +26,7 @@ import {
   forceSystemYear,
   getAffiliationBadgeClass,
   getAffiliationLabel,
+  getProfileInitials,
   getPaginatedItems,
   getProfileSecondaryTitle,
   getProfileTitle,
@@ -117,11 +118,6 @@ function createEmptyPaymentDraft() {
 
 function isDirtyValue(currentValue: unknown, initialValue: unknown) {
   return JSON.stringify(currentValue) !== JSON.stringify(initialValue);
-}
-
-function getProfileInitials(profile: StalkerProfile) {
-  const source = profile.callsign || profile.fullName || "Ж";
-  return source.slice(0, 2);
 }
 
 function getPaymentDisplay(payment: ApartmentPayment) {
@@ -1268,7 +1264,7 @@ export default function ApartmentsPage() {
                       </div>
                       <div className="task-actions">
                         <button
-                          className="command-row task-action-button"
+                          className="command-row danger-command task-action-button"
                           onClick={(event) => {
                             event.stopPropagation();
                             requestEvictTenant(tenant.id);
@@ -1323,7 +1319,7 @@ export default function ApartmentsPage() {
                           <button className="command-row task-action-button" disabled={isApartmentSaving} onClick={() => openEditPaymentModal(payment)} type="button">
                             Редактировать
                           </button>
-                          <button className="command-row task-action-button" disabled={isApartmentSaving} onClick={() => requestDeletePayment(payment.id)} type="button">
+                          <button className="command-row danger-command task-action-button" disabled={isApartmentSaving} onClick={() => requestDeletePayment(payment.id)} type="button">
                             Удалить
                           </button>
                         </div>
@@ -1388,7 +1384,7 @@ export default function ApartmentsPage() {
                   renderApartmentProfile()
                 ) : (
                   <div className="empty-state profile-detail-empty apartment-detail-empty">
-                    <p>Выберите квартиру из списка слева.</p>
+                    <p>Выберите квартиру в реестре.</p>
                     <span>Здесь появятся жильцы, оплаты и заметки выбранной квартиры.</span>
                   </div>
                 )}

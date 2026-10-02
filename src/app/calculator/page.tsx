@@ -348,7 +348,7 @@ export default function CalculatorPage() {
                                   +
                                 </button>
                               </div>
-                              <button className="command-row calculator-remove-button" onClick={() => removeFromCart(cartItem.item.id)} type="button">
+                              <button className="command-row danger-command calculator-remove-button" onClick={() => removeFromCart(cartItem.item.id)} type="button">
                                 Удалить
                               </button>
                             </div>

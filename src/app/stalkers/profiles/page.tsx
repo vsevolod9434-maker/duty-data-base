@@ -68,18 +68,13 @@ import {
   writeStoredCollection,
 } from "@/lib/stalker-utils";
 import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
+import { getTaskStatusClass, getTaskStatusLabel } from "@/lib/task-status";
 
 const profileTabs = ["Задания", "Продажи", "Покупки", "Нарушения"];
 
 const statusLabels: Record<StalkerProfile["status"], string> = {
   active: "Активен",
   archive: "Архив",
-};
-
-const taskStatusLabels: Record<Task["status"], string> = {
-  active: "Активное",
-  completed: "Выполненное",
-  cancelled: "Отменено",
 };
 
 type StalkerProfileApiResponse = {
@@ -406,37 +401,7 @@ function createEmptyViolationDraft() {
   };
 }
 
-function getTaskStatusLabel(task: Task) {
-  if (task.status === "completed") {
-    return taskStatusLabels.completed;
-  }
 
-  if (task.status === "cancelled") {
-    return taskStatusLabels.cancelled;
-  }
-
-  if (isTaskOverdue(task)) {
-    return "Просроченное";
-  }
-
-  return taskStatusLabels.active;
-}
-
-function getTaskStatusClass(task: Task) {
-  if (task.status === "completed") {
-    return "badge-task-completed";
-  }
-
-  if (isTaskOverdue(task)) {
-    return "badge-task-overdue";
-  }
-
-  if (task.status === "cancelled") {
-    return "badge-task-cancelled";
-  }
-
-  return "badge-task-active";
-}
 
 function getViolationStatus(violation: Violation) {
   return violation.status ?? "active";
@@ -527,7 +492,7 @@ function getProfileServiceBadges({
   }
 
   if (computedTaskMark === "overdue") {
-    badges.push({ label: "Задание", className: "badge-service-task-overdue" });
+    badges.push({ label: "Просрочено", className: "badge-service-task-overdue" });
   }
 
   if (activeViolationCount > 0) {
@@ -959,6 +924,7 @@ export default function StalkerProfilesPage() {
   );
   const visibleProfileCount = isStorageReady ? visibleProfiles.length : 0;
   const shownProfileCount = isStorageReady ? paginatedProfiles.items.length : 0;
+  const tabProfileCount = isStorageReady ? profiles.filter((profile) => profile.status === profileListTab).length : 0;
   const normalizedPhotoUrl = draft.photoUrl.trim();
   const photoPreviewKey = `${editingProfileId || "new"}:${normalizedPhotoUrl || "empty"}`;
   const isPhotoPreviewLoaded = loadedPhotoPreviewKey === photoPreviewKey;
@@ -2144,7 +2110,7 @@ export default function StalkerProfilesPage() {
                     <button className="command-row task-action-button" onClick={() => openEditTradeModal(operation)} type="button">
                       Редактировать
                     </button>
-                    <button className="command-row task-action-button" onClick={() => deleteTradeOperation(operation)} type="button">
+                    <button className="command-row danger-command task-action-button" onClick={() => deleteTradeOperation(operation)} type="button">
                       Удалить
                     </button>
                   </>
@@ -2189,7 +2155,7 @@ export default function StalkerProfilesPage() {
                         Закрыть нарушение
                       </button>
                     ) : null}
-                    <button className="command-row task-action-button" onClick={() => deleteViolationRecord(violation.id)} type="button">
+                    <button className="command-row danger-command task-action-button" onClick={() => deleteViolationRecord(violation.id)} type="button">
                       Удалить
                     </button>
                   </>
@@ -2291,7 +2257,11 @@ export default function StalkerProfilesPage() {
                   <label className="filter-field">
                     <span className="filter-label-row">
                       <span>Поиск</span>
-                      <span>Показано: {shownProfileCount} из {visibleProfileCount}</span>
+                      <span>
+                        {searchQuery.trim()
+                          ? `Найдено: ${visibleProfileCount} из ${tabProfileCount}`
+                          : `Показано: ${shownProfileCount} из ${visibleProfileCount}`}
+                      </span>
                     </span>
                     <input
                       onChange={(event) => changeSearchQuery(event.target.value)}
@@ -2460,10 +2430,10 @@ export default function StalkerProfilesPage() {
                               <span className="profile-badge badge-chip badge-service-group">В группе</span>
                             ) : null}
                             {selectedTaskMark === "active" ? (
-                              <span className="profile-badge badge-chip badge-service-task-active">Активное задание</span>
+                              <span className="profile-badge badge-chip badge-service-task-active">Задание активно</span>
                             ) : null}
                             {selectedTaskMark === "overdue" ? (
-                              <span className="profile-badge badge-chip badge-service-task-overdue">Просроченное задание</span>
+                              <span className="profile-badge badge-chip badge-service-task-overdue">Задание просрочено</span>
                             ) : null}
                             {selectedProfileActiveViolationCount > 0 ? (
                               <span className="profile-badge badge-chip badge-service-violation-active">
@@ -2502,13 +2472,13 @@ export default function StalkerProfilesPage() {
                           </button>
                         )}
                         <button
-                          className="command-row task-action-button profile-entity-action profile-entity-action-danger"
+                          className="command-row danger-command task-action-button profile-entity-action profile-entity-action-danger"
                           disabled={isProfileSaving || isProfileDeleting}
                           onClick={() =>
                             setConfirmDialog({
                               title: "Удаление профиля",
-                              message: "Удалить профиль окончательно? Это действие нельзя отменить.",
-                              confirmLabel: "Удалить",
+                              message: `Профиль «${getProfileTitle(selectedProfile)}» будет удалён окончательно. Это действие нельзя отменить.`,
+                              confirmLabel: "Удалить профиль",
                               variant: "danger",
                               loading: isProfileDeleting,
                               onConfirm: async () => {
@@ -2689,7 +2659,7 @@ export default function StalkerProfilesPage() {
                                           <button className="command-row task-action-button" onClick={() => openEditNote(note)} type="button">
                                             Изменить
                                           </button>
-                                          <button className="command-row task-action-button" onClick={() => requestDeleteNote(note)} type="button">
+                                          <button className="command-row danger-command task-action-button" onClick={() => requestDeleteNote(note)} type="button">
                                             Удалить
                                           </button>
                                         </div>
@@ -2761,7 +2731,7 @@ export default function StalkerProfilesPage() {
                                             </button>
                                           ) : null}
                                           {taskActions.canDelete ? (
-                                            <button className="command-row task-action-button" onClick={() => deleteTask(task.id)} type="button">
+                                            <button className="command-row danger-command task-action-button" onClick={() => deleteTask(task.id)} type="button">
                                               Удалить
                                             </button>
                                           ) : null}
@@ -2818,7 +2788,7 @@ export default function StalkerProfilesPage() {
               <ModalCloseButton />
               <div className="min-w-0">
                 <h1>{editingProfileId ? "Редактирование профиля" : "Создание профиля сталкера"}</h1>
-                <p>Профиль будет внесён в реестр</p>
+                <p>{editingProfileId ? "Изменения сохранятся в реестре сталкеров" : "Профиль будет внесён в реестр сталкеров"}</p>
               </div>
             </div>
 
@@ -2826,7 +2796,7 @@ export default function StalkerProfilesPage() {
               <section className="form-section">
                 <div className="form-section-heading">
                   <h2>Основные данные</h2>
-                  <span>Для создания достаточно ФИО или позывного</span>
+                  <span>Обязательно: ФИО или позывной</span>
                 </div>
                 <div className="modal-layout-grid">
                   <div className="profile-create-grid">

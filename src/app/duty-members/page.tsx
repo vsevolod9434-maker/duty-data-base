@@ -1001,8 +1001,8 @@ export default function DutyMembersPage() {
           <div className="section-header modal-header">
             <ModalCloseButton />
             <div className="min-w-0">
-              <span className="eyebrow-text">{editingId ? "Изменение профиля" : "Новый пользователь"}</span>
-              <h1>{editingId ? "Редактирование профиля состава" : "Добавление пользователя"}</h1>
+              <h1>{editingId ? "Редактирование профиля состава" : "Добавление в состав"}</h1>
+              <p>{editingId ? "Изменения вступят в силу после сохранения" : "Создаётся профиль члена группировки и учётная запись доступа"}</p>
             </div>
           </div>
           <div className="modal-body duty-member-modal-body">
@@ -1121,7 +1121,7 @@ export default function DutyMembersPage() {
             Отмена
           </button>
           <button className="primary-command interactive-button" disabled={isSaving} type="submit">
-            {isSaving ? "Сохранение…" : isCreating ? "Создать пользователя" : "Сохранить профиль"}
+            {isSaving ? "Сохранение…" : isCreating ? "Добавить в состав" : "Сохранить изменения"}
           </button>
           </div>
         </form>
@@ -1164,7 +1164,7 @@ export default function DutyMembersPage() {
                         title={!canCreateDutyMemberUser ? accessAdminClosedMessage : undefined}
                         type="button"
                       >
-                        Добавить пользователя
+                        Добавить в состав
                       </button>
                       {shouldShowAccessAdminFallback ? <p className="draft-message">{accessAdminClosedMessage}</p> : null}
                     </>
@@ -1259,7 +1259,10 @@ export default function DutyMembersPage() {
                               <h1 className="profile-hero-title">{getMemberPrimaryName(selectedMember)}</h1>
                               <div className="duty-member-hero-lines">
                                 <p>{selectedMember.rank ? `Звание: ${selectedMember.rank}` : "Звание не указано"}</p>
-                                <p>{`Уровень допуска: ${getAccessLevelLabel(selectedMember)}`}</p>
+                                {selectedMember.callsign ? <p>{`Позывной: ${selectedMember.callsign}`}</p> : null}
+                                {selectedMember.positions.length > 0 ? (
+                                  <p>{`Должность: ${selectedMember.positions.map((position) => position.title).join("; ")}`}</p>
+                                ) : null}
                               </div>
                             </div>
                           </div>
@@ -1299,7 +1302,7 @@ export default function DutyMembersPage() {
                               </button>
                             ) : null}
                             {canManageTarget(selectedMember) && !isSelectedMemberExcluded ? (
-                              <button className="primary-command interactive-button duty-member-action-button duty-member-danger-action" disabled={!canExcludeTarget(selectedMember)} onClick={() => requestExclude(selectedMember)} type="button">
+                              <button className="command-row danger-command interactive-button duty-member-action-button duty-member-danger-action" disabled={!canExcludeTarget(selectedMember)} onClick={() => requestExclude(selectedMember)} type="button">
                                 Исключить из состава
                               </button>
                             ) : null}
