@@ -277,10 +277,12 @@
 .pda-status,
 .registry-status {
   position: relative;
-  width: 100%;
+  width: max-content;
   min-width: 0;
+  max-width: min(48vw, 46rem);
   gap: .4rem;
   min-height: 38px;
+  justify-self: end;
   justify-content: flex-start;
   border: 1px solid #303436;
   border-radius: 1px;
@@ -289,20 +291,21 @@
   box-shadow:
     inset 0 2px 5px rgba(0,0,0,.48),
     0 1px 0 rgba(255,255,255,.025);
-  padding: .35rem .42rem;
+  padding: .35rem .5rem;
 }
 
 .pda-user-email {
+  width: max-content;
   min-width: 0;
-  max-width: none;
-  flex: 1 1 auto;
-  overflow: visible;
+  max-width: min(38vw, 32rem);
+  flex: 0 1 auto;
+  overflow: hidden;
   border: 0;
   border-right: 1px solid #2d3133;
-  padding: 0 .55rem 0 0;
+  padding: 0 .58rem 0 0;
   color: #9ca1a3;
   text-align: left;
-  text-overflow: clip;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -435,27 +438,6 @@
     inset 0 -1px 0 rgba(0,0,0,.68);
 }
 
-.pda-screen :is(
-  .section-header,
-  .registry-section-header,
-  .column-header,
-  .list-column-header,
-  .calculator-panel-header,
-  .map-side-panel-head,
-  .modal-header,
-  .task-section-header,
-  .block-heading-row,
-  .work-block-header
-)::before {
-  content: "";
-  flex: 0 0 4px;
-  width: 4px;
-  height: 12px;
-  margin-right: .42rem;
-  background:
-    linear-gradient(180deg, #c52c34 0 42%, #631318 44% 100%);
-  box-shadow: 0 0 4px rgba(197,44,52,.20);
-}
 
 .profiles-page .list-column-header {
   min-height: 0;
@@ -1092,18 +1074,6 @@
   position: relative;
 }
 
-.pda-screen :is(
-  .apartment-import-panel,
-  .apartment-section-block
-)::before {
-  content: "";
-  position: absolute;
-  left: -1px;
-  top: -1px;
-  width: 3rem;
-  height: 2px;
-  background: linear-gradient(90deg, #8b1e25, transparent);
-}
 
 .pda-screen :is(
   .detail-actions,

@@ -22,6 +22,7 @@
   --pda09-line-hi: #5a5e60;
   --pda09-inset: inset 0 1px 0 rgba(255,255,255,.05), inset 0 -1px 0 rgba(0,0,0,.72);
   --pda09-shadow: 0 8px 18px rgba(0,0,0,.26);
+  --pda09-text-inset: .68rem;
   --background: var(--pda09-black);
   --device: var(--pda09-shell);
   --screen: #0a0b0c;
@@ -135,16 +136,6 @@ body::after {
     0 2px 8px rgba(0,0,0,.42);
 }
 
-.pda-topbar::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 2px;
-  background: linear-gradient(90deg, #4b0c10, var(--pda09-red-hi) 18%, #641117 56%, transparent 94%);
-  opacity: .85;
-}
 
 .pda-shell-header,
 .registry-shell-header {
@@ -307,33 +298,6 @@ body::after {
   position: relative;
 }
 
-:is(
-  .registry-panel,
-  .section-panel,
-  .profiles-workspace-panel,
-  .groups-workspace-panel,
-  .apartments-workspace-panel,
-  .journals-panel,
-  .duty-members-list-panel,
-  .duty-member-detail-panel,
-  .calculator-catalog-panel,
-  .calculator-cart-panel,
-  .map-side-panel,
-  .map-panel-editor,
-  .login-card,
-  .login-briefing,
-  .welcome-panel
-)::before {
-  content: "";
-  position: absolute;
-  z-index: 2;
-  left: -1px;
-  top: -1px;
-  width: 4.6rem;
-  height: 2px;
-  pointer-events: none;
-  background: linear-gradient(90deg, var(--pda09-red-hi), var(--pda09-red), transparent);
-}
 
 :is(
   .section-header,
@@ -352,6 +316,8 @@ body::after {
   background:
     linear-gradient(180deg, rgba(255,255,255,.028), rgba(0,0,0,.08)),
     #151719;
+  gap: .48rem;
+  padding-inline: var(--pda09-text-inset);
 }
 
 :is(
@@ -389,14 +355,6 @@ body::after {
   text-transform: uppercase;
 }
 
-.ui-eyebrow::before,
-.eyebrow-text::before,
-.login-kicker::before {
-  content: "■";
-  margin-right: .42rem;
-  color: var(--pda09-red-hi);
-  font-size: .62em;
-}
 
 /* Rows / records */
 :is(
