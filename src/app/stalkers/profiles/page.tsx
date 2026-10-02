@@ -2,6 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
 import { ActionAuthorLine } from "@/components/ui/ActionAuthorLine";
@@ -349,13 +350,18 @@ function getBirthDateLabel(birthDate: string) {
 }
 
 function getProfileMetaLine(profile: StalkerProfile) {
-  const birthDateLabel = getBirthDateLabel(profile.birthDate);
+  const details: string[] = [];
 
-  if (profile.callsign && profile.fullName) {
-    return `${profile.fullName} — ${birthDateLabel}`;
+  if (profile.registryNumber) {
+    details.push(`№ ${profile.registryNumber}`);
   }
 
-  return birthDateLabel;
+  if (profile.callsign && profile.fullName) {
+    details.push(profile.fullName);
+  }
+
+  details.push(getBirthDateLabel(profile.birthDate));
+  return details.join(" · ");
 }
 
 function getProfileCreatedBy(profile: StalkerProfile) {
@@ -530,6 +536,7 @@ function getProfileServiceBadges({
 }
 
 export default function StalkerProfilesPage() {
+  const router = useRouter();
   const queryClient = useDutyQueryClient();
   const { currentUser, currentUserKey, isCurrentUserLoading } = useCurrentUserCacheKey();
   const [profiles, setProfiles] = useState<StalkerProfile[]>(() =>
@@ -688,7 +695,7 @@ export default function StalkerProfilesPage() {
         if (profileFromQuery) {
           setSelectedProfileId(profileFromQuery.id);
           setProfileListTab(profileFromQuery.status);
-          setActiveProfileTab("");
+          setActiveProfileTab("Задания");
           setLoadedProfilePhotoKey("");
           setFailedProfilePhotoKey("");
         }
@@ -1359,7 +1366,7 @@ export default function StalkerProfilesPage() {
       }
 
       setProfilePage(1);
-      setActiveProfileTab("");
+      setActiveProfileTab("Задания");
       setIsProfileModalOpen(false);
       resetProfileDraft();
     } catch {
@@ -1389,7 +1396,6 @@ export default function StalkerProfilesPage() {
         currentProfiles.map((profile) => (profile.id === profileId ? updatedProfile : profile)),
       );
       setProfileListTab(status);
-      setSelectedProfileId("");
       setProfilePage(1);
       setTableMessage(status === "archive" ? "Профиль перенесён в архив." : "Профиль возвращён в активные.");
       addActivityLogEntry({
@@ -1429,6 +1435,7 @@ export default function StalkerProfilesPage() {
       );
       setSelectedProfileId("");
       setProfilePage(1);
+      router.replace("/stalkers/profiles", { scroll: false });
       setTableMessage("Профиль удалён. Связанные записи обновлены.");
       addActivityLogEntry({
         type: "stalker",
@@ -1482,9 +1489,10 @@ export default function StalkerProfilesPage() {
 
   function selectProfile(profileId: string) {
     setSelectedProfileId(profileId);
-    setActiveProfileTab("");
+    setActiveProfileTab("Задания");
     setLoadedProfilePhotoKey("");
     setFailedProfilePhotoKey("");
+    router.replace(`/stalkers/profiles?profileId=${encodeURIComponent(profileId)}`, { scroll: false });
   }
 
   function closeTaskDialog() {
@@ -2234,15 +2242,8 @@ export default function StalkerProfilesPage() {
     return null;
   }
 
-  function openGroupsPage() {
-    window.location.href = withBasePath("/stalkers/groups");
-  }
-
-  function handleGroupCardKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      openGroupsPage();
-    }
+  function openGroupsPage(groupId: string) {
+    router.push(`/stalkers/groups?groupId=${encodeURIComponent(groupId)}`);
   }
 
   const selectedTaskMark = selectedProfile
@@ -2270,10 +2271,10 @@ export default function StalkerProfilesPage() {
                   </div>
 
                   <div className="list-tabs segmented-tabs" role="tablist" aria-label="Статус профилей">
-                    <button className={profileListTab === "active" ? "list-tab list-tab-active" : "list-tab"} onClick={() => changeListTab("active")} type="button">
+                    <button aria-selected={profileListTab === "active"} className={profileListTab === "active" ? "list-tab list-tab-active" : "list-tab"} onClick={() => changeListTab("active")} role="tab" type="button">
                       Активные
                     </button>
-                    <button className={profileListTab === "archive" ? "list-tab list-tab-active" : "list-tab"} onClick={() => changeListTab("archive")} type="button">
+                    <button aria-selected={profileListTab === "archive"} className={profileListTab === "archive" ? "list-tab list-tab-active" : "list-tab"} onClick={() => changeListTab("archive")} role="tab" type="button">
                       Архив
                     </button>
                   </div>
@@ -2283,7 +2284,7 @@ export default function StalkerProfilesPage() {
                   <label className="filter-field">
                     <span className="filter-label-row">
                       <span>Поиск</span>
-                      <span>Записей: {shownProfileCount} из {visibleProfileCount}</span>
+                      <span>Показано: {shownProfileCount} из {visibleProfileCount}</span>
                     </span>
                     <input
                       onChange={(event) => changeSearchQuery(event.target.value)}
@@ -2332,6 +2333,7 @@ export default function StalkerProfilesPage() {
                       });
                       return (
                         <button
+                          aria-pressed={profile.id === selectedProfileId}
                           className={`profile-list-item ${profile.id === selectedProfileId ? "profile-list-item-active" : ""}`}
                           key={profile.id}
                           onClick={() => selectProfile(profile.id)}
@@ -2366,6 +2368,13 @@ export default function StalkerProfilesPage() {
                             ? "Активные профили не найдены."
                             : "Архив пуст."}
                       </p>
+                      <span>
+                        {searchQuery.trim()
+                          ? "Измените запрос или очистите строку поиска."
+                          : profileListTab === "active"
+                            ? "Создайте первый профиль кнопкой выше."
+                            : "Архивные профили появятся здесь после смены статуса."}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -2416,9 +2425,11 @@ export default function StalkerProfilesPage() {
                             </>
                           )
                         ) : (
-                          <div className="profile-photo-state">
-                            {selectedProfilePhotoSrc ? "Изображение недоступно" : "Изображение не указано"}
-                          </div>
+                          <img
+                            alt="Стандартное изображение профиля сталкера"
+                            className="profile-photo-placeholder"
+                            src={withBasePath("/no-data-person.png")}
+                          />
                         )}
                         {selectedProfile.registryNumber ? (
                           <div className="profile-photo-overlay" aria-hidden="true">
@@ -2470,20 +2481,20 @@ export default function StalkerProfilesPage() {
                       </div>
 
                       <div className="profile-hero-actions">
-                        <button className="command-row task-action-button" disabled={isProfileSaving || isProfileDeleting} onClick={() => openEditProfile(selectedProfile)} type="button">
+                        <button className="command-row task-action-button profile-entity-action profile-entity-action-edit" disabled={isProfileSaving || isProfileDeleting} onClick={() => openEditProfile(selectedProfile)} type="button">
                           Редактировать
                         </button>
                         {selectedProfile.status === "active" ? (
-                          <button className="command-row task-action-button" disabled={isProfileSaving || isProfileDeleting} onClick={() => setProfileStatus(selectedProfile.id, "archive")} type="button">
+                          <button className="command-row task-action-button profile-entity-action profile-entity-action-state" disabled={isProfileSaving || isProfileDeleting} onClick={() => setProfileStatus(selectedProfile.id, "archive")} type="button">
                             В архив
                           </button>
                         ) : (
-                          <button className="command-row task-action-button" disabled={isProfileSaving || isProfileDeleting} onClick={() => setProfileStatus(selectedProfile.id, "active")} type="button">
+                          <button className="command-row task-action-button profile-entity-action profile-entity-action-state" disabled={isProfileSaving || isProfileDeleting} onClick={() => setProfileStatus(selectedProfile.id, "active")} type="button">
                             Вернуть из архива
                           </button>
                         )}
                         <button
-                          className="command-row task-action-button"
+                          className="command-row task-action-button profile-entity-action profile-entity-action-danger"
                           disabled={isProfileSaving || isProfileDeleting}
                           onClick={() =>
                             setConfirmDialog({
@@ -2516,19 +2527,17 @@ export default function StalkerProfilesPage() {
                           {selectedProfileGroups.length > 0 ? (
                             <div className="dossier-group-list">
                               {selectedProfileGroups.map(({ group, member }) => (
-                                <div
+                                <button
                                   className="dossier-group-card dossier-group-card-clickable"
                                   key={group.id}
-                                  onClick={openGroupsPage}
-                                  onKeyDown={handleGroupCardKeyDown}
-                                  role="button"
-                                  tabIndex={0}
+                                  onClick={() => openGroupsPage(group.id)}
                                   title="Открыть раздел групп"
+                                  type="button"
                                 >
                                   <div className="dossier-group-main">
                                     <div className="dossier-group-avatar">
                                       <img
-                                        alt="Аватар группы"
+                                        alt="Изображение группы"
                                         src={group.photoUrl || withBasePath("/no-data-group.png")}
                                       />
                                     </div>
@@ -2543,7 +2552,7 @@ export default function StalkerProfilesPage() {
                                       </span>
                                     </div>
                                   </div>
-                                </div>
+                                </button>
                               ))}
                             </div>
                           ) : (
@@ -2691,12 +2700,14 @@ export default function StalkerProfilesPage() {
 
                     <section className="dossier-records-area">
                         <div className="dossier-records-toolbar">
-                        <div className="profile-section-tabs">
+                        <div aria-label="Разделы записей профиля" className="profile-section-tabs" role="tablist">
                           {profileTabs.map((tab) => (
                             <button
+                              aria-selected={tab === activeProfileTab}
                               className={`profile-section-tab ${tab === activeProfileTab ? "profile-section-tab-active" : ""}`}
                               key={tab}
                               onClick={() => setActiveProfileTab(tab)}
+                              role="tab"
                               type="button"
                             >
                               {tab}
