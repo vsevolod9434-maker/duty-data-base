@@ -9,7 +9,7 @@ import { apiFetchJson } from "@/lib/api-client";
 import type { UserRole } from "@/lib/auth-roles";
 import { cachePolicy, dutyDataKeys, scheduleClientStateSync, TWO_HOURS, useCurrentUserCacheKey, useDutyQueryClient } from "@/lib/data-cache";
 import { compareDutyMembersByRankAndName, isDutyMemberVisibleRole } from "@/lib/duty-members";
-import { withBasePath } from "@/lib/public-path";
+import { getPhotoPlaceholderSrc } from "@/lib/photo-placeholder";
 import { isStaticExportEnabled } from "@/lib/static-hosting";
 import {
   accessAdminClosedMessage,
@@ -21,6 +21,7 @@ import {
   updateDutyMemberProfile,
 } from "@/lib/supabase/access-admin-client";
 import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
+import { showUiNotice } from "@/lib/ui-notice";
 
 type DutyServiceStatus = "active" | "leave" | "wounded" | "missing" | "discharged";
 type DutyMemberProfileStatus = "active" | "archived";
@@ -95,6 +96,12 @@ type ConfirmState = {
   confirmLabel: string;
   variant: "danger" | "default" | "warning";
   onConfirm: () => Promise<void>;
+};
+
+type OwnPasswordDraft = {
+  currentPassword: string;
+  newPassword: string;
+  repeatPassword: string;
 };
 
 type ResetPasswordState = {
@@ -225,7 +232,7 @@ function getAccessLevelBadgeClass(member: DutyMember) {
 function DutyMemberPhoto({ alt, className = "", src }: { alt: string; className?: string; src: string | null }) {
   const normalizedSrc = src?.trim() ?? "";
   const [failedSrc, setFailedSrc] = useState("");
-  const placeholderSrc = withBasePath("/no-data-person.png");
+  const placeholderSrc = getPhotoPlaceholderSrc();
   const resolvedSrc = normalizedSrc && failedSrc !== normalizedSrc ? normalizedSrc : placeholderSrc;
   const isPlaceholder = resolvedSrc === placeholderSrc;
 
@@ -411,6 +418,9 @@ export default function DutyMembersPage() {
   const [loadError, setLoadError] = useState("");
   const [confirmDialog, setConfirmDialog] = useState<ConfirmState | null>(null);
   const [resetPasswordState, setResetPasswordState] = useState<ResetPasswordState | null>(null);
+  const [ownPasswordDraft, setOwnPasswordDraft] = useState<OwnPasswordDraft | null>(null);
+  const [ownPasswordMessage, setOwnPasswordMessage] = useState("");
+  const [isOwnPasswordSaving, setIsOwnPasswordSaving] = useState(false);
   const [resetPasswordMessage, setResetPasswordMessage] = useState("");
   const [isResetPasswordSaving, setIsResetPasswordSaving] = useState(false);
 
@@ -985,6 +995,82 @@ export default function DutyMembersPage() {
     }
   }
 
+  function isOwnMember(member: DutyMember) {
+    return Boolean(currentUser && member.access?.login === currentUser.login);
+  }
+
+  function getUnavailableActionsReason(member: DutyMember) {
+    if (isOwnMember(member)) {
+      return "Это ваш профиль: изменить звание, допуск и статус может другой офицер или администратор.";
+    }
+
+    if (!member.access) {
+      return "Учётная запись доступа не назначена.";
+    }
+
+    if (currentUser?.role === "officer" && (member.access.role === "officer" || member.access.role === "system_admin")) {
+      return "Профили офицеров изменяет только системный администратор.";
+    }
+
+    return "";
+  }
+
+  function openOwnPasswordChange() {
+    setOwnPasswordDraft({ currentPassword: "", newPassword: "", repeatPassword: "" });
+    setOwnPasswordMessage("");
+  }
+
+  function closeOwnPasswordChange() {
+    if (!isOwnPasswordSaving) {
+      setOwnPasswordDraft(null);
+      setOwnPasswordMessage("");
+    }
+  }
+
+  async function handleOwnPasswordSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!ownPasswordDraft) {
+      return;
+    }
+
+    if (!ownPasswordDraft.currentPassword || !ownPasswordDraft.newPassword || !ownPasswordDraft.repeatPassword) {
+      setOwnPasswordMessage("Заполните все поля.");
+      return;
+    }
+
+    if (ownPasswordDraft.newPassword !== ownPasswordDraft.repeatPassword) {
+      setOwnPasswordMessage("Новый пароль и повтор не совпадают.");
+      return;
+    }
+
+    if (ownPasswordDraft.newPassword.length < 8) {
+      setOwnPasswordMessage("Новый пароль должен быть не короче 8 символов.");
+      return;
+    }
+
+    setIsOwnPasswordSaving(true);
+    setOwnPasswordMessage("");
+
+    try {
+      await apiFetchJson<{ message: string }>(
+        "/api/duty-members/password",
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(ownPasswordDraft),
+        },
+        "Пароль не изменён. Проверьте введённые данные.",
+      );
+      setOwnPasswordDraft(null);
+      showUiNotice("Ваш пароль изменён.");
+    } catch (error) {
+      setOwnPasswordMessage(error instanceof Error ? error.message : "Пароль не изменён. Проверьте введённые данные.");
+    } finally {
+      setIsOwnPasswordSaving(false);
+    }
+  }
+
   function renderMemberForm() {
     if (!isEditing) {
       return null;
@@ -1309,8 +1395,6 @@ export default function DutyMembersPage() {
                               <button className="command-row interactive-button duty-member-action-button" disabled={!canUpdateAccessTarget(selectedMember)} onClick={() => requestAccessChange(selectedMember, true)} type="button">
                                 Восстановить доступ
                               </button>
-                            ) : !isSelectedMemberExcluded ? (
-                              <span className="registry-status-badge-muted">Доступ не назначен</span>
                             ) : null}
                             {canManageTarget(selectedMember) && !isSelectedMemberExcluded ? (
                               <button className="command-row interactive-button duty-member-action-button" disabled={!canResetPasswordTarget(selectedMember)} onClick={() => openResetPassword(selectedMember)} type="button">
@@ -1322,7 +1406,15 @@ export default function DutyMembersPage() {
                                 Исключить из состава
                               </button>
                             ) : null}
-                            {isSelectedMemberExcluded ? <span className="registry-status-badge-muted">Пароль и доступ недоступны для исключённого профиля.</span> : null}
+                            {isOwnMember(selectedMember) && !isSelectedMemberExcluded ? (
+                              <button className="command-row interactive-button duty-member-action-button" onClick={openOwnPasswordChange} type="button">
+                                Сменить мой пароль
+                              </button>
+                            ) : null}
+                            {!canManageTarget(selectedMember) && !isSelectedMemberExcluded && getUnavailableActionsReason(selectedMember) ? (
+                              <span className="duty-member-actions-note">{getUnavailableActionsReason(selectedMember)}</span>
+                            ) : null}
+                            {isSelectedMemberExcluded ? <span className="duty-member-actions-note">Профиль исключён из состава: доступ закрыт, пароль сменить нельзя.</span> : null}
                           </div>
                         ) : null}
                       </div>
@@ -1366,6 +1458,49 @@ export default function DutyMembersPage() {
       </section>
 
       {renderMemberForm()}
+
+      {ownPasswordDraft ? (
+        <div className="pda-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && closeOwnPasswordChange()}>
+          <form className="pda-modal duty-member-modal duty-password-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleOwnPasswordSubmit}>
+            <div className="section-header modal-header">
+              <ModalCloseButton />
+              <div className="min-w-0">
+                <h1>Смена пароля</h1>
+                <p>Пароль вашей учётной записи доступа</p>
+              </div>
+            </div>
+            <div className="modal-body duty-member-modal-body">
+              <div className="duty-member-form-grid">
+                {(["currentPassword", "newPassword", "repeatPassword"] as const).map((field) => (
+                  <label className="filter-field" key={field}>
+                    <span>{field === "currentPassword" ? "Текущий пароль" : field === "newPassword" ? "Новый пароль" : "Повтор нового пароля"}</span>
+                    <input
+                      autoComplete={field === "currentPassword" ? "current-password" : "new-password"}
+                      disabled={isOwnPasswordSaving}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        setOwnPasswordDraft((current) => (current ? { ...current, [field]: value } : current));
+                        setOwnPasswordMessage("");
+                      }}
+                      type="password"
+                      value={ownPasswordDraft[field]}
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="modal-message-slot">{ownPasswordMessage ? <p className="draft-message">{ownPasswordMessage}</p> : null}</div>
+            <div className="modal-actions duty-member-form-actions">
+              <button className="command-row interactive-button" disabled={isOwnPasswordSaving} onClick={closeOwnPasswordChange} type="button">
+                Отмена
+              </button>
+              <button className="primary-command interactive-button" disabled={isOwnPasswordSaving} type="submit">
+                {isOwnPasswordSaving ? "Сохранение…" : "Сменить пароль"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
 
       {resetPasswordState ? (
         <div className="pda-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && closeResetPassword()}>

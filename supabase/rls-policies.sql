@@ -269,13 +269,16 @@ grant update (
 ) on public."MapLayer" to authenticated;
 grant delete on public."MapLayer" to authenticated;
 
--- Каталог и штатный список в Pages работают только на чтение.
+-- Штатный список в Pages работает только на чтение.
+-- Каталог снабжения читают все, пополняют и правят только system_admin/officer.
 grant select on
   public."SupplyCatalogCategory",
   public."SupplyCatalogItem",
   public."DutyStaffSection",
   public."DutyStaffPosition"
 to authenticated;
+grant insert, update on public."SupplyCatalogCategory" to authenticated;
+grant insert, update, delete on public."SupplyCatalogItem" to authenticated;
 
 -- Профили состава читают все активные пользователи.
 -- Редактируют только system_admin/officer; создание, удаление и accessUserId
@@ -537,6 +540,39 @@ begin
   end loop;
 end
 $$;
+
+-- Каталог снабжения: запись только для system_admin/officer.
+create policy duty_pages_catalog_category_insert
+on public."SupplyCatalogCategory"
+for insert
+to authenticated
+with check (private.is_duty_admin());
+
+create policy duty_pages_catalog_category_update
+on public."SupplyCatalogCategory"
+for update
+to authenticated
+using (private.is_duty_admin())
+with check (private.is_duty_admin());
+
+create policy duty_pages_catalog_item_insert
+on public."SupplyCatalogItem"
+for insert
+to authenticated
+with check (private.is_duty_admin());
+
+create policy duty_pages_catalog_item_update
+on public."SupplyCatalogItem"
+for update
+to authenticated
+using (private.is_duty_admin())
+with check (private.is_duty_admin());
+
+create policy duty_pages_catalog_item_delete
+on public."SupplyCatalogItem"
+for delete
+to authenticated
+using (private.is_duty_admin());
 
 -- Профили состава: чтение всем активным, редактирование duty-admin.
 create policy duty_pages_select

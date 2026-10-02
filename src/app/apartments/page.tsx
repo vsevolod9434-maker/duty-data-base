@@ -13,6 +13,7 @@ import { MobileBackButton } from "@/components/ui/MobileBackButton";
 import { Pagination } from "@/components/ui/Pagination";
 import { cachePolicy, dutyDataKeys, scheduleClientStateSync, useCurrentUserCacheKey, useDutyQueryClient } from "@/lib/data-cache";
 import { isStaticExportEnabled, transactionalImportMessage } from "@/lib/static-hosting";
+import { getPhotoPlaceholderSrc } from "@/lib/photo-placeholder";
 import { withBasePath } from "@/lib/public-path";
 import {
   apartmentPaymentStatusLabels,
@@ -26,7 +27,6 @@ import {
   forceSystemYear,
   getAffiliationBadgeClass,
   getAffiliationLabel,
-  getProfileInitials,
   getPaginatedItems,
   getProfileSecondaryTitle,
   getProfileTitle,
@@ -1237,7 +1237,11 @@ export default function ApartmentsPage() {
                       tabIndex={0}
                     >
                       <div className="member-avatar">
-                        {profile.photoUrl ? <img alt="Аватар жильца" src={profile.photoUrl} /> : getProfileInitials(profile)}
+                        {profile.photoUrl ? (
+                          <img alt="Аватар жильца" src={profile.photoUrl} />
+                        ) : (
+                          <img alt="Фото не загружено" className="member-avatar-placeholder" src={getPhotoPlaceholderSrc()} />
+                        )}
                       </div>
                       <div className="member-identity">
                         <div className="apartment-tenant-title-row">

@@ -2,9 +2,18 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import {
+  CatalogItemModal,
+  createEmptyCatalogItemDraft,
+  NEW_CATEGORY_VALUE,
+  type CatalogItemDraft,
+} from "@/components/calculator/CatalogItemModal";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
-import { apiFetchJson } from "@/lib/api-client";
-import { cachePolicy, dutyDataKeys, TWO_HOURS, useCurrentUserCacheKey } from "@/lib/data-cache";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { apiFetch, apiFetchJson } from "@/lib/api-client";
+import { canManageCalculatorCatalog, validateCatalogItemInput } from "@/lib/calculator-catalog";
+import { cachePolicy, dutyDataKeys, TWO_HOURS, useCurrentUserCacheKey, useDutyQueryClient } from "@/lib/data-cache";
+import { showUiNotice } from "@/lib/ui-notice";
 
 type CalculatorCatalogItem = {
   id: string;
@@ -38,6 +47,34 @@ type CalculatorCartItem = {
 
 const ALL_CATEGORIES = "all";
 
+type CatalogEditorState = {
+  itemId: string | null;
+  draft: CatalogItemDraft;
+};
+
+type CatalogConfirmState = {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  variant: "danger" | "warning";
+  onConfirm: () => void | Promise<void>;
+};
+
+function createDraftFromItem(item: CalculatorCatalogItem): CatalogItemDraft {
+  return {
+    categoryId: item.categoryId,
+    newCategoryName: "",
+    kind: item.kind === "bundle" ? "bundle" : "item",
+    name: item.name,
+    contents: item.contents ?? "",
+    basePrice: item.basePrice ?? "",
+    generalPrice: item.generalPrice ?? "",
+    partnerPrice: item.partnerPrice ?? "",
+    tenantPrice: item.tenantPrice ?? "",
+    note: item.note ?? "",
+  };
+}
+
 async function fetchCalculatorCatalog() {
   const payload = await apiFetchJson<CalculatorCatalogResponse>(
     "/api/calculator/catalog",
@@ -70,7 +107,13 @@ function getItemSearchText(item: CalculatorCatalogItem) {
 }
 
 export default function CalculatorPage() {
-  const { currentUserKey, isCurrentUserLoading } = useCurrentUserCacheKey();
+  const { currentUser, currentUserKey, isCurrentUserLoading } = useCurrentUserCacheKey();
+  const queryClient = useDutyQueryClient();
+  const canManageCatalog = canManageCalculatorCatalog(currentUser?.role);
+  const [catalogEditor, setCatalogEditor] = useState<CatalogEditorState | null>(null);
+  const [catalogEditorMessage, setCatalogEditorMessage] = useState("");
+  const [isCatalogSaving, setIsCatalogSaving] = useState(false);
+  const [catalogConfirm, setCatalogConfirm] = useState<CatalogConfirmState | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState(ALL_CATEGORIES);
   const [cartItems, setCartItems] = useState<CalculatorCartItem[]>([]);
@@ -119,6 +162,106 @@ export default function CalculatorPage() {
       { general: 0, partner: 0, tenant: 0 },
     );
   }, [cartItems]);
+
+  async function refreshCatalog() {
+    await queryClient.invalidateQueries({ queryKey: dutyDataKeys.calculatorCatalog(currentUserKey ?? "pending") });
+  }
+
+  function openCreateCatalogItem() {
+    setCatalogEditorMessage("");
+    setCatalogEditor({
+      itemId: null,
+      draft: createEmptyCatalogItemDraft(categoryFilter !== ALL_CATEGORIES ? categoryFilter : (categories[0]?.id ?? NEW_CATEGORY_VALUE)),
+    });
+  }
+
+  function openEditCatalogItem(item: CalculatorCatalogItem) {
+    setCatalogEditorMessage("");
+    setCatalogEditor({ itemId: item.id, draft: createDraftFromItem(item) });
+  }
+
+  function closeCatalogEditor(isDirty: boolean) {
+    if (!isDirty || isCatalogSaving) {
+      if (!isCatalogSaving) {
+        setCatalogEditor(null);
+      }
+      return;
+    }
+
+    setCatalogConfirm({
+      title: "Закрыть окно?",
+      message: "Несохранённые изменения будут потеряны.",
+      confirmLabel: "Закрыть",
+      variant: "warning",
+      onConfirm: () => {
+        setCatalogConfirm(null);
+        setCatalogEditor(null);
+      },
+    });
+  }
+
+  async function submitCatalogItem(draft: CatalogItemDraft) {
+    if (!catalogEditor) {
+      return;
+    }
+
+    const isNewCategory = draft.categoryId === NEW_CATEGORY_VALUE;
+    const payload = {
+      ...draft,
+      categoryId: isNewCategory ? null : draft.categoryId,
+      newCategoryName: isNewCategory ? draft.newCategoryName : null,
+    };
+
+    const validation = validateCatalogItemInput(payload);
+
+    if (!validation.ok) {
+      setCatalogEditorMessage(validation.message);
+      return;
+    }
+
+    setIsCatalogSaving(true);
+    setCatalogEditorMessage("");
+
+    try {
+      await apiFetchJson(
+        catalogEditor.itemId ? `/api/calculator/catalog/items/${encodeURIComponent(catalogEditor.itemId)}` : "/api/calculator/catalog/items",
+        {
+          method: catalogEditor.itemId ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+        "Не удалось сохранить товар.",
+      );
+      await refreshCatalog();
+      showUiNotice(catalogEditor.itemId ? `Товар изменён: ${draft.name.trim()}` : `Товар добавлен в каталог: ${draft.name.trim()}`);
+      setCatalogEditor(null);
+    } catch (error) {
+      setCatalogEditorMessage(error instanceof Error ? error.message : "Не удалось сохранить товар.");
+    } finally {
+      setIsCatalogSaving(false);
+    }
+  }
+
+  function requestDeleteCatalogItem(item: CalculatorCatalogItem) {
+    setCatalogConfirm({
+      title: "Удаление товара",
+      message: `Товар «${item.name}» будет удалён из каталога. Действие нельзя отменить.`,
+      confirmLabel: "Удалить товар",
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          await apiFetch(`/api/calculator/catalog/items/${encodeURIComponent(item.id)}`, { method: "DELETE" }, "Не удалось удалить товар.");
+          setCartItems((currentItems) => currentItems.filter((cartItem) => cartItem.item.id !== item.id));
+          await refreshCatalog();
+          showUiNotice(`Товар удалён из каталога: ${item.name}`, "warn");
+        } catch (error) {
+          showUiNotice(error instanceof Error ? error.message : "Не удалось удалить товар.", "error");
+        } finally {
+          setCatalogConfirm(null);
+        }
+      },
+    });
+  }
 
   function addToCart(item: CalculatorCatalogItem) {
     setCartItems((currentItems) => {
@@ -188,6 +331,11 @@ export default function CalculatorPage() {
                     <h2 id="calculator-catalog-title">Каталог снабжения</h2>
                     <span>{filteredItems.length > 0 ? `Найдено позиций: ${filteredItems.length}` : "Позиции не найдены"}</span>
                   </div>
+                  {canManageCatalog ? (
+                    <button className="primary-command calculator-catalog-create" onClick={openCreateCatalogItem} type="button">
+                      Добавить товар
+                    </button>
+                  ) : null}
                 </div>
 
                 <div className="calculator-filters">
@@ -287,6 +435,28 @@ export default function CalculatorPage() {
                           </div>
 
                           <div className="calculator-catalog-action">
+                            {canManageCatalog ? (
+                              <span className="calculator-catalog-admin-actions">
+                                <button
+                                  aria-label={`Редактировать: ${item.name}`}
+                                  className="command-row calculator-admin-button"
+                                  onClick={() => openEditCatalogItem(item)}
+                                  title="Редактировать товар"
+                                  type="button"
+                                >
+                                  Изм.
+                                </button>
+                                <button
+                                  aria-label={`Удалить: ${item.name}`}
+                                  className="command-row danger-command calculator-admin-button"
+                                  onClick={() => requestDeleteCatalogItem(item)}
+                                  title="Удалить товар"
+                                  type="button"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ) : null}
                             <button
                               className={`command-row calculator-add-button ${isInCart ? "calculator-add-button-in-cart" : ""}`}
                               onClick={() => addToCart(item)}
@@ -401,6 +571,30 @@ export default function CalculatorPage() {
           </section>
         </div>
       </section>
+      {catalogEditor ? (
+        <CatalogItemModal
+          categories={categories}
+          initialDraft={catalogEditor.draft}
+          isEditing={Boolean(catalogEditor.itemId)}
+          isSaving={isCatalogSaving}
+          key={catalogEditor.itemId ?? "new"}
+          message={catalogEditorMessage}
+          onCancel={closeCatalogEditor}
+          onDraftChange={() => setCatalogEditorMessage("")}
+          onSubmit={(draft) => void submitCatalogItem(draft)}
+        />
+      ) : null}
+      {catalogConfirm ? (
+        <ConfirmDialog
+          cancelLabel="Отмена"
+          confirmLabel={catalogConfirm.confirmLabel}
+          message={catalogConfirm.message}
+          onCancel={() => setCatalogConfirm(null)}
+          onConfirm={catalogConfirm.onConfirm}
+          title={catalogConfirm.title}
+          variant={catalogConfirm.variant}
+        />
+      ) : null}
     </main>
   );
 }

@@ -16,7 +16,7 @@ import { apiFetch, apiFetchJson } from "@/lib/api-client";
 import { dutyDataKeys, scheduleClientStateSync, useCurrentUserCacheKey, useDutyQueryClient } from "@/lib/data-cache";
 import { createTask, deleteTaskRecord, fetchTasks, updateTask } from "@/lib/journal-api";
 import { isStaticExportEnabled, transactionalImportMessage } from "@/lib/static-hosting";
-import { withBasePath } from "@/lib/public-path";
+import { getPhotoPlaceholderSrc } from "@/lib/photo-placeholder";
 import type {
   StalkerGroup,
   StalkerGroupMember,
@@ -28,7 +28,6 @@ import {
   forceSystemYear,
   getAffiliationBadgeClass,
   getAffiliationLabel,
-  getProfileInitials,
   getPaginatedItems,
   getGroupRoleLabel,
   matchesStalkerProfileSearch,
@@ -1435,7 +1434,7 @@ export default function StalkerGroupsPage() {
                       <div className="group-avatar-frame">
                         <img
                           alt="Изображение группы"
-                          src={selectedGroup.photoUrl || withBasePath("/no-data-group.png")}
+                          src={selectedGroup.photoUrl || getPhotoPlaceholderSrc()}
                         />
                       </div>
                       <div className="group-hero-main">
@@ -1591,7 +1590,7 @@ export default function StalkerGroupsPage() {
                                     {profile?.photoUrl ? (
                                       <img alt="Фотография участника группы" src={profile.photoUrl} />
                                     ) : (
-                                      getProfileInitials(profile)
+                                      <img alt="Фото не загружено" className="member-avatar-placeholder" src={getPhotoPlaceholderSrc()} />
                                     )}
                                   </div>
                                   <div className="member-identity">
