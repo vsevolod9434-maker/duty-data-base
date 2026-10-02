@@ -1,0 +1,506 @@
+/*
+ * Final PDA UI audit layer.
+ * Purpose: responsive hardening, cascade normalization and palette consistency.
+ * Loaded last so legacy page-specific rules cannot visually escape the PDA system.
+ */
+
+/* --- viewport and overflow hardening --- */
+
+html,
+body {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.pda-page,
+.pda-screen,
+.pda-content,
+.pda-shell-header,
+.pda-main-nav,
+.registry-shell-header,
+.registry-main-nav,
+.profiles-page,
+.groups-page,
+.apartments-page,
+.journals-page,
+.calculator-page,
+.duty-members-page,
+.map-page-shell,
+.map-page-screen {
+  min-width: 0;
+}
+
+@supports (height: 100dvh) {
+  .pda-page {
+    min-height: 100dvh;
+  }
+
+  .pda-screen {
+    min-height: calc(100dvh - 20px);
+    height: calc(100dvh - 20px);
+  }
+
+  .map-page-shell,
+  .map-page-screen {
+    min-height: 100dvh;
+    height: 100dvh;
+  }
+
+  .login-page {
+    min-height: 100dvh;
+  }
+
+  @media (max-width: 900px) {
+    .pda-screen {
+      min-height: 100dvh;
+      height: 100dvh;
+    }
+  }
+}
+
+.login-page {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.login-shell,
+.login-shell:has(.login-briefing) {
+  max-width: 100%;
+}
+
+.pda-content {
+  overscroll-behavior: contain;
+}
+
+.pda-modal-backdrop {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.pda-modal,
+.confirm-dialog,
+.journal-modal,
+.journal-action-modal,
+.task-modal,
+.task-complete-modal,
+.duty-member-modal,
+.map-marker-modal {
+  max-width: calc(100vw - 1rem);
+  max-height: calc(100dvh - 1rem);
+  overscroll-behavior: contain;
+}
+
+:is(
+  .profile-column,
+  .detail-host-column,
+  .profiles-list-column,
+  .groups-list-column,
+  .apartments-list-column,
+  .apartments-detail-column,
+  .journals-detail,
+  .calculator-catalog-panel,
+  .calculator-cart-panel,
+  .duty-members-list-panel,
+  .duty-member-detail-panel,
+  .map-work-area,
+  .map-side-panel
+) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* --- topbar: adapt gracefully instead of squeezing three columns --- */
+
+@media (max-width: 1120px) {
+  .pda-shell-header,
+  .registry-shell-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: .45rem .65rem;
+  }
+
+  .pda-brand,
+  .registry-brand {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .pda-status,
+  .registry-status {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    min-width: 0;
+  }
+
+  .pda-main-nav,
+  .registry-main-nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    width: 100%;
+    min-width: 0;
+  }
+
+  .pda-nav-dropdown,
+  .pda-tab,
+  .registry-nav-tab,
+  .pda-nav-dropdown-trigger {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .pda-tab,
+  .registry-nav-tab {
+    padding-inline: .42rem;
+    white-space: normal;
+    text-align: center;
+  }
+}
+
+@media (max-width: 760px) {
+  .pda-shell-header,
+  .registry-shell-header {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pda-brand,
+  .registry-brand,
+  .pda-status,
+  .registry-status,
+  .pda-main-nav,
+  .registry-main-nav {
+    grid-column: 1;
+  }
+
+  .pda-brand,
+  .registry-brand {
+    grid-row: 1;
+  }
+
+  .pda-status,
+  .registry-status {
+    grid-row: 2;
+    justify-self: stretch;
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .pda-main-nav,
+  .registry-main-nav {
+    grid-row: 3;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .pda-nav-dropdown-menu {
+    max-width: calc(100vw - 1.25rem);
+  }
+}
+
+@media (max-width: 460px) {
+  .pda-main-nav,
+  .registry-main-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pda-status,
+  .registry-status {
+    justify-content: space-between;
+  }
+
+  .pda-clock {
+    margin-left: auto;
+  }
+}
+
+/* --- narrow-height windows remain usable --- */
+
+@media (max-height: 720px) and (min-width: 841px) {
+  .login-page {
+    align-items: start;
+  }
+
+  .login-shell {
+    margin-block: .5rem;
+    padding-block: 1.6rem;
+  }
+
+  .login-briefing {
+    min-height: 27rem;
+  }
+
+  .login-briefing-copy {
+    gap: .55rem;
+  }
+
+  .login-briefing h1 {
+    font-size: clamp(2.4rem, 5vw, 4.3rem);
+  }
+
+  .login-status-list div {
+    padding: .62rem;
+  }
+}
+
+/* --- very wide monitors: preserve readable density without wasting the map --- */
+
+@media (min-width: 2200px) {
+  .pda-content:not(.map-page-content) {
+    padding-inline: clamp(1.5rem, 3vw, 5rem);
+  }
+
+  :is(
+    .profiles-workspace-panel,
+    .groups-workspace-panel,
+    .apartments-workspace-panel,
+    .journals-shell,
+    .calculator-shell,
+    .duty-members-shell,
+    .welcome-shell
+  ) {
+    width: min(100%, 2400px);
+    margin-inline: auto;
+  }
+
+  .login-shell:has(.login-briefing) {
+    width: min(100%, 1320px);
+  }
+}
+
+/* --- prevent long content from breaking grids --- */
+
+:is(
+  .pda-brand-copy,
+  .profile-list-name,
+  .group-list-name,
+  .profile-case-title,
+  .profile-record-title,
+  .task-item-mainline,
+  .duty-member-list-copy,
+  .duty-member-list-name,
+  .apartment-profile-title,
+  .calculator-card-title-line,
+  .map-layer-name,
+  .modal-header,
+  .section-header,
+  .registry-section-header
+) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+:is(
+  .profile-list-item-secondary,
+  .profile-record-subtitle,
+  .duty-member-list-copy,
+  .map-form-hint,
+  .map-form-info-line,
+  .stalker-note-text,
+  .apartment-notes-text
+) {
+  overflow-wrap: anywhere;
+}
+
+/* --- enforce the requested red / black / grey palette on semantic badges --- */
+
+.pda-screen .badge-affiliation-loner,
+.pda-screen .badge-affiliation-freedom,
+.pda-screen .badge-affiliation-gopnik,
+.pda-screen .badge-affiliation-bandit,
+.pda-screen .badge-affiliation-mercenary,
+.pda-screen .badge-affiliation-military,
+.pda-screen .badge-affiliation-clear-sky,
+.pda-screen .profiles-page .badge-affiliation-loner,
+.pda-screen .profiles-page .badge-affiliation-freedom,
+.pda-screen .profiles-page .badge-affiliation-gopnik,
+.pda-screen .profiles-page .badge-affiliation-bandit,
+.pda-screen .profiles-page .badge-affiliation-mercenary,
+.pda-screen .profiles-page .badge-affiliation-military,
+.pda-screen .profiles-page .badge-affiliation-clear-sky,
+.pda-screen .groups-page .profile-affiliation-badge,
+.pda-screen .apartments-page .profile-affiliation-badge {
+  border-color: #484c4e !important;
+  background: linear-gradient(180deg, #242729, #141617) !important;
+  color: #c5c8c9 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04) !important;
+}
+
+.pda-screen .badge-affiliation-duty,
+.pda-screen .profiles-page .badge-affiliation-duty,
+.pda-screen .groups-page .badge-affiliation-duty,
+.pda-screen .apartments-page .badge-affiliation-duty {
+  border-color: #742229 !important;
+  background: linear-gradient(180deg, #351216, #1d0c0f) !important;
+  color: #e1b2b5 !important;
+  box-shadow: inset 2px 0 0 #9e252c !important;
+}
+
+.pda-screen .badge-task-active,
+.pda-screen .badge-task-completed,
+.pda-screen .badge-task-cancelled,
+.pda-screen .badge-violation-closed,
+.pda-screen .badge-payment-paid,
+.pda-screen .badge-payment-pending,
+.pda-screen .trade-record-purchase-badge,
+.pda-screen .registry-status-badge-active {
+  border-color: #484c4e !important;
+  background: linear-gradient(180deg, #232628, #141617) !important;
+  color: #c7caca !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035) !important;
+}
+
+.pda-screen .badge-task-overdue,
+.pda-screen .badge-violation-active,
+.pda-screen .badge-payment-overdue,
+.pda-screen .trade-record-sale-badge,
+.pda-screen .registry-status-badge-danger {
+  border-color: #79232a !important;
+  background: linear-gradient(180deg, #3b1115, #210b0e) !important;
+  color: #eea8ad !important;
+  box-shadow: inset 2px 0 0 #a52830 !important;
+}
+
+.pda-screen .badge-task-cancelled,
+.pda-screen .registry-status-badge-muted,
+.pda-screen .badge-state-archive {
+  border-color: #34383a !important;
+  background: #101213 !important;
+  color: #777d7f !important;
+}
+
+/* page-specific legacy selectors must not restore green/orange/blue */
+.pda-screen .apartments-page .apartment-payment-status-badge.badge-task-completed,
+.pda-screen .apartments-page .apartment-payment-status-badge.badge-task-active {
+  border-color: #484c4e !important;
+  background: linear-gradient(180deg, #232628, #141617) !important;
+  color: #c7caca !important;
+}
+
+.pda-screen .apartments-page .apartment-payment-status-badge.badge-task-overdue {
+  border-color: #79232a !important;
+  background: linear-gradient(180deg, #3b1115, #210b0e) !important;
+  color: #eea8ad !important;
+}
+
+/* --- remove modern floating-card motion; keep physical button press only --- */
+
+.profile-list-item:hover,
+.profile-list-item:focus-visible,
+.profile-record-card:hover,
+.profile-record-card:focus-within,
+.task-item:hover,
+.task-item:focus-within,
+.journal-tab-card:hover,
+.journal-tab-card:focus-visible,
+.apartment-list-card:hover,
+.apartment-list-card:focus-visible,
+.group-list-card:hover,
+.group-list-card:focus-visible {
+  transform: none;
+}
+
+.login-submit:hover,
+.login-submit:focus-visible,
+.pda-signout-button:hover,
+.pda-signout-button:focus-visible {
+  transform: none;
+}
+
+.login-submit:active,
+.pda-signout-button:active {
+  transform: translateY(1px);
+}
+
+/* --- preserve usable hit targets while keeping compact 2009 density --- */
+
+@media (pointer: coarse) {
+  .pda-tab,
+  .registry-nav-tab,
+  .command-row,
+  .interactive-button,
+  .task-action-button,
+  .pagination-button,
+  .map-preset-button,
+  .map-layer-action-button {
+    min-height: 2.65rem;
+  }
+
+  .pda-screen :is(input, select) {
+    min-height: 2.75rem;
+  }
+}
+
+/* --- mobile spacing normalization --- */
+
+@media (max-width: 560px) {
+  .pda-content:not(.map-page-content) {
+    padding: .45rem;
+  }
+
+  .pda-screen :is(
+    .profiles-workspace-panel,
+    .groups-workspace-panel,
+    .apartments-workspace-panel,
+    .journals-panel,
+    .calculator-catalog-panel,
+    .calculator-cart-panel,
+    .duty-members-list-panel,
+    .duty-member-detail-panel,
+    .registry-panel,
+    .section-panel
+  ) {
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.025),
+      inset 0 -1px 0 rgba(0,0,0,.64);
+  }
+
+  .modal-header,
+  .modal-body,
+  .modal-actions {
+    padding-inline: .7rem;
+  }
+
+  .pda-modal-backdrop {
+    align-items: flex-start;
+    padding: .35rem;
+  }
+
+  .pda-modal,
+  .confirm-dialog,
+  .journal-modal,
+  .journal-action-modal,
+  .task-modal,
+  .task-complete-modal,
+  .duty-member-modal,
+  .map-marker-modal {
+    max-width: calc(100vw - .7rem);
+    max-height: calc(100dvh - .7rem);
+  }
+}
+
+/* --- login heading scaling discovered during multi-resolution visual audit --- */
+
+@media (min-width: 841px) and (max-width: 1180px) {
+  .login-briefing h1 {
+    font-size: clamp(2.65rem, 4.6vw, 3.45rem);
+    letter-spacing: -.04em;
+  }
+}
+
+@media (max-width: 420px) {
+  .login-briefing-copy h1,
+  .login-briefing h1 {
+    font-size: clamp(1.95rem, 9vw, 2.2rem);
+    letter-spacing: -.035em;
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
+  }
+
+  .login-card h2 {
+    font-size: clamp(1.45rem, 7vw, 1.8rem);
+  }
+}
