@@ -75,6 +75,7 @@ import {
   type MapZoneStatus,
   type MapZoneType,
 } from "@/lib/map-overlays";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 
 type ActivePanel = "markers" | "zones" | "routes" | "labels" | "layers";
 type DrawingMode = "marker" | "marker-copy" | "zone" | "zone-polygon" | "route" | "label" | null;
@@ -1184,7 +1185,7 @@ export default function MapPage() {
     setConfirmDialog({
       cancelLabel: "Остаться",
       confirmLabel: "Закрыть",
-      message: "Вы уверены, что хотите закрыть окно?",
+      message: "Несохранённые изменения будут потеряны.",
       onConfirm: () => {
         closeForms();
         setConfirmDialog(null);
@@ -1584,7 +1585,7 @@ export default function MapPage() {
     setConfirmDialog({
       cancelLabel: "Остаться",
       confirmLabel: "Закрыть",
-      message: "Вы уверены, что хотите закрыть окно?",
+      message: "Несохранённые изменения будут потеряны.",
       onConfirm: () => {
         closeForms();
         setConfirmDialog(null);
@@ -2887,6 +2888,7 @@ export default function MapPage() {
           <div className="pda-modal-backdrop animate-fade-in" onMouseDown={requestCloseForms}>
             <form className="pda-modal map-marker-modal animate-modal-in" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleMarkerSubmit}>
               <div className="map-form-header">
+                <ModalCloseButton />
                 <div className="min-w-0">
                   <span className="map-form-badge">{markerDraft.id ? "Изменение объекта" : "Создание объекта"}</span>
                   <h1>{markerDraft.id ? "Редактирование метки" : "Новая метка"}</h1>
@@ -3013,6 +3015,7 @@ export default function MapPage() {
           <div className="pda-modal-backdrop animate-fade-in" onMouseDown={requestCloseForms}>
             <form className="pda-modal map-marker-modal animate-modal-in" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleZoneSubmit}>
               <div className="map-form-header">
+                <ModalCloseButton />
                 <div className="min-w-0">
                   <span className="map-form-badge">{zoneDraft.id ? "Изменение объекта" : "Создание объекта"}</span>
                   <h1>{zoneDraft.id ? "Редактирование зоны" : "Новая зона"}</h1>
@@ -3157,6 +3160,7 @@ export default function MapPage() {
           <div className="pda-modal-backdrop animate-fade-in" onMouseDown={requestCloseForms}>
             <form className="pda-modal map-marker-modal animate-modal-in" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleRouteSubmit}>
               <div className="map-form-header">
+                <ModalCloseButton />
                 <div className="min-w-0">
                   <span className="map-form-badge">{routeDraft.id ? "Изменение объекта" : "Создание объекта"}</span>
                   <h1>{routeDraft.id ? "Редактирование маршрута" : "Новый маршрут"}</h1>

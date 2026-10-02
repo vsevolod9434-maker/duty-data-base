@@ -59,6 +59,7 @@ import {
   VIOLATIONS_STORAGE_KEY,
   writeStoredCollection,
 } from "@/lib/stalker-utils";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 
 const journalTabs = ["Задания", "Продажи", "Покупки", "Нарушения"] as const;
 type JournalTab = (typeof journalTabs)[number];
@@ -824,7 +825,7 @@ export default function JournalsPage() {
 
     setConfirmDialog({
       title: "Закрыть окно?",
-      message: "Вы уверены, что хотите закрыть окно?",
+      message: "Несохранённые изменения будут потеряны.",
       confirmLabel: "Закрыть",
       cancelLabel: "Остаться",
       confirmTone: "warning",
@@ -2104,6 +2105,7 @@ export default function JournalsPage() {
         >
           <form className="pda-modal task-modal task-complete-modal journal-action-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleCompleteTaskSubmit}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>Зачёт задания</h1>
                 <p>{tasks.find((task) => task.id === completingTaskId)?.description ?? "Задание"}</p>
@@ -2145,6 +2147,7 @@ export default function JournalsPage() {
         >
           <form className="pda-modal task-modal journal-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleTaskSubmit}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>{isEditingTask ? "Редактирование задания" : "Создание задания"}</h1>
                 <p>
@@ -2294,6 +2297,7 @@ export default function JournalsPage() {
         >
           <form className="pda-modal task-modal journal-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleTradeSubmit}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>
                   {isEditingTrade
@@ -2473,6 +2477,7 @@ export default function JournalsPage() {
         >
           <form className="pda-modal task-modal journal-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleViolationSubmit}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>{isEditingViolation ? "Редактирование нарушения" : "Оформление нарушения"}</h1>
                 <p>Запись будет добавлена в общий журнал нарушений и закреплена в реестре</p>
@@ -2581,6 +2586,7 @@ export default function JournalsPage() {
         >
           <form className="pda-modal task-complete-modal journal-action-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={closeViolationRecord}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>Закрыть нарушение</h1>
                 <p>

@@ -37,6 +37,7 @@ import {
   writeStoredCollection,
 } from "@/lib/stalker-utils";
 import type { Apartment, ApartmentPayment, StalkerGroup, StalkerProfile } from "@/lib/types";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 
 type StalkerProfileApiResponse = {
   id: string;
@@ -522,7 +523,7 @@ export default function ApartmentsPage() {
 
     setConfirmDialog({
       title: "Закрыть окно?",
-      message: "Вы уверены, что хотите закрыть окно?",
+      message: "Несохранённые изменения будут потеряны.",
       confirmLabel: "Закрыть",
       cancelLabel: "Остаться",
       variant: "warning",
@@ -1404,6 +1405,7 @@ export default function ApartmentsPage() {
         >
           <div className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>Добавить жильцов</h1>
                 <p>{selectedApartment.name}: отдельные профили или состав группы</p>
@@ -1518,6 +1520,7 @@ export default function ApartmentsPage() {
         >
           <form className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={submitPayment}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>{editingPaymentId ? "Редактирование оплаты" : "Принять оплату"}</h1>
                 <p>{selectedApartment.name}: запись оплаты проживания</p>
@@ -1537,7 +1540,14 @@ export default function ApartmentsPage() {
                   </label>
                   <label className="filter-field">
                     <span>Оплачено до</span>
-                    <input max={SYSTEM_DATE_MAX} min={SYSTEM_DATE_MIN} onChange={(event) => updatePaymentDraft("paidUntil", event.target.value)} type="date" value={paymentDraft.paidUntil} />
+                    <input
+                      aria-invalid={paymentMessage === "Укажите дату, до которой оплачено проживание." || undefined}
+                      max={SYSTEM_DATE_MAX}
+                      min={SYSTEM_DATE_MIN}
+                      onChange={(event) => updatePaymentDraft("paidUntil", event.target.value)}
+                      type="date"
+                      value={paymentDraft.paidUntil}
+                    />
                   </label>
                   <label className="apartment-payment-toggle">
                     <input
@@ -1560,7 +1570,13 @@ export default function ApartmentsPage() {
                   ) : (
                     <label className="filter-field">
                       <span>Сумма оплаты</span>
-                      <input min="0" onChange={(event) => updatePaymentDraft("amount", event.target.value)} type="number" value={paymentDraft.amount} />
+                      <input
+                        aria-invalid={paymentMessage === "Укажите корректную сумму оплаты." || undefined}
+                        min="0"
+                        onChange={(event) => updatePaymentDraft("amount", event.target.value)}
+                        type="number"
+                        value={paymentDraft.amount}
+                      />
                     </label>
                   )}
                   <ActionAuthorLine action={editingPaymentId ? "Изменяет" : "Принимает"} name={currentUserLabel} />

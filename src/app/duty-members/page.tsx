@@ -20,6 +20,7 @@ import {
   updateDutyMemberAccess,
   updateDutyMemberProfile,
 } from "@/lib/supabase/access-admin-client";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 
 type DutyServiceStatus = "active" | "leave" | "wounded" | "missing" | "discharged";
 type DutyMemberProfileStatus = "active" | "archived";
@@ -401,6 +402,7 @@ export default function DutyMembersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [accessFilter, setAccessFilter] = useState<DutyAccessFilter>("all");
   const [draft, setDraft] = useState<DutyMemberDraft>(emptyDraft);
+  const [initialDraft, setInitialDraft] = useState<DutyMemberDraft>(emptyDraft);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -609,6 +611,7 @@ export default function DutyMembersPage() {
     setIsCreating(true);
     setEditingId(null);
     setDraft(emptyDraft);
+    setInitialDraft(emptyDraft);
     setActionMessage("");
   }
 
@@ -621,6 +624,7 @@ export default function DutyMembersPage() {
     setIsCreating(false);
     setEditingId(member.id);
     setDraft(createDraft(member));
+    setInitialDraft(createDraft(member));
     setActionMessage("");
   }
 
@@ -628,7 +632,26 @@ export default function DutyMembersPage() {
     setIsCreating(false);
     setEditingId(null);
     setDraft(emptyDraft);
+    setInitialDraft(emptyDraft);
     setActionMessage("");
+  }
+
+  function requestCloseForm() {
+    if (JSON.stringify(draft) === JSON.stringify(initialDraft)) {
+      closeForm();
+      return;
+    }
+
+    setConfirmDialog({
+      title: "Закрыть окно?",
+      message: "Несохранённые изменения будут потеряны.",
+      confirmLabel: "Закрыть",
+      variant: "warning",
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        closeForm();
+      },
+    });
   }
 
   async function handleMemberSubmit(event: FormEvent<HTMLFormElement>) {
@@ -973,9 +996,10 @@ export default function DutyMembersPage() {
     const isStaticProfileEdit = Boolean(isStaticExportEnabled && editingId);
 
     return (
-      <div className="pda-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && closeForm()}>
+      <div className="pda-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && requestCloseForm()}>
         <form className="pda-modal duty-member-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleMemberSubmit}>
           <div className="section-header modal-header">
+            <ModalCloseButton />
             <div className="min-w-0">
               <span className="eyebrow-text">{editingId ? "Изменение профиля" : "Новый пользователь"}</span>
               <h1>{editingId ? "Редактирование профиля состава" : "Добавление пользователя"}</h1>
@@ -997,7 +1021,13 @@ export default function DutyMembersPage() {
               ) : null}
               <label className="filter-field duty-member-form-wide">
                 <span>ФИО</span>
-                <input disabled={isSaving} maxLength={120} onChange={(event) => updateDraft("fullName", event.target.value)} value={draft.fullName} />
+                <input
+                  aria-invalid={actionMessage === "Укажите ФИО." || undefined}
+                  disabled={isSaving}
+                  maxLength={120}
+                  onChange={(event) => updateDraft("fullName", event.target.value)}
+                  value={draft.fullName}
+                />
               </label>
               <label className="filter-field">
                 <span>Звание</span>
@@ -1087,7 +1117,7 @@ export default function DutyMembersPage() {
             {actionMessage ? <p className="draft-message">{actionMessage}</p> : null}
           </div>
           <div className="modal-actions duty-member-form-actions">
-          <button className="command-row interactive-button" disabled={isSaving} onClick={closeForm} type="button">
+          <button className="command-row interactive-button" disabled={isSaving} onClick={requestCloseForm} type="button">
             Отмена
           </button>
           <button className="primary-command interactive-button" disabled={isSaving} type="submit">
@@ -1322,6 +1352,7 @@ export default function DutyMembersPage() {
         <div className="pda-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && closeResetPassword()}>
           <form className="pda-modal duty-member-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleResetPasswordSubmit}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <span className="eyebrow-text">Служебный доступ</span>
                 <h1>Сбросить пароль</h1>

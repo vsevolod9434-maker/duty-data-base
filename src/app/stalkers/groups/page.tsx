@@ -42,6 +42,7 @@ import {
   STALKER_TASKS_STORAGE_KEY,
   writeStoredCollection,
 } from "@/lib/stalker-utils";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 
 
 const statusLabels: Record<StalkerGroup["status"], string> = {
@@ -533,7 +534,7 @@ export default function StalkerGroupsPage() {
 
     setConfirmDialog({
       title: "Закрыть окно?",
-      message: "Вы уверены, что хотите закрыть окно?",
+      message: "Несохранённые изменения будут потеряны.",
       confirmLabel: "Закрыть",
       cancelLabel: "Остаться",
       variant: "warning",
@@ -1719,6 +1720,7 @@ export default function StalkerGroupsPage() {
         >
           <form className="pda-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleGroupSubmit}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>{editingGroupId ? "Редактирование группы" : "Создание группы"}</h1>
                 <p>Группа будет закреплена в реестре</p>
@@ -1735,6 +1737,7 @@ export default function StalkerGroupsPage() {
                   <label className="filter-field">
                     <span>Название</span>
                     <input
+                      aria-invalid={formMessage === "Укажите название группы." || undefined}
                       onChange={(event) => setDraft((currentDraft) => ({ ...currentDraft, name: event.target.value }))}
                       placeholder="Например: Северный блок"
                       type="text"
@@ -1906,6 +1909,7 @@ export default function StalkerGroupsPage() {
         >
           <form className="pda-modal task-modal journal-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleGroupTaskSubmit}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>{editingGroupTaskId ? "Редактировать задание группы" : "Выдать задание группе"}</h1>
                 <p>Исполнитель: {selectedGroup.name}</p>
@@ -1988,6 +1992,7 @@ export default function StalkerGroupsPage() {
         >
           <div className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>Добавить участника</h1>
                 <p>Группа: {selectedGroup.name}</p>
@@ -2143,6 +2148,7 @@ export default function StalkerGroupsPage() {
         >
           <div className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>Редактирование роли</h1>
                 <p>
@@ -2229,6 +2235,7 @@ export default function StalkerGroupsPage() {
         >
           <form className="pda-modal task-complete-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={submitCompleteGroupTask}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>Засчитать групповое задание</h1>
                 <p>Выполнение будет засчитано текущим пользователем.</p>

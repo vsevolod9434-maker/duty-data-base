@@ -1,6 +1,7 @@
 import { journalEntries } from "./mock-data";
 import { getSystemTimestamp, normalizeSystemDates } from "./stalker-utils";
 import type { JournalEntry, JournalEntryType } from "./types";
+import { getNoticeToneFromStatus, showUiNotice } from "./ui-notice";
 
 export const ACTIVITY_LOG_STORAGE_KEY = "duty-rp-activity-log";
 export const ACTIVITY_LOG_UPDATED_EVENT = "duty-rp-activity-log-updated";
@@ -89,6 +90,7 @@ export function addActivityLogEntry({
 
   const currentEntries = readActivityLog([]);
   writeActivityLog([entry, ...currentEntries]);
+  showUiNotice(title, getNoticeToneFromStatus(status));
 
   return entry;
 }

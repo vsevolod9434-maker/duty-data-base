@@ -67,6 +67,7 @@ import {
   VIOLATIONS_STORAGE_KEY,
   writeStoredCollection,
 } from "@/lib/stalker-utils";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 
 const profileTabs = ["Задания", "Продажи", "Покупки", "Нарушения"];
 
@@ -1066,7 +1067,7 @@ export default function StalkerProfilesPage() {
 
     setConfirmDialog({
       title: "Закрыть окно?",
-      message: "Вы уверены, что хотите закрыть окно?",
+      message: "Несохранённые изменения будут потеряны.",
       confirmLabel: "Закрыть",
       cancelLabel: "Остаться",
       variant: "warning",
@@ -2814,6 +2815,7 @@ export default function StalkerProfilesPage() {
         >
           <form className="pda-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleProfileSubmit}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>{editingProfileId ? "Редактирование профиля" : "Создание профиля сталкера"}</h1>
                 <p>Профиль будет внесён в реестр</p>
@@ -2830,11 +2832,23 @@ export default function StalkerProfilesPage() {
                   <div className="profile-create-grid">
                     <label className="filter-field">
                       <span>ФИО</span>
-                      <input onChange={(event) => updateDraft("fullName", event.target.value)} placeholder="Например: Чередняк Савелий Алексеевич" type="text" value={draft.fullName} />
+                      <input
+                        aria-invalid={formMessage === "Укажите ФИО или позывной." || undefined}
+                        onChange={(event) => updateDraft("fullName", event.target.value)}
+                        placeholder="Например: Чередняк Савелий Алексеевич"
+                        type="text"
+                        value={draft.fullName}
+                      />
                     </label>
                     <label className="filter-field">
                       <span>Позывной</span>
-                      <input onChange={(event) => updateDraft("callsign", event.target.value)} placeholder="Например: Шрам" type="text" value={draft.callsign} />
+                      <input
+                        aria-invalid={formMessage === "Укажите ФИО или позывной." || undefined}
+                        onChange={(event) => updateDraft("callsign", event.target.value)}
+                        placeholder="Например: Шрам"
+                        type="text"
+                        value={draft.callsign}
+                      />
                     </label>
                     <label className="filter-field">
                       <span>Внутренний номер</span>
@@ -2952,6 +2966,7 @@ export default function StalkerProfilesPage() {
         >
           <div className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>Добавить в группу</h1>
                 <p>Профиль: {getProfileTitle(selectedProfile)}</p>
@@ -3080,6 +3095,7 @@ export default function StalkerProfilesPage() {
         >
           <form className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleEditTaskSubmit}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>Редактирование задания</h1>
                 <p>Изменения будут закреплены в реестре</p>
@@ -3154,6 +3170,7 @@ export default function StalkerProfilesPage() {
         >
           <form className="pda-modal task-modal task-complete-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleCompleteTaskSubmit}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>Засчитать выполнение задания</h1>
                 <p>Статус выполнения будет закреплён в журнале после подтверждения</p>
@@ -3199,6 +3216,7 @@ export default function StalkerProfilesPage() {
         >
           <form className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleTaskSubmit}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>Выдача задания</h1>
                 <p>Получатель: {getProfileTitle(selectedProfile)}</p>
@@ -3273,6 +3291,7 @@ export default function StalkerProfilesPage() {
         >
           <form className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleTradeSubmit}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>
                   {editingTradeId
@@ -3382,6 +3401,7 @@ export default function StalkerProfilesPage() {
         >
           <form className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleViolationSubmit}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>{editingViolationId ? "Редактирование нарушения" : "Оформление нарушения"}</h1>
                 <p>Нарушитель: {getProfileTitle(selectedProfile)}</p>
@@ -3439,6 +3459,7 @@ export default function StalkerProfilesPage() {
         >
           <form className="pda-modal task-complete-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={closeViolationRecord}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>Закрыть нарушение</h1>
                 <p>
