@@ -117,6 +117,14 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel, onSubt
 
   return (
     <header className="pda-topbar registry-topbar">
+      <div className="pda-device-strip" aria-label="Состояние КПК">
+        <span className="pda-device-model">КПК «ДОЛГ» // PDA-09</span>
+        <span className="pda-device-section">Раздел: {activeTab.label}</span>
+        <span className="pda-device-channel">
+          <span className="pda-device-channel-led" aria-hidden="true" />
+          Защищённый канал
+        </span>
+      </div>
       <div className="pda-shell-header registry-shell-header">
         <div className="pda-brand registry-brand">
           <span className="pda-brand-mark registry-brand-mark">
