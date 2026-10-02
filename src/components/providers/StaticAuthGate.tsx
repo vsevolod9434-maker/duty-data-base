@@ -239,7 +239,7 @@ export function StaticAuthGate({ children }: { children: ReactNode }) {
     <main className="login-page">
       <section className="login-shell">
         <div className="login-card">
-          <p>Проверка служебного доступа...</p>
+          <p>Проверка служебного доступа…</p>
         </div>
       </section>
     </main>

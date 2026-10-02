@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 /* eslint-disable @next/next/no-img-element */
 import { useQuery } from "@tanstack/react-query";
@@ -2308,7 +2308,7 @@ export default function StalkerProfilesPage() {
                       title={isStaticExportEnabled ? transactionalImportMessage : undefined}
                       type="button"
                     >
-                      {isImportingProfiles ? "Импорт..." : "Импортировать записи"}
+                      {isImportingProfiles ? "Импорт…" : "Импортировать записи"}
                     </button>
                     {isStaticExportEnabled ? <span>{transactionalImportMessage}</span> : null}
                   </div>
@@ -2317,7 +2317,7 @@ export default function StalkerProfilesPage() {
                 <div className="profile-list">
                   {!isStorageReady || isProfileLoading ? (
                     <div className="empty-state">
-                      <p>Загрузка профилей...</p>
+                      <p>Загрузка профилей…</p>
                     </div>
                   ) : paginatedProfiles.items.length > 0 ? (
                     paginatedProfiles.items.map((profile) => {
@@ -2378,7 +2378,7 @@ export default function StalkerProfilesPage() {
               <section className="profile-column detail-host-column">
                 {!isStorageReady || isProfileLoading ? (
                   <div className="empty-state">
-                    <p>Загрузка профилей...</p>
+                    <p>Загрузка профилей…</p>
                   </div>
                 ) : selectedProfile ? (
                   <div className="profile-detail">
@@ -2397,7 +2397,7 @@ export default function StalkerProfilesPage() {
                             />
                           ) : (
                             <>
-                              <div className="profile-photo-state">Загрузка изображения...</div>
+                              <div className="profile-photo-state">Загрузка изображения…</div>
                               <img
                                 key={selectedProfilePhotoKey}
                                 alt=""
@@ -2601,7 +2601,7 @@ export default function StalkerProfilesPage() {
                           />
                           <div className="stalker-note-actions">
                             <button className="primary-command" disabled={isNoteSaving} type="submit">
-                              {isNoteSaving ? "Сохранение..." : "Сохранить"}
+                              {isNoteSaving ? "Сохранение…" : "Сохранить"}
                             </button>
                             <button
                               className="command-row"
@@ -2625,7 +2625,7 @@ export default function StalkerProfilesPage() {
                       <div className="stalker-notes-list">
                         {stalkerNotesQuery.isPending && selectedProfileNotes.length === 0 ? (
                           <div className="empty-state compact-empty-state">
-                            <p>Загрузка заметок...</p>
+                            <p>Загрузка заметок…</p>
                           </div>
                         ) : selectedProfileNotes.length > 0 ? (
                           selectedProfileNotes.map((note) => {
@@ -2648,7 +2648,7 @@ export default function StalkerProfilesPage() {
                                         onClick={() => submitNoteEdit(note.id)}
                                         type="button"
                                       >
-                                        {isNoteSaving ? "Сохранение..." : "Сохранить"}
+                                        {isNoteSaving ? "Сохранение…" : "Сохранить"}
                                       </button>
                                       <button className="command-row" disabled={isNoteSaving} onClick={cancelEditNote} type="button">
                                         Отмена
@@ -2863,7 +2863,7 @@ export default function StalkerProfilesPage() {
                           />
                         ) : (
                           <>
-                            <span className="profile-photo-state">Загрузка изображения...</span>
+                            <span className="profile-photo-state">Загрузка изображения…</span>
                             <img
                               key={photoPreviewKey}
                               alt=""
@@ -2918,7 +2918,7 @@ export default function StalkerProfilesPage() {
                 Отмена
               </button>
               <button className="primary-command" disabled={isProfileSaving} type="submit">
-                {isProfileSaving ? "Сохранение..." : editingProfileId ? "Сохранить изменения" : "Сохранить профиль"}
+                {isProfileSaving ? "Сохранение…" : editingProfileId ? "Сохранить изменения" : "Сохранить профиль"}
               </button>
             </div>
           </form>
@@ -2981,7 +2981,7 @@ export default function StalkerProfilesPage() {
                               onClick={() => void addProfileToGroup(group.id)}
                               type="button"
                             >
-                              {isProfileSaving ? "Сохранение..." : "Добавить"}
+                              {isProfileSaving ? "Сохранение…" : "Добавить"}
                             </button>
                           </div>
                         ))

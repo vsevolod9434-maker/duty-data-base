@@ -129,7 +129,7 @@ export default function LoginPage() {
             {message ? <p className="login-error">{message}</p> : null}
 
             <button className="login-submit interactive-button" disabled={isLoading} type="submit">
-              {isLoading ? "Проверка допуска..." : "Войти"}
+              {isLoading ? "Проверка допуска…" : "Войти"}
             </button>
           </form>
         </div>

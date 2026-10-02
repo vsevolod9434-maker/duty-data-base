@@ -154,7 +154,7 @@ body::after {
 .pda-brand-copy strong,
 .registry-brand-copy strong {
   color: #e2e4e4;
-  font-family: "Arial Narrow", "Roboto Condensed", "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: .92rem;
   font-weight: 700;
   letter-spacing: .075em;
@@ -171,7 +171,7 @@ body::after {
   border-radius: 0;
   background: transparent;
   color: #aeb2b3;
-  font-family: "Arial Narrow", "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: .84rem;
   font-weight: 700;
   letter-spacing: .045em;
@@ -225,7 +225,7 @@ body::after {
 
 .pda-status,
 .registry-status {
-  font-family: Consolas, "Lucida Console", monospace;
+  font-family: var(--font-pda-ui);
   font-size: .76rem;
   letter-spacing: .035em;
   color: #aeb2b3;
@@ -334,7 +334,7 @@ body::after {
 .login-card-header h2,
 .login-briefing-copy h1 {
   color: #edf0f0;
-  font-family: "Arial Narrow", "Roboto Condensed", "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-weight: 700;
   letter-spacing: .055em;
   text-transform: uppercase;
@@ -349,7 +349,7 @@ body::after {
 .filter-label-row,
 .apartment-list-metric-label {
   color: #aeb2b3;
-  font-family: Consolas, "Lucida Console", monospace;
+  font-family: var(--font-pda-ui);
   font-size: .72rem;
   letter-spacing: .08em;
   text-transform: uppercase;
@@ -658,7 +658,7 @@ button:disabled,
   background: #17191b;
   color: #c6c9c9;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
-  font-family: "Arial Narrow", "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   letter-spacing: .035em;
 }
 
@@ -738,7 +738,7 @@ button:disabled,
   border-top: 1px solid #383c3e;
   background: #090a0b;
   color: #8f9495;
-  font-family: Consolas, "Lucida Console", monospace;
+  font-family: var(--font-pda-ui);
   font-size: .72rem;
   letter-spacing: .055em;
   text-transform: uppercase;
@@ -754,7 +754,7 @@ button:disabled,
   top: -1.55rem;
   left: 0;
   color: #64696b;
-  font: 700 .65rem/1 Consolas, "Lucida Console", monospace;
+  font: 700 .65rem/1 var(--font-pda-ui);
   letter-spacing: .12em;
 }
 
@@ -764,7 +764,7 @@ button:disabled,
 
 .login-form label > span {
   color: #aeb2b3;
-  font-family: Consolas, "Lucida Console", monospace;
+  font-family: var(--font-pda-ui);
   font-size: .72rem;
   letter-spacing: .075em;
   text-transform: uppercase;
@@ -779,7 +779,7 @@ th {
   border-color: #3c4042 !important;
   background: #151719 !important;
   color: #aeb2b3 !important;
-  font-family: Consolas, "Lucida Console", monospace;
+  font-family: var(--font-pda-ui);
   font-size: .72rem;
   letter-spacing: .055em;
   text-transform: uppercase;

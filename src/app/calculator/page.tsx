@@ -219,7 +219,7 @@ export default function CalculatorPage() {
                   </div>
                 ) : isCurrentUserLoading || catalogQuery.isPending ? (
                   <div className="empty-state calculator-empty-state">
-                    <p>Загрузка каталога...</p>
+                    <p>Загрузка каталога…</p>
                   </div>
                 ) : filteredItems.length > 0 ? (
                   <div className="calculator-catalog-table">

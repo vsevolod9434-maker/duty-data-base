@@ -132,7 +132,7 @@ const journalDescriptions: Record<JournalTab, string> = {
   Задания: "Выдача, контроль сроков и закрытие рабочих заданий.",
   Продажи: "Предметы, которые «Долг» продаёт сталкерам, группам или вручную указанным покупателям.",
   Покупки: "Предметы, которые «Долг» покупает у сталкеров, групп или вручную указанных продавцов.",
-  Нарушения: "Фиксация активных и закрытых нарушений по сталкерским профилям и ручным записям.",
+  Нарушения: "Фиксация активных и закрытых нарушений по профилям сталкеров и ручным записям.",
 };
 
 function createEmptyTaskDraft() {
@@ -1576,7 +1576,7 @@ export default function JournalsPage() {
 
     if (taskDraft.assigneeMode === "stalker") {
       if (!taskDraft.stalkerId) {
-        setTaskFormMessage("Выберите сталкерский профиль.");
+        setTaskFormMessage("Выберите профиль сталкера.");
         return;
       }
 
@@ -1759,7 +1759,7 @@ export default function JournalsPage() {
 
         {!isStorageReady ? (
           <div className="empty-state">
-            <p>Загрузка записей...</p>
+            <p>Загрузка записей…</p>
           </div>
         ) : (
           <>
@@ -1844,7 +1844,7 @@ export default function JournalsPage() {
 
         {!isStorageReady ? (
           <div className="empty-state">
-            <p>Загрузка записей...</p>
+            <p>Загрузка записей…</p>
           </div>
         ) : (
           <>
@@ -1910,7 +1910,7 @@ export default function JournalsPage() {
 
         {!isStorageReady ? (
           <div className="empty-state">
-            <p>Загрузка записей...</p>
+            <p>Загрузка записей…</p>
           </div>
         ) : (
           <>
@@ -2043,7 +2043,7 @@ export default function JournalsPage() {
                 ))}
               </div>
 
-              {isJournalLoading ? <p className="draft-message">Загрузка журналов...</p> : null}
+              {isJournalLoading ? <p className="draft-message">Загрузка журналов…</p> : null}
               {journalLoadMessage ? <p className="form-error">{journalLoadMessage}</p> : null}
               {journalImportMessage ? <p className="draft-message">{journalImportMessage}</p> : null}
               {localImportTasks.length > 0 || localImportTradeOperations.length > 0 || localImportViolations.length > 0 ? (
@@ -2089,7 +2089,7 @@ export default function JournalsPage() {
               <section className="form-section">
                 <div className="form-section-heading">
                   <h2>Подтверждение</h2>
-                  <span>Выполнение будет засчитано текущим пользователем</span>
+                  <span>Выполнение будет засчитано текущим пользователем.</span>
                 </div>
                 <div className="task-complete-grid">
                   <ActionAuthorLine action="Принимает" name={currentUserLabel} />
@@ -2166,7 +2166,7 @@ export default function JournalsPage() {
                       results={taskStalkerSearchResults}
                       selectedLabel={getSelectedProfileLabel(taskDraft.stalkerId)}
                       selectedPrefix="Выбран сталкер"
-                      title="Поиск сталкерского профиля"
+                      title="Поиск профиля сталкера"
                     />
                   ) : null}
 
@@ -2322,7 +2322,7 @@ export default function JournalsPage() {
                       results={tradeStalkerSearchResults}
                       selectedLabel={getSelectedProfileLabel(tradeDraft.stalkerId)}
                       selectedPrefix={tradeModalType === "sale" ? "Выбран покупатель" : "Выбран продавец"}
-                      title="Поиск сталкерского профиля"
+                      title="Поиск профиля сталкера"
                     />
                   ) : null}
 
@@ -2488,7 +2488,7 @@ export default function JournalsPage() {
                       results={violationProfileSearchResults}
                       selectedLabel={getSelectedProfileLabel(violationDraft.profileId)}
                       selectedPrefix="Выбран нарушитель"
-                      title="Поиск сталкерского профиля"
+                      title="Поиск профиля сталкера"
                     />
                   ) : null}
 

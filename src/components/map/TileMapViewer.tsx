@@ -1134,7 +1134,7 @@ export function TileMapViewer({
   }
 
   if (status === "loading") {
-    return <div className="map-viewer-state">Загрузка карты...</div>;
+    return <div className="map-viewer-state">Загрузка карты…</div>;
   }
 
   if (status === "missing") {

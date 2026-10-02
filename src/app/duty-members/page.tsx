@@ -1074,7 +1074,7 @@ export default function DutyMembersPage() {
                 <input disabled={isSaving} maxLength={500} onChange={(event) => updateDraft("photoUrl", event.target.value)} placeholder="Например: https://..." type="url" value={draft.photoUrl} />
               </label>
               <div className="profile-photo-preview duty-member-photo-preview">
-                <span className="profile-photo-title">Фото профиля</span>
+                <span className="profile-photo-title">Фотография профиля</span>
                 <div className="profile-photo-frame">
                   <DutyMemberPhoto alt="Фотография профиля состава" src={normalizedPhotoUrl} />
                 </div>
@@ -1091,7 +1091,7 @@ export default function DutyMembersPage() {
             Отмена
           </button>
           <button className="primary-command interactive-button" disabled={isSaving} type="submit">
-            {isSaving ? "Сохранение..." : isCreating ? "Создать пользователя" : "Сохранить профиль"}
+            {isSaving ? "Сохранение…" : isCreating ? "Создать пользователя" : "Сохранить профиль"}
           </button>
           </div>
         </form>
@@ -1141,7 +1141,7 @@ export default function DutyMembersPage() {
                   ) : null}
                 </div>
 
-                {isLoading ? <p className="empty-state">Загрузка состава...</p> : null}
+                {isLoading ? <p className="empty-state">Загрузка состава…</p> : null}
                 {!isLoading && loadError ? <p className="draft-message">{loadError}</p> : null}
                 {!isLoading && !loadError && members.length === 0 ? <p className="empty-state">Профили состава пока не добавлены.</p> : null}
                 {!isLoading && !loadError && members.length > 0 && activeMembers.length === 0 && excludedMembers.length === 0 ? <p className="empty-state">Профили не найдены.</p> : null}
@@ -1358,7 +1358,7 @@ export default function DutyMembersPage() {
                 Отмена
               </button>
               <button className="primary-command interactive-button" disabled={isResetPasswordSaving} type="submit">
-                {isResetPasswordSaving ? "Сохранение..." : "Сбросить пароль"}
+                {isResetPasswordSaving ? "Сохранение…" : "Сбросить пароль"}
               </button>
             </div>
           </form>

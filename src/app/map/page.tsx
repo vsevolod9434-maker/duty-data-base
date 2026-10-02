@@ -1368,7 +1368,7 @@ export default function MapPage() {
     };
 
     setIsSaving(true);
-    setMarkerCopyMessage("Сохранение копии метки...");
+    setMarkerCopyMessage("Сохранение копии метки…");
 
     try {
       const createdMarker = await createMapMarker(normalizeMarkerDraft(nextDraft));
@@ -2235,7 +2235,7 @@ export default function MapPage() {
             Отмена
           </button>
           <button className="primary-command interactive-button" disabled={isSaving || isPointPending} type="submit">
-            {isSaving ? "Сохранение..." : "Сохранить метку"}
+            {isSaving ? "Сохранение…" : "Сохранить метку"}
           </button>
         </div>
       </form>
@@ -2315,7 +2315,7 @@ export default function MapPage() {
             Отмена
           </button>
           <button className="primary-command interactive-button" disabled={isSaving || isPointPending} type="submit">
-            {isSaving ? "Сохранение..." : "Сохранить надпись"}
+            {isSaving ? "Сохранение…" : "Сохранить надпись"}
           </button>
         </div>
       </form>
@@ -2419,7 +2419,7 @@ export default function MapPage() {
             Отмена
           </button>
           <button className="primary-command interactive-button" disabled={isSaving || isCenterPending} type="submit">
-            {isSaving ? "Сохранение..." : "Сохранить зону"}
+            {isSaving ? "Сохранение…" : "Сохранить зону"}
           </button>
         </div>
       </form>
@@ -2487,7 +2487,7 @@ export default function MapPage() {
             Отмена
           </button>
           <button className="primary-command interactive-button" disabled={isSaving || routeDraft.points.length < 2} type="submit">
-            {isSaving ? "Сохранение..." : "Сохранить маршрут"}
+            {isSaving ? "Сохранение…" : "Сохранить маршрут"}
           </button>
         </div>
       </form>
@@ -2638,7 +2638,7 @@ export default function MapPage() {
                   </div>
                 </div>
 
-                {isLoadingObjects ? <p className="map-panel-message">Загрузка объектов карты...</p> : null}
+                {isLoadingObjects ? <p className="map-panel-message">Загрузка объектов карты…</p> : null}
                 {!isLoadingObjects && (objectError || objectLoadError) ? (
                   <p className="map-panel-message map-panel-message-danger">{objectError || objectLoadError}</p>
                 ) : null}
@@ -3002,7 +3002,7 @@ export default function MapPage() {
                   Отмена
                 </button>
                 <button className="primary-command interactive-button" disabled={isSaving} type="submit">
-                  {isSaving ? "Сохранение..." : "Сохранить метку"}
+                  {isSaving ? "Сохранение…" : "Сохранить метку"}
                 </button>
               </div>
             </form>
@@ -3146,7 +3146,7 @@ export default function MapPage() {
                   Отмена
                 </button>
                 <button className="primary-command interactive-button" disabled={isSaving} type="submit">
-                  {isSaving ? "Сохранение..." : "Сохранить зону"}
+                  {isSaving ? "Сохранение…" : "Сохранить зону"}
                 </button>
               </div>
             </form>
@@ -3253,7 +3253,7 @@ export default function MapPage() {
                   Отмена
                 </button>
                 <button className="primary-command interactive-button" disabled={isSaving} type="submit">
-                  {isSaving ? "Сохранение..." : "Сохранить маршрут"}
+                  {isSaving ? "Сохранение…" : "Сохранить маршрут"}
                 </button>
               </div>
             </form>
