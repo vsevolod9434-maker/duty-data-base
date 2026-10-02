@@ -101,6 +101,26 @@ assert.equal(
   "Top-level dropdown navigation must route through the unprefixed internal href.",
 );
 
+const profilesSource = readFileSync(
+  path.join(rootDir, "src", "app", "stalkers", "profiles", "page.tsx"),
+  "utf8",
+);
+const groupsSource = readFileSync(
+  path.join(rootDir, "src", "app", "stalkers", "groups", "page.tsx"),
+  "utf8",
+);
+
+for (const [source, fragment, message] of [
+  [profilesSource, 'setActiveProfileTab("Задания");', "Selecting a stalker profile must open a useful records tab by default."],
+  [profilesSource, 'router.replace(`/stalkers/profiles?profileId=${encodeURIComponent(profileId)}`', "Selected profile must be reflected in the URL for reload/deep-link continuity."],
+  [profilesSource, 'router.push(`/stalkers/groups?groupId=${encodeURIComponent(groupId)}`', "Profile group cards must open the exact related group."],
+  [groupsSource, 'setActiveGroupTab("Состав");', "Selecting a stalker group must open its member list by default."],
+  [groupsSource, 'router.replace(`/stalkers/groups?groupId=${encodeURIComponent(groupId)}`', "Selected group must be reflected in the URL for reload/deep-link continuity."],
+  [groupsSource, 'router.push(`/stalkers/profiles?profileId=${encodeURIComponent(profile.id)}`', "Group members must provide direct navigation to the exact stalker profile."],
+]) {
+  assert.equal(source.includes(fragment), true, message);
+}
+
 const centeredGrid = "grid-template-columns: minmax(0, 1fr) max-content minmax(0, 1fr);";
 assert.equal(
   globalsSource.split(centeredGrid).length - 1 >= 2,

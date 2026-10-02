@@ -12247,6 +12247,14 @@ body::after,
     var(--profiles-panel);
 }
 
+.profiles-page .profiles-list-column,
+.profiles-page .detail-host-column {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
 .profiles-page .list-header-block {
   border-bottom: 1px solid var(--profiles-line);
   background: transparent;
@@ -12287,21 +12295,22 @@ body::after,
 }
 
 .profiles-page .profiles-list-column .profile-list > .profile-list-item {
+
   display: grid;
-  grid-template-rows: 1.42rem 1.28rem;
+  grid-template-rows: auto auto;
   align-content: center;
-  gap: 0.36rem;
+  gap: 0.34rem;
   width: 100%;
-  height: 82px;
-  min-height: 82px;
-  max-height: 82px;
+  height: auto;
+  min-height: 78px;
+  max-height: none;
   box-sizing: border-box;
   overflow: hidden;
   border: 0;
   border-bottom: 1px solid rgba(190, 204, 209, 0.09);
   background: var(--profiles-row);
   color: var(--profiles-muted);
-  padding: 0.62rem 0.72rem;
+  padding: 0.58rem 0.72rem;
   text-align: left;
   transform: none;
 }
@@ -12337,12 +12346,13 @@ body::after,
 }
 
 .profiles-page .profiles-list-column .profile-list > .profile-list-item .profile-list-info-row {
+
   display: grid;
   grid-template-columns: minmax(0, 1fr) max-content;
   align-items: center;
   gap: 0.48rem;
   min-width: 0;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .profiles-page .profiles-list-column .profile-list > .profile-list-item .profile-list-name,
@@ -12382,20 +12392,20 @@ body::after,
 }
 
 .profiles-page .profiles-list-column .profile-list > .profile-list-item .profile-list-badges {
+
   display: flex;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   align-items: center;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   justify-self: end;
   justify-content: flex-end;
   gap: 0.2rem;
-  height: 1.12rem;
   min-width: 0;
-  max-width: none;
-  max-height: 1.12rem;
-  overflow: visible;
+  max-width: 12rem;
+  height: auto;
+  max-height: none;
+  overflow: hidden;
   padding: 0;
-  white-space: nowrap;
 }
 
 .profiles-page .profiles-list-column .profile-list > .profile-list-item .profile-list-badges:empty::after {
@@ -12425,8 +12435,9 @@ body::after,
 }
 
 .profiles-page .profile-hero {
+
   display: grid;
-  grid-template-columns: 182px minmax(0, 1fr);
+  grid-template-columns: 182px minmax(0, 1fr) minmax(8.4rem, 9.4rem);
   gap: 0.78rem;
   position: relative;
   align-items: stretch;
@@ -12434,15 +12445,15 @@ body::after,
   overflow: hidden;
   border: 1px solid rgba(218, 229, 232, 0.18);
   background:
-    linear-gradient(90deg, rgba(168, 50, 58, 0.16), transparent 17rem),
+    linear-gradient(90deg, rgba(168, 50, 58, 0.12), transparent 17rem),
     linear-gradient(180deg, #161c1f, #0a0f11);
   box-shadow:
-    inset 5px 0 0 var(--profiles-red),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
   padding: 0.72rem 0.78rem;
 }
 
 .profiles-page .profile-hero-photo {
+  grid-column: 1;
   position: relative;
   align-self: stretch;
   width: 182px;
@@ -12468,23 +12479,8 @@ body::after,
 }
 
 .profiles-page .profile-photo-overlay {
-  position: absolute;
-  inset: 0.18rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.18rem;
-  overflow: hidden;
-  background:
-    linear-gradient(180deg, rgba(4, 5, 6, 0.18), rgba(4, 5, 6, 0.78)),
-    rgba(4, 5, 6, 0.34);
-  color: #eef4f4;
-  opacity: 0;
-  padding: 0.72rem 0.56rem;
-  pointer-events: none;
-  text-align: center;
-  transition: opacity 120ms ease;
+
+  display: none;
 }
 
 .profiles-page .profile-photo-overlay span {
@@ -12516,6 +12512,7 @@ body::after,
 }
 
 .profiles-page .profile-hero-main {
+  grid-column: 2;
   display: grid;
   justify-self: stretch;
   width: 100%;
@@ -12528,10 +12525,11 @@ body::after,
 }
 
 .profiles-page .profile-hero-head {
+
   display: grid;
   gap: 0.46rem;
   min-width: 0;
-  padding-right: 9.4rem;
+  padding-right: 0;
 }
 
 .profiles-page .profile-hero-badges {
@@ -12554,9 +12552,9 @@ body::after,
 .profiles-page .badge-chip.badge-affiliation-loner,
 .profiles-page .profile-affiliation-badge.badge-affiliation-loner,
 .profiles-page .profile-badge.badge-affiliation-loner {
-  border-color: rgba(201, 132, 60, 0.55);
-  background: rgba(86, 46, 16, 0.52);
-  color: #f0be82;
+  border-color: rgba(150, 156, 158, 0.38);
+  background: rgba(39, 43, 45, 0.62);
+  color: #c8ced0;
 }
 
 .profiles-page .badge-chip.badge-affiliation-duty,
@@ -12570,49 +12568,49 @@ body::after,
 .profiles-page .badge-chip.badge-affiliation-freedom,
 .profiles-page .profile-affiliation-badge.badge-affiliation-freedom,
 .profiles-page .profile-badge.badge-affiliation-freedom {
-  border-color: rgba(132, 184, 112, 0.58);
-  background: rgba(35, 75, 31, 0.5);
-  color: #c4e2b2;
+  border-color: rgba(150, 156, 158, 0.38);
+  background: rgba(39, 43, 45, 0.62);
+  color: #c8ced0;
 }
 
 .profiles-page .badge-chip.badge-affiliation-gopnik,
 .profiles-page .profile-affiliation-badge.badge-affiliation-gopnik,
 .profiles-page .profile-badge.badge-affiliation-gopnik {
-  border-color: rgba(150, 154, 156, 0.5);
-  background: rgba(54, 58, 60, 0.58);
-  color: #d0d4d5;
+  border-color: rgba(150, 156, 158, 0.38);
+  background: rgba(39, 43, 45, 0.62);
+  color: #c8ced0;
 }
 
 .profiles-page .badge-chip.badge-affiliation-bandit,
 .profiles-page .profile-affiliation-badge.badge-affiliation-bandit,
 .profiles-page .profile-badge.badge-affiliation-bandit {
-  border-color: rgba(224, 228, 229, 0.48);
-  background: rgba(212, 218, 219, 0.14);
-  color: #f2f4f4;
+  border-color: rgba(150, 156, 158, 0.38);
+  background: rgba(39, 43, 45, 0.62);
+  color: #c8ced0;
 }
 
 .profiles-page .badge-chip.badge-affiliation-mercenary,
 .profiles-page .profile-affiliation-badge.badge-affiliation-mercenary,
 .profiles-page .profile-badge.badge-affiliation-mercenary {
-  border-color: rgba(70, 104, 160, 0.62);
-  background: rgba(18, 42, 82, 0.58);
-  color: #a8c2ea;
+  border-color: rgba(150, 156, 158, 0.38);
+  background: rgba(39, 43, 45, 0.62);
+  color: #c8ced0;
 }
 
 .profiles-page .badge-chip.badge-affiliation-military,
 .profiles-page .profile-affiliation-badge.badge-affiliation-military,
 .profiles-page .profile-badge.badge-affiliation-military {
-  border-color: rgba(54, 117, 82, 0.58);
-  background: rgba(15, 57, 35, 0.6);
-  color: #a9d2b9;
+  border-color: rgba(150, 156, 158, 0.38);
+  background: rgba(39, 43, 45, 0.62);
+  color: #c8ced0;
 }
 
 .profiles-page .badge-chip.badge-affiliation-clear-sky,
 .profiles-page .profile-affiliation-badge.badge-affiliation-clear-sky,
 .profiles-page .profile-badge.badge-affiliation-clear-sky {
-  border-color: rgba(98, 176, 215, 0.58);
-  background: rgba(19, 72, 94, 0.52);
-  color: #b9e5f4;
+  border-color: rgba(150, 156, 158, 0.38);
+  background: rgba(39, 43, 45, 0.62);
+  color: #c8ced0;
 }
 
 .profiles-page .badge-chip.badge-neutral,
@@ -12624,9 +12622,9 @@ body::after,
 }
 
 .profiles-page .badge-state-active {
-  border-color: rgba(91, 142, 93, 0.58);
-  background: rgba(35, 73, 36, 0.54);
-  color: #c9e3c3;
+  border-color: rgba(150, 156, 158, 0.38);
+  background: rgba(39, 43, 45, 0.62);
+  color: #c8ced0;
 }
 
 .profiles-page .badge-state-archive,
@@ -12637,15 +12635,15 @@ body::after,
 }
 
 .profiles-page .badge-state-group {
-  border-color: rgba(116, 140, 76, 0.58);
-  background: rgba(55, 70, 31, 0.58);
-  color: #d2dfa6;
+  border-color: rgba(150, 156, 158, 0.38);
+  background: rgba(39, 43, 45, 0.62);
+  color: #c8ced0;
 }
 
 .profiles-page .badge-task-active {
-  border-color: rgba(78, 135, 82, 0.62);
-  background: rgba(26, 73, 36, 0.58);
-  color: #bfe1bc;
+  border-color: rgba(150, 156, 158, 0.38);
+  background: rgba(39, 43, 45, 0.62);
+  color: #c8ced0;
 }
 
 .profiles-page .badge-task-overdue,
@@ -12657,9 +12655,9 @@ body::after,
 
 .profiles-page .badge-task-completed,
 .profiles-page .badge-violation-closed {
-  border-color: rgba(77, 135, 88, 0.6);
-  background: rgba(25, 69, 34, 0.58);
-  color: #bde0bd;
+  border-color: rgba(150, 156, 158, 0.38);
+  background: rgba(39, 43, 45, 0.62);
+  color: #c8ced0;
 }
 
 .profiles-page .badge-service-group,
@@ -12681,9 +12679,9 @@ body::after,
 .profiles-page .profiles-list-column .profile-list > .profile-list-item .profile-list-badges .badge-chip.badge-service-task-active,
 .profiles-page .profile-hero-badges .profile-badge.badge-service-task-active,
 .profiles-page .badge-status-task-active {
-  border-color: rgba(78, 135, 82, 0.62);
-  background: rgba(26, 73, 36, 0.58);
-  color: #bfe1bc;
+  border-color: rgba(150, 156, 158, 0.38);
+  background: rgba(39, 43, 45, 0.62);
+  color: #c8ced0;
 }
 
 .profiles-page .badge-service-task-overdue,
@@ -12711,21 +12709,23 @@ body::after,
 }
 
 .profiles-page .profile-hero-actions {
+
+  grid-column: 3;
   display: grid;
   grid-template-columns: 1fr;
   align-content: start;
-  gap: 0.2rem;
-  min-width: 8.2rem;
-  position: absolute;
-  top: 0.72rem;
-  right: 0.78rem;
-  border-left: 0;
-  padding-left: 0;
+  align-self: start;
+  gap: 0.28rem;
+  min-width: 0;
+  position: static;
+  border-left: 1px solid rgba(190, 204, 209, 0.1);
+  padding-left: 0.68rem;
 }
 
 .profiles-page .profile-hero-actions .command-row {
+
   justify-content: center;
-  min-height: 1.56rem;
+  min-height: 1.72rem;
   background: rgba(5, 7, 8, 0.62);
   font-size: 0.74rem;
 }
@@ -12735,13 +12735,15 @@ body::after,
 }
 
 .profiles-page .profile-hero-title {
+
   margin: 0;
   color: #f1f5f5;
-  font-size: clamp(2.35rem, 2.85vw, 2.75rem);
+  font-size: clamp(1.55rem, 2.15vw, 2.1rem);
   font-weight: 900;
-  line-height: 0.95;
-  letter-spacing: 0;
-  text-transform: uppercase;
+  line-height: 1.04;
+  letter-spacing: 0.005em;
+  text-transform: none;
+  overflow-wrap: anywhere;
 }
 
 .profiles-page .profile-hero-subtitle {
@@ -12820,8 +12822,8 @@ body::after,
 .profiles-page .dossier-context-cell {
   min-width: 0;
   min-height: 88px;
-  max-height: 116px;
-  overflow: hidden;
+  max-height: none;
+  overflow: visible;
   border: 1px solid rgba(190, 204, 209, 0.12);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.024), transparent 3rem),
@@ -12867,14 +12869,19 @@ body::after,
 }
 
 .profiles-page .dossier-group-card {
+
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 0;
   align-items: center;
+  width: 100%;
   min-width: 0;
   border: 1px solid transparent;
   background: rgba(4, 5, 6, 0.16);
+  color: inherit;
+  font: inherit;
   padding: 0.18rem 0.22rem 0.18rem 0;
+  text-align: left;
 }
 
 .profiles-page .dossier-group-main {
@@ -12989,7 +12996,6 @@ body::after,
   gap: 0.52rem;
   min-width: 0;
   border: 1px solid rgba(190, 204, 209, 0.12);
-  border-top: 2px solid rgba(168, 50, 58, 0.58);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.024), transparent 4rem),
     #090d0f;
@@ -13118,12 +13124,12 @@ body::after,
 }
 
 .profiles-page .dossier-records-area {
+
   display: grid;
   gap: 0.34rem;
   min-width: 0;
   overflow: hidden;
   border: 1px solid rgba(190, 204, 209, 0.12);
-  border-top: 2px solid rgba(168, 50, 58, 0.58);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.024), transparent 4rem),
     #090d0f;
@@ -13743,14 +13749,15 @@ body::after,
 }
 
 .profiles-page .dossier-records-toolbar {
+
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.56rem;
   min-width: 0;
-  border-bottom: 1px solid rgba(190, 204, 209, 0.12);
   min-height: 2.35rem;
-  max-height: 2.55rem;
+  max-height: none;
+  border-bottom: 1px solid rgba(190, 204, 209, 0.12);
   padding-bottom: 0.26rem;
 }
 
@@ -13829,9 +13836,8 @@ body::after,
 }
 
 .profiles-page .dossier-records-area .task-section-header::before {
-  top: 0.16rem;
-  bottom: 0.42rem;
-  background: var(--profiles-red);
+
+  content: none;
 }
 
 .profiles-page .dossier-records-area .task-section-header span {
@@ -13895,7 +13901,7 @@ body::after,
 }
 
 .profiles-page .dossier-records-area .profile-record-emphasis {
-  color: #f3d4cb;
+  color: #d8dcdd;
   font-size: 0.9rem;
   font-weight: 900;
 }
@@ -13905,7 +13911,7 @@ body::after,
 }
 
 .profiles-page .dossier-records-area .profile-record-due-future {
-  color: #a8d0a8;
+  color: #c8ced0;
 }
 
 .profiles-page .dossier-records-area .profile-record-due-today,
@@ -13931,7 +13937,7 @@ body::after,
 }
 
 .profiles-page .dossier-records-area .trade-record-card .profile-record-emphasis {
-  color: #f0d3a4;
+  color: #d8dcdd;
 }
 
 .profiles-page .dossier-records-area .violation-record-card.profile-record-muted {
@@ -13970,15 +13976,30 @@ body::after,
     max-height: none;
   }
 
+  .profiles-page .profiles-list-column,
+  .profiles-page .detail-host-column {
+    overflow: visible;
+    scrollbar-gutter: auto;
+  }
+
   .profiles-page .profile-hero-photo {
     width: 100%;
     height: 220px;
     max-height: 220px;
   }
 
+  .profiles-page .profile-hero-photo,
+  .profiles-page .profile-hero-main,
+  .profiles-page .profile-hero-actions {
+    grid-column: 1;
+  }
+
   .profiles-page .profile-hero-actions {
     position: static;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border-top: 1px solid rgba(190, 204, 209, 0.1);
     border-left: 0;
+    padding-top: 0.58rem;
     padding-left: 0;
   }
 
@@ -13992,7 +14013,15 @@ body::after,
   }
 
   .profiles-page .dossier-records-actions {
+    flex: 0 1 auto;
+    min-width: 0;
     justify-content: flex-start;
+  }
+
+  .profiles-page .dossier-record-action {
+    min-width: 0;
+    width: fit-content;
+    max-width: 100%;
   }
 
   .profiles-page .stalker-notes-header {
@@ -14037,6 +14066,33 @@ body::after,
   }
 }
 
+
+
+.profiles-page .profile-entity-action-danger {
+  border-color: rgba(168, 50, 58, 0.5);
+  color: #efb7ba;
+}
+
+.profiles-page .profile-entity-action-danger:hover,
+.profiles-page .profile-entity-action-danger:focus-visible {
+  background: rgba(168, 50, 58, 0.2);
+}
+
+.profiles-page .profile-entity-action-state {
+  color: #b8c0c2;
+}
+
+.profiles-page :is(
+  .profile-column,
+  .profile-detail,
+  .profile-list-item,
+  .profile-record-card,
+  .stalker-note-card,
+  .dossier-group-card
+) {
+  animation: none;
+}
+
 /* Groups page: stabilized service dossier layout. */
 .groups-page {
   --groups-panel: #090d0f;
@@ -14052,22 +14108,34 @@ body::after,
   min-height: 100vh;
 }
 
+.groups-page .pda-content {
+  display: flex;
+  min-height: 0;
+  padding: 0;
+}
+
+
 .groups-page .groups-workspace-panel {
-  height: auto;
-  min-height: calc(100vh - 8.6rem);
+
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
   border: 0;
   background: transparent;
   box-shadow: none;
-  padding: 0.68rem;
+  padding: 0.36rem;
 }
 
 .groups-page .groups-command-grid {
+
   display: grid;
-  flex: 0 0 auto;
+  height: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
   grid-template-columns: clamp(380px, 28vw, 460px) minmax(0, 1fr);
-  gap: 0.68rem;
+  gap: 0.42rem;
   align-items: stretch;
-  min-height: calc(100vh - 10.1rem);
 }
 
 .groups-page .profile-column {
@@ -14086,9 +14154,27 @@ body::after,
     var(--groups-panel);
 }
 
+.groups-page .groups-list-column,
+.groups-page .detail-host-column {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
 .groups-page .list-header-block {
+
   border-bottom: 1px solid var(--groups-line);
-  padding-bottom: 0.52rem;
+  background: transparent;
+  box-shadow: none;
+  padding: 0 0.62rem 0.52rem;
+}
+
+.groups-page .list-column-header {
+  min-height: 0;
+  background: transparent;
+  box-shadow: none;
+  padding-inline: 0;
 }
 
 .groups-page .list-column-header h2 {
@@ -14117,12 +14203,15 @@ body::after,
 }
 
 .groups-page .group-list-card {
+
   display: grid;
+  grid-template-rows: auto auto;
   align-content: center;
+  gap: 0.32rem;
   width: 100%;
-  height: 74px;
-  min-height: 74px;
-  max-height: 74px;
+  height: auto;
+  min-height: 78px;
+  max-height: none;
   box-sizing: border-box;
   overflow: hidden;
   border: 0;
@@ -14130,7 +14219,7 @@ body::after,
   border-radius: 0;
   background: var(--groups-row);
   color: var(--groups-muted);
-  padding: 0.58rem 0.72rem 0.58rem 0.82rem;
+  padding: 0.58rem 0.72rem;
   text-align: left;
   transform: none;
 }
@@ -14160,29 +14249,41 @@ body::after,
   content: none;
 }
 
-.groups-page .group-list-card .profile-list-item-head,
+.groups-page .group-list-card .profile-list-item-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.44rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
 .groups-page .group-list-item-main {
   display: grid;
-  gap: 0.26rem;
+  gap: 0.16rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.groups-page .group-list-card .profile-list-info-row {
   min-width: 0;
   overflow: hidden;
 }
 
 .groups-page .group-list-name,
 .groups-page .group-list-meta {
-  display: block;
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+
+  color: #c5ced0;
+  font-size: 0.8rem;
+  line-height: 1.2;
 }
 
 .groups-page .group-list-name {
+
   color: var(--groups-text);
-  font-size: 0.9rem;
+  font-size: 1rem;
   font-weight: 900;
-  line-height: 1.18;
+  line-height: 1.16;
 }
 
 .groups-page .group-list-meta {
@@ -14200,21 +14301,20 @@ body::after,
 }
 
 .groups-page .group-hero-card {
+
   display: grid;
-  grid-template-columns: 182px minmax(0, 1fr);
+  grid-template-columns: 182px minmax(0, 1fr) minmax(8.4rem, 9.4rem);
   gap: 0.78rem;
   position: relative;
   align-items: stretch;
   min-height: 224px;
-  max-height: 268px;
   overflow: hidden;
   border: 1px solid rgba(218, 229, 232, 0.18);
   border-radius: 0;
   background:
-    linear-gradient(90deg, rgba(168, 50, 58, 0.16), transparent 17rem),
+    linear-gradient(90deg, rgba(168, 50, 58, 0.12), transparent 17rem),
     linear-gradient(180deg, #161c1f, #0a0f11);
   box-shadow:
-    inset 5px 0 0 var(--groups-red),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
   padding: 0.72rem 0.78rem;
 }
@@ -14242,9 +14342,10 @@ body::after,
 }
 
 .groups-page .group-hero-main {
+
   display: flex;
   flex-direction: column;
-  grid-column: 2 / -1;
+  grid-column: 2;
   align-self: stretch;
   justify-self: stretch;
   gap: 0.46rem;
@@ -14253,18 +14354,19 @@ body::after,
   max-width: none;
   min-width: 0;
   min-height: calc(224px - 1.44rem);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .groups-page .group-hero-head {
+
   display: grid;
   gap: 0.46rem;
   width: 100%;
   box-sizing: border-box;
   min-width: 0;
-  min-height: 5.35rem;
+  min-height: 0;
   align-content: start;
-  padding-right: 9.4rem;
+  padding-right: 0;
 }
 
 .groups-page .group-hero-head .profile-case-title {
@@ -14290,32 +14392,29 @@ body::after,
 }
 
 .groups-page .group-hero-actions {
-  grid-column: 2;
+
+  grid-column: 3;
   display: grid;
   grid-template-columns: 1fr;
   align-content: start;
   align-self: start;
-  justify-self: end;
-  gap: 0.2rem;
-  width: 8.2rem;
+  justify-self: stretch;
+  gap: 0.28rem;
+  width: auto;
   min-width: 0;
-  position: absolute;
-  top: 0.72rem;
-  right: 0.78rem;
-  border: 0;
-  padding-left: 0;
+  position: static;
+  border-left: 1px solid rgba(190, 204, 209, 0.1);
+  padding-left: 0.68rem;
   box-shadow: none;
 }
 
 .groups-page .group-hero-actions .command-row,
 .groups-page .group-hero-actions .task-action-button,
 .groups-page .group-hero-actions button {
+
   justify-content: center;
-  min-height: 1.56rem;
-  border: 0 !important;
-  outline: 0 !important;
+  min-height: 1.72rem;
   background: rgba(5, 7, 8, 0.62);
-  box-shadow: none !important;
   font-size: 0.74rem;
 }
 
@@ -14332,20 +14431,22 @@ body::after,
 .groups-page .group-hero-actions .task-action-button:focus-visible,
 .groups-page .group-hero-actions button:hover,
 .groups-page .group-hero-actions button:focus-visible {
-  border: 0 !important;
-  outline: 0 !important;
-  background: rgba(168, 50, 58, 0.18);
-  box-shadow: none !important;
+  border-color: rgba(190, 204, 209, 0.28);
+  outline: none;
+  background: #15191b;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 
-.groups-page .profile-case-title h3 {
+.groups-page .group-hero-title {
+
   margin: 0;
   color: #f1f5f5;
-  font-size: clamp(2.35rem, 2.85vw, 2.75rem);
+  font-size: clamp(1.55rem, 2.15vw, 2.1rem);
   font-weight: 900;
-  line-height: 0.95;
-  letter-spacing: 0;
-  text-transform: uppercase;
+  line-height: 1.04;
+  letter-spacing: 0.005em;
+  text-transform: none;
+  overflow-wrap: anywhere;
 }
 
 .groups-page .profile-case-title p {
@@ -14392,15 +14493,13 @@ body::after,
 }
 
 .groups-page .group-hero-note p {
-  display: -webkit-box;
-  max-height: 2.25rem;
+
   margin-top: 0.14rem;
-  overflow: hidden;
+  overflow: visible;
   color: #d8e0e1;
   font-size: 0.9rem;
-  line-height: 1.25;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  line-height: 1.3;
+  white-space: pre-wrap;
 }
 
 .groups-page .group-section-card {
@@ -14461,12 +14560,12 @@ body::after,
 }
 
 .groups-page .group-records-area {
+
   display: grid;
   gap: 0.3rem;
   min-width: 0;
   overflow: hidden;
   border: 1px solid rgba(190, 204, 209, 0.12);
-  border-top: 2px solid rgba(168, 50, 58, 0.58);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.024), transparent 4rem),
     #090d0f;
@@ -14474,13 +14573,14 @@ body::after,
 }
 
 .groups-page .group-records-toolbar {
+
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.56rem;
   min-width: 0;
   min-height: 2.28rem;
-  max-height: 2.55rem;
+  max-height: none;
   border-bottom: 1px solid rgba(190, 204, 209, 0.12);
   padding-bottom: 0.26rem;
 }
@@ -14605,13 +14705,13 @@ body::after,
 }
 
 .groups-page .group-task-list .profile-record-emphasis {
-  color: #f3d4cb;
+  color: #d8dcdd;
   font-size: 0.9rem;
   font-weight: 900;
 }
 
 .groups-page .group-task-list .profile-record-due-future {
-  color: #a8d0a8;
+  color: #c8ced0;
 }
 
 .groups-page .group-task-list .profile-record-due-today,
@@ -14727,9 +14827,9 @@ body::after,
 }
 
 .groups-page .member-identity .profile-affiliation-badge.badge-affiliation-loner {
-  border-color: rgba(201, 132, 60, 0.55);
-  background: rgba(86, 46, 16, 0.52);
-  color: #f0be82;
+  border-color: rgba(150, 156, 158, 0.38);
+  background: rgba(39, 43, 45, 0.62);
+  color: #c8ced0;
 }
 
 .groups-page .member-identity .profile-affiliation-badge.badge-affiliation-duty {
@@ -14739,39 +14839,39 @@ body::after,
 }
 
 .groups-page .member-identity .profile-affiliation-badge.badge-affiliation-freedom {
-  border-color: rgba(132, 184, 112, 0.58);
-  background: rgba(35, 75, 31, 0.5);
-  color: #c4e2b2;
+  border-color: rgba(150, 156, 158, 0.38);
+  background: rgba(39, 43, 45, 0.62);
+  color: #c8ced0;
 }
 
 .groups-page .member-identity .profile-affiliation-badge.badge-affiliation-gopnik {
-  border-color: rgba(150, 154, 156, 0.5);
-  background: rgba(54, 58, 60, 0.58);
-  color: #d0d4d5;
+  border-color: rgba(150, 156, 158, 0.38);
+  background: rgba(39, 43, 45, 0.62);
+  color: #c8ced0;
 }
 
 .groups-page .member-identity .profile-affiliation-badge.badge-affiliation-bandit {
-  border-color: rgba(224, 228, 229, 0.48);
-  background: rgba(212, 218, 219, 0.14);
-  color: #f2f4f4;
+  border-color: rgba(150, 156, 158, 0.38);
+  background: rgba(39, 43, 45, 0.62);
+  color: #c8ced0;
 }
 
 .groups-page .member-identity .profile-affiliation-badge.badge-affiliation-mercenary {
-  border-color: rgba(70, 104, 160, 0.62);
-  background: rgba(18, 42, 82, 0.58);
-  color: #a8c2ea;
+  border-color: rgba(150, 156, 158, 0.38);
+  background: rgba(39, 43, 45, 0.62);
+  color: #c8ced0;
 }
 
 .groups-page .member-identity .profile-affiliation-badge.badge-affiliation-military {
-  border-color: rgba(54, 117, 82, 0.58);
-  background: rgba(15, 57, 35, 0.6);
-  color: #a9d2b9;
+  border-color: rgba(150, 156, 158, 0.38);
+  background: rgba(39, 43, 45, 0.62);
+  color: #c8ced0;
 }
 
 .groups-page .member-identity .profile-affiliation-badge.badge-affiliation-clear-sky {
-  border-color: rgba(98, 176, 215, 0.58);
-  background: rgba(19, 72, 94, 0.52);
-  color: #b9e5f4;
+  border-color: rgba(150, 156, 158, 0.38);
+  background: rgba(39, 43, 45, 0.62);
+  color: #c8ced0;
 }
 
 .groups-page .member-identity .profile-affiliation-badge.badge-neutral {
@@ -14792,9 +14892,9 @@ body::after,
 .groups-page .group-hero-main .profile-badge.badge-state-group,
 .groups-page .group-hero-main .profile-badge.badge-task-active,
 .groups-page .group-hero-main .profile-badge.badge-task-completed {
-  border-color: rgba(78, 135, 82, 0.62);
-  background: rgba(26, 73, 36, 0.58);
-  color: #bfe1bc;
+  border-color: rgba(150, 156, 158, 0.38);
+  background: rgba(39, 43, 45, 0.62);
+  color: #c8ced0;
 }
 
 .groups-page .badge-state-archive,
@@ -14811,6 +14911,31 @@ body::after,
   border-color: rgba(179, 56, 63, 0.66);
   background: rgba(91, 18, 24, 0.62);
   color: #f0afb3;
+}
+
+
+.groups-page .group-entity-action-danger {
+  border-color: rgba(168, 50, 58, 0.5);
+  color: #efb7ba;
+}
+
+.groups-page .group-entity-action-danger:hover,
+.groups-page .group-entity-action-danger:focus-visible {
+  background: rgba(168, 50, 58, 0.2);
+}
+
+.groups-page .group-entity-action-state {
+  color: #b8c0c2;
+}
+
+.groups-page :is(
+  .profile-column,
+  .profile-detail,
+  .group-list-card,
+  .profile-record-card,
+  .group-member-row
+) {
+  animation: none;
 }
 
 .journals-page {
@@ -15656,23 +15781,26 @@ body::after,
 
 @media (max-width: 900px) {
   .groups-page .groups-command-grid,
-  .groups-page .group-hero-card,
-  .groups-page .group-member-row {
+  .groups-page .group-hero-card {
     grid-template-columns: 1fr;
+  }
+
+  .groups-page .groups-list-column,
+  .groups-page .detail-host-column {
+    overflow: visible;
+    scrollbar-gutter: auto;
+  }
+
+  .groups-page .group-avatar-frame,
+  .groups-page .group-hero-main,
+  .groups-page .group-hero-actions {
+    grid-column: 1;
   }
 
   .groups-page .group-avatar-frame {
     width: 100%;
-    height: 170px;
-    max-height: 170px;
-  }
-
-  .groups-page .group-member-actions {
-    justify-content: flex-start;
-  }
-
-  .groups-page .group-hero-notes {
-    grid-column: auto;
+    height: 190px;
+    max-height: 190px;
   }
 
   .groups-page .group-hero-main {
@@ -15681,12 +15809,64 @@ body::after,
 
   .groups-page .group-hero-actions {
     position: static;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     justify-self: stretch;
     width: 100%;
+    border-top: 1px solid rgba(190, 204, 209, 0.1);
+    border-left: 0;
+    padding-top: 0.58rem;
+    padding-left: 0;
   }
 
   .groups-page .group-hero-head {
     padding-right: 0;
+  }
+
+  .groups-page .group-records-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .groups-page .group-records-actions {
+    flex: 0 1 auto;
+    min-width: 0;
+    justify-content: flex-start;
+  }
+
+  .groups-page .group-record-action {
+    min-width: 0;
+    width: fit-content;
+    max-width: 100%;
+  }
+
+  .groups-page .group-member-row {
+    grid-template-columns: 2.9rem minmax(0, 1fr);
+  }
+
+  .groups-page .group-member-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    border-top: 1px solid rgba(190, 204, 209, 0.1);
+    border-left: 0;
+    padding-top: 0.42rem;
+    padding-left: 0;
+  }
+}
+
+
+@media (max-width: 560px) {
+  .profiles-page .profile-hero-actions,
+  .groups-page .group-hero-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .groups-page .group-member-actions {
+    flex-wrap: wrap;
+  }
+
+  .profiles-page .dossier-records-toolbar .profile-section-tabs,
+  .groups-page .groups-record-tabs {
+    width: 100%;
   }
 }
 

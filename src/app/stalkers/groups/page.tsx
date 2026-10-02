@@ -2,6 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import type { FormEvent, MouseEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
@@ -156,6 +157,18 @@ function formatDate(value: string) {
   return value ? new Date(value).toLocaleDateString("ru-RU") : "Не указана";
 }
 
+function getGroupTaskMark(groupId: string, tasks: Task[]) {
+  const activeTasks = tasks.filter(
+    (task) => task.assigneeType === "group" && task.groupId === groupId && task.status === "active",
+  );
+
+  if (activeTasks.some(isTaskOverdue)) {
+    return "overdue" as const;
+  }
+
+  return activeTasks.length > 0 ? ("active" as const) : ("none" as const);
+}
+
 function normalizeApiProfile(profile: StalkerProfileApiResponse): StalkerProfile {
   return {
     id: profile.id,
@@ -245,6 +258,7 @@ function isDirtyValue(currentValue: unknown, initialValue: unknown) {
 }
 
 export default function StalkerGroupsPage() {
+  const router = useRouter();
   const queryClient = useDutyQueryClient();
   const { currentUser, currentUserKey, isCurrentUserLoading } = useCurrentUserCacheKey();
   const [profiles, setProfiles] = useState<StalkerProfile[]>(() =>
@@ -354,8 +368,17 @@ export default function StalkerGroupsPage() {
   useEffect(() => {
     return scheduleClientStateSync(() => {
       if (groupsQuery.data) {
+        const queryGroupId = new URLSearchParams(window.location.search).get("groupId");
+        const groupFromQuery = queryGroupId ? groupsQuery.data.find((group) => group.id === queryGroupId) : null;
+
         setGroups(groupsQuery.data);
         setLocalImportGroups((currentLocalGroups) => (groupsQuery.data.length > 0 ? [] : currentLocalGroups));
+
+        if (groupFromQuery) {
+          setSelectedGroupId(groupFromQuery.id);
+          setGroupListTab(groupFromQuery.status);
+          setActiveGroupTab("Состав");
+        }
       }
     });
   }, [groupsQuery.data]);
@@ -446,15 +469,10 @@ export default function StalkerGroupsPage() {
 
     return tasks.filter((task) => task.assigneeType === "group" && task.groupId === selectedGroup.id);
   }, [selectedGroup, tasks]);
-  const selectedGroupTaskMark = useMemo(() => {
-    const activeTasks = selectedGroupTasks.filter((task) => task.status === "active");
-
-    if (activeTasks.some(isTaskOverdue)) {
-      return "overdue" as const;
-    }
-
-    return activeTasks.length > 0 ? ("active" as const) : ("none" as const);
-  }, [selectedGroupTasks]);
+  const selectedGroupTaskMark = useMemo(
+    () => (selectedGroup ? getGroupTaskMark(selectedGroup.id, tasks) : "none"),
+    [selectedGroup, tasks],
+  );
   const availableProfiles = useMemo(() => profiles.filter((profile) => profile.status === "active"), [profiles]);
   const selectedGroupAvailableProfiles = useMemo(() => {
     if (!selectedGroup) {
@@ -980,8 +998,6 @@ export default function StalkerGroupsPage() {
         currentGroups.map((group) => (group.id === groupId ? updatedGroup : group)),
       );
       setGroupListTab(status);
-      setSelectedGroupId("");
-      setActiveGroupTab("");
       setGroupPage(1);
       setTableMessage(status === "archive" ? "Группа перенесена в архив." : "Группа возвращена в активные.");
       addActivityLogEntry({
@@ -1014,6 +1030,7 @@ export default function StalkerGroupsPage() {
       setSelectedGroupId("");
       setActiveGroupTab("");
       setGroupPage(1);
+      router.replace("/stalkers/groups", { scroll: false });
       setTableMessage("Группа удалена. Профили участников не изменены.");
       addActivityLogEntry({
         type: "group",
@@ -1084,20 +1101,18 @@ export default function StalkerGroupsPage() {
 
   function getGroupMemberPreview(group: StalkerGroup) {
     if (group.members.length === 0) {
-      return "Участники не добавлены";
+      return "Участников: 0";
     }
 
     const names = group.members.map((member) => {
       const profile = profileById.get(member.stalkerId);
-
       return profile ? getProfileTitle(profile) : "Профиль не найден";
     });
-    const visibleNames = names.slice(0, 3);
+    const visibleNames = names.slice(0, 2);
     const remainingCount = names.length - visibleNames.length;
+    const remainder = remainingCount > 0 ? ` · ещё ${remainingCount}` : "";
 
-    return remainingCount > 0
-      ? `Участники: ${visibleNames.join(", ")} и ещё ${remainingCount}`
-      : `Участники: ${visibleNames.join(", ")}`;
+    return `Участников: ${group.members.length} · ${visibleNames.join(", ")}${remainder}`;
   }
 
   function openGroupTaskModal() {
@@ -1262,6 +1277,7 @@ export default function StalkerGroupsPage() {
   function openGroup(groupId: string) {
     setSelectedGroupId(groupId);
     setActiveGroupTab("Состав");
+    router.replace(`/stalkers/groups?groupId=${encodeURIComponent(groupId)}`, { scroll: false });
   }
 
   async function cancelGroupTask(taskId: string) {
@@ -1330,7 +1346,7 @@ export default function StalkerGroupsPage() {
   return (
     <main className="pda-page groups-page">
       <section className="pda-screen">
-        <PdaTopbar activeLabel="Сталкеры" activeSubtabLabel="Группы" />
+        <PdaTopbar activeLabel="Сталкеры" activeSubtab="Группы" />
 
         <div className="pda-content">
           <section className="section-panel groups-workspace-panel">
@@ -1345,10 +1361,10 @@ export default function StalkerGroupsPage() {
                   </div>
 
                   <div className="list-tabs segmented-tabs" role="tablist" aria-label="Статус групп">
-                    <button className={groupListTab === "active" ? "list-tab list-tab-active" : "list-tab"} onClick={() => changeListTab("active")} type="button">
+                    <button aria-selected={groupListTab === "active"} className={groupListTab === "active" ? "list-tab list-tab-active" : "list-tab"} onClick={() => changeListTab("active")} role="tab" type="button">
                       Активные
                     </button>
-                    <button className={groupListTab === "archive" ? "list-tab list-tab-active" : "list-tab"} onClick={() => changeListTab("archive")} type="button">
+                    <button aria-selected={groupListTab === "archive"} className={groupListTab === "archive" ? "list-tab list-tab-active" : "list-tab"} onClick={() => changeListTab("archive")} role="tab" type="button">
                       Архив
                     </button>
                   </div>
@@ -1358,7 +1374,7 @@ export default function StalkerGroupsPage() {
                   <label className="filter-field">
                     <span className="filter-label-row">
                       <span>Поиск</span>
-                      <span>Записей: {shownGroupCount} из {visibleGroupCount}</span>
+                      <span>Показано: {shownGroupCount} из {visibleGroupCount}</span>
                     </span>
                     <input
                       onChange={(event) => changeSearchQuery(event.target.value)}
@@ -1395,26 +1411,47 @@ export default function StalkerGroupsPage() {
                       <p>Загрузка групп…</p>
                     </div>
                   ) : paginatedGroups.items.length > 0 ? (
-                    paginatedGroups.items.map((group) => (
-                      <button
-                        className={`profile-list-item group-list-card ${group.id === selectedGroupId ? "profile-list-item-active" : ""}`}
-                        key={group.id}
-                        onClick={() => openGroup(group.id)}
-                        type="button"
-                      >
-                        <span className="profile-list-item-head">
-                          <span className="profile-list-item-main group-list-item-main">
+                    paginatedGroups.items.map((group) => {
+                      const taskMark = getGroupTaskMark(group.id, tasks);
+
+                      return (
+                        <button
+                          aria-pressed={group.id === selectedGroupId}
+                          className={`profile-list-item group-list-card ${group.id === selectedGroupId ? "profile-list-item-active" : ""}`}
+                          key={group.id}
+                          onClick={() => openGroup(group.id)}
+                          type="button"
+                        >
+                          <span className="profile-list-item-head">
                             <strong className="group-list-name">{group.name || "Без названия"}</strong>
-                            <span className="profile-list-item-secondary group-list-meta">
-                              {getGroupMemberPreview(group)}
-                            </span>
+                            {taskMark !== "none" ? (
+                              <span className={`profile-state-badge badge-chip ${taskMark === "overdue" ? "badge-task-overdue" : "badge-task-active"}`}>
+                                {taskMark === "overdue" ? "Просрочено" : "Задание"}
+                              </span>
+                            ) : null}
                           </span>
-                        </span>
-                      </button>
-                    ))
+                          <span className="profile-list-info-row">
+                            <span className="profile-list-item-secondary group-list-meta">{getGroupMemberPreview(group)}</span>
+                          </span>
+                        </button>
+                      );
+                    })
                   ) : (
                     <div className="empty-state">
-                      <p>{groupListTab === "active" ? "Активные группы не найдены." : "Архив групп пуст."}</p>
+                      <p>
+                        {searchQuery.trim()
+                          ? "По вашему запросу ничего не найдено."
+                          : groupListTab === "active"
+                            ? "Активные группы не найдены."
+                            : "Архив групп пуст."}
+                      </p>
+                      <span>
+                        {searchQuery.trim()
+                          ? "Измените запрос или очистите строку поиска."
+                          : groupListTab === "active"
+                            ? "Создайте первую группу кнопкой выше."
+                            : "Архивные группы появятся здесь после смены статуса."}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -1434,7 +1471,7 @@ export default function StalkerGroupsPage() {
                     <div className="profile-case-card group-case-card group-hero-card">
                       <div className="group-avatar-frame">
                         <img
-                          alt="Изображение сталкерской группы"
+                          alt="Изображение группы"
                           src={selectedGroup.photoUrl || withBasePath("/no-data-group.png")}
                         />
                       </div>
@@ -1455,7 +1492,7 @@ export default function StalkerGroupsPage() {
                           </div>
 
                           <div className="profile-case-title">
-                            <h3>{selectedGroup.name}</h3>
+                            <h1 className="group-hero-title">{selectedGroup.name}</h1>
                             <p>Участников: {selectedGroup.members.length} · Статус: {statusLabels[selectedGroup.status]}</p>
                           </div>
                         </div>
@@ -1468,20 +1505,20 @@ export default function StalkerGroupsPage() {
                         </div>
                       </div>
                       <div className="detail-actions group-hero-actions">
-                        <button className="command-row task-action-button" disabled={isGroupSaving || isGroupDeleting} onClick={() => openEditGroup(selectedGroup)} type="button">
+                        <button className="command-row task-action-button group-entity-action group-entity-action-edit" disabled={isGroupSaving || isGroupDeleting} onClick={() => openEditGroup(selectedGroup)} type="button">
                           Редактировать
                         </button>
                         {selectedGroup.status === "active" ? (
-                        <button className="command-row task-action-button" disabled={isGroupSaving || isGroupDeleting} onClick={() => setGroupStatus(selectedGroup.id, "archive")} type="button">
+                        <button className="command-row task-action-button group-entity-action group-entity-action-state" disabled={isGroupSaving || isGroupDeleting} onClick={() => setGroupStatus(selectedGroup.id, "archive")} type="button">
                             В архив
                           </button>
                         ) : (
-                          <button className="command-row task-action-button" disabled={isGroupSaving || isGroupDeleting} onClick={() => setGroupStatus(selectedGroup.id, "active")} type="button">
+                          <button className="command-row task-action-button group-entity-action group-entity-action-state" disabled={isGroupSaving || isGroupDeleting} onClick={() => setGroupStatus(selectedGroup.id, "active")} type="button">
                             Вернуть из архива
                           </button>
                         )}
                         <button
-                          className="command-row task-action-button"
+                          className="command-row task-action-button group-entity-action group-entity-action-danger"
                           disabled={isGroupSaving || isGroupDeleting}
                           onClick={() =>
                             setConfirmDialog({
@@ -1505,12 +1542,14 @@ export default function StalkerGroupsPage() {
 
                     <section className="group-records-area">
                       <div className="group-records-toolbar">
-                        <div className="groups-record-tabs" role="tablist" aria-label="Разделы группы">
+                        <div aria-label="Разделы группы" className="groups-record-tabs" role="tablist">
                           {groupTabs.map((tab) => (
                             <button
+                              aria-selected={tab === activeGroupTab}
                               className={`groups-record-tab ${tab === activeGroupTab ? "groups-record-tab-active" : ""}`}
                               key={tab}
                               onClick={() => setActiveGroupTab(tab)}
+                              role="tab"
                               type="button"
                             >
                               {tab}
@@ -1609,6 +1648,15 @@ export default function StalkerGroupsPage() {
                                     <span>Роль: {roleLabel}</span>
                                   </div>
                                   <div className="group-member-actions member-role-controls">
+                                    {profile ? (
+                                      <button
+                                        className="command-row task-action-button"
+                                        onClick={() => router.push(`/stalkers/profiles?profileId=${encodeURIComponent(profile.id)}`)}
+                                        type="button"
+                                      >
+                                        Профиль
+                                      </button>
+                                    ) : null}
                                     <button className="command-row task-action-button" onClick={() => openEditMemberRoleModal(member)} type="button">
                                       Редактировать
                                     </button>
