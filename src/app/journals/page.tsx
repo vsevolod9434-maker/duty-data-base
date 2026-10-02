@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import type { Dispatch, FormEvent, MouseEvent, SetStateAction } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
 import { ActionAuthorLine } from "@/components/ui/ActionAuthorLine";
 import { Pagination } from "@/components/ui/Pagination";
@@ -231,6 +231,21 @@ function SearchableEntityPicker({
   onReset: () => void;
   onSelect: (id: string) => void;
 }) {
+  const onApplyRef = useRef(onApply);
+
+  useEffect(() => {
+    onApplyRef.current = onApply;
+  });
+
+  useEffect(() => {
+    if (!query.trim()) {
+      return;
+    }
+
+    const searchHandle = window.setTimeout(() => onApplyRef.current(), 250);
+    return () => window.clearTimeout(searchHandle);
+  }, [query]);
+
   const showEmptyQueryMessage = hasSearched && !appliedQuery.trim();
   const showNothingFoundMessage = hasSearched && Boolean(appliedQuery.trim()) && results.length === 0;
 
@@ -253,7 +268,7 @@ function SearchableEntityPicker({
             value={query}
           />
           <button className="command-row task-action-button" disabled={disabled} onClick={onApply} type="button">
-            Применить
+            Найти
           </button>
         </div>
       </label>

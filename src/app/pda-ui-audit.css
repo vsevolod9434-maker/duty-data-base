@@ -1857,3 +1857,314 @@ body {
     text-align: left;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Registry header: title left, primary action right, tabs and search below   */
+/* -------------------------------------------------------------------------- */
+
+.pda-screen .list-header-block {
+  display: grid !important;
+  gap: .45rem !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  padding: 0 0 .45rem !important;
+}
+
+.pda-screen .list-header-block::before,
+.pda-screen .list-header-block::after,
+.pda-screen .list-column-header::before,
+.pda-screen .list-column-header::after {
+  content: none !important;
+}
+
+.pda-screen .list-column-header {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: .45rem .6rem !important;
+  min-height: 2.4rem;
+  border: 1px solid #34383a !important;
+  border-top: 2px solid #535759 !important;
+  background: linear-gradient(180deg, #1b1d1f, #111314) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04) !important;
+  margin: 0 !important;
+  padding: .4rem .55rem .4rem .7rem !important;
+}
+
+.pda-screen .list-column-header h2,
+.pda-screen .list-column-header .profile-column-heading h2 {
+  margin: 0 !important;
+  color: #e7e9e9 !important;
+  font-size: .86rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .08em !important;
+  line-height: 1.2 !important;
+  text-transform: uppercase !important;
+}
+
+.pda-screen .list-column-header .profile-column-heading {
+  display: flex;
+  align-items: baseline;
+  gap: .6rem;
+  border: 0 !important;
+  padding: 0 !important;
+}
+
+.pda-screen .list-column-header .profile-column-heading span {
+  color: #8d9294;
+  font-size: .72rem;
+}
+
+.pda-screen .list-column-header > button {
+  flex: 0 0 auto;
+  width: auto !important;
+  min-height: 1.95rem !important;
+  margin: 0 !important;
+  padding: .3rem .75rem !important;
+  font-size: .76rem !important;
+}
+
+.pda-screen .list-header-block .list-tabs {
+  justify-self: start;
+  margin: 0 !important;
+}
+
+.pda-screen .list-tabs .list-tab {
+  min-height: 1.85rem !important;
+  padding: .25rem .8rem !important;
+  font-size: .7rem !important;
+}
+
+.pda-screen .filter-label-row {
+  display: flex !important;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .6rem;
+  padding: 0 .1rem .25rem !important;
+}
+
+.pda-screen .profile-list-filter,
+.pda-screen .duty-member-search-filter-row {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  margin: 0 0 .45rem !important;
+  padding: 0 !important;
+}
+
+.pda-screen .profile-list-filter .filter-field > span,
+.pda-screen .duty-member-search-filter-row .filter-field > span {
+  padding-inline: .1rem;
+}
+
+@media (max-width: 900px) {
+  .pda-screen .list-column-header > button {
+    flex: 1 1 100%;
+  }
+}
+
+/* --- duty members list: compact rows like other registries --- */
+
+.pda-screen .duty-members-list-controls {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.pda-screen .duty-members-list-controls::after {
+  content: none !important;
+}
+
+.pda-screen .duty-member-search-filter-row {
+  align-items: end;
+}
+
+.pda-screen .duty-member-list-row {
+  min-height: 0 !important;
+  padding: .55rem .7rem !important;
+}
+
+.pda-screen .duty-member-list-copy {
+  display: grid;
+  gap: .2rem;
+}
+
+.pda-screen .duty-member-list-head {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.pda-screen .duty-member-list-line {
+  border: 0 !important;
+  background: transparent !important;
+  color: #a9adae !important;
+  font-size: .78rem !important;
+  padding: 0 !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Type scale for cards: one entity title size, one block heading style       */
+/* -------------------------------------------------------------------------- */
+
+.pda-screen .profile-hero-title,
+.pda-screen .group-hero-title,
+.pda-screen .apartment-profile-title h3 {
+  font-size: 1.75rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .01em !important;
+  line-height: 1.15 !important;
+  text-transform: none !important;
+}
+
+.pda-screen .dossier-cell-heading span,
+.pda-screen .task-section-header > span,
+.pda-screen .block-heading-row h2,
+.pda-screen .stalker-notes-header h2,
+.pda-screen .apartment-notes-header > span {
+  color: #e2e4e4 !important;
+  font-size: .8rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .08em !important;
+  text-transform: uppercase !important;
+}
+
+@media (max-width: 560px) {
+  .pda-screen .profile-hero-title,
+  .pda-screen .group-hero-title,
+  .pda-screen .apartment-profile-title h3 {
+    font-size: 1.4rem !important;
+  }
+}
+
+/* --- secondary hero actions: standard height, not oversized slabs --- */
+
+.pda-screen .duty-member-action-button,
+.pda-screen .profile-entity-action {
+  min-height: 2rem !important;
+  padding: .3rem .7rem !important;
+  font-size: .74rem !important;
+}
+
+.pda-screen .duty-member-hero-actions {
+  align-content: start;
+  gap: .3rem !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Modal windows: one frame, one label style, one action bar                   */
+/* -------------------------------------------------------------------------- */
+
+.pda-modal {
+  width: min(960px, calc(100vw - 2rem)) !important;
+  border: 1px solid #45494b !important;
+  border-top: 2px solid #842027 !important;
+  border-radius: 1px !important;
+}
+
+.pda-modal.confirm-dialog,
+.pda-modal.task-complete-modal,
+.pda-modal.journal-action-modal {
+  width: min(560px, calc(100vw - 2rem)) !important;
+}
+
+.pda-modal .modal-header h1 {
+  margin: 0;
+  color: #eef0f0 !important;
+  font-size: .95rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .08em !important;
+  text-transform: uppercase !important;
+}
+
+.pda-modal .modal-header p {
+  margin: .2rem 0 0;
+  color: #8d9294 !important;
+  font-size: .78rem !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.pda-modal .modal-header .eyebrow-text {
+  display: none;
+}
+
+.pda-modal .form-section-heading h2 {
+  font-size: .74rem !important;
+  letter-spacing: .08em !important;
+}
+
+.pda-modal .form-section-heading span {
+  color: #80868a !important;
+  font-size: .7rem !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.pda-modal .filter-field > span:first-child,
+.pda-modal .stacked-field > span:first-child,
+.pda-modal .modal-photo-preview > span:first-child {
+  color: #9ca1a3 !important;
+  font-size: .66rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .06em !important;
+  text-transform: uppercase !important;
+}
+
+.pda-modal .modal-actions {
+  gap: .4rem !important;
+}
+
+.pda-modal .modal-actions :is(.primary-command, .command-row, .journal-modal-submit) {
+  min-height: 2.15rem !important;
+  padding: .35rem 1rem !important;
+  font-size: .8rem !important;
+  letter-spacing: .02em !important;
+  text-transform: none !important;
+}
+
+.pda-modal .modal-actions :is(.primary-command, .journal-modal-submit):not(.confirm-dialog-confirm-warning) {
+  border: 1px solid #87242a !important;
+  border-top-color: #b64046 !important;
+  border-bottom-color: #460b0f !important;
+  background: linear-gradient(180deg, #a5262d 0, #77171c 49%, #540f13 51%, #681218 100%) !important;
+  color: #fff !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), inset 0 -1px 0 rgba(0, 0, 0, .7) !important;
+}
+
+.pda-modal .modal-actions :is(.primary-command, .journal-modal-submit):hover:not(:disabled) {
+  background: linear-gradient(180deg, #bd2d35 0, #8a1b21 49%, #631116 51%, #7a151b 100%) !important;
+}
+
+.pda-modal .profile-photo-title {
+  color: #9ca1a3 !important;
+  font-size: .66rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .06em !important;
+  text-transform: uppercase !important;
+}
+
+.pda-modal .profile-group-role-section {
+  order: -1;
+}
+
+.pda-modal select.group-role-select,
+.pda-screen select.group-role-select {
+  min-width: 14rem;
+  min-height: 2.2rem;
+  border: 1px solid #34383a;
+  border-radius: 1px;
+  background-color: #070808;
+  color: #e2e4e4;
+  font-size: .86rem;
+  padding: .3rem .5rem;
+}

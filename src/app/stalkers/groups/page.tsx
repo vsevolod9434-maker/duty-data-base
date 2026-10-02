@@ -1720,7 +1720,7 @@ export default function StalkerGroupsPage() {
                     />
                   </label>
                   <label className="filter-field">
-                    <span>Изображение группы</span>
+                    <span>Ссылка на изображение</span>
                     <input
                       onChange={(event) => setDraft((currentDraft) => ({ ...currentDraft, photoUrl: event.target.value }))}
                       placeholder="https://..."

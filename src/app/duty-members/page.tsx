@@ -1100,11 +1100,11 @@ export default function DutyMembersPage() {
                 </>
               ) : null}
               <label className="filter-field duty-member-form-wide">
-                <span>Фотография</span>
+                <span>Ссылка на фото</span>
                 <input disabled={isSaving} maxLength={500} onChange={(event) => updateDraft("photoUrl", event.target.value)} placeholder="Например: https://..." type="url" value={draft.photoUrl} />
               </label>
               <div className="profile-photo-preview duty-member-photo-preview">
-                <span className="profile-photo-title">Фотография профиля</span>
+                <span className="profile-photo-title">Предпросмотр фото</span>
                 <div className="profile-photo-frame">
                   <DutyMemberPhoto alt="Фотография профиля состава" src={normalizedPhotoUrl} />
                 </div>
@@ -1139,13 +1139,33 @@ export default function DutyMembersPage() {
             <section className="duty-members-layout">
               <div className="registry-panel registry-panel-list duty-members-list-panel">
                 <div className="registry-panel duty-members-list-controls">
+                  <div className="list-header-block">
+                    <div className="column-header list-column-header">
+                      <h2>Реестр состава</h2>
+                      {canManage ? (
+                        <button
+                          className="primary-command interactive-button duty-member-add-button"
+                          disabled={!canCreateDutyMemberUser}
+                          onClick={startCreate}
+                          title={!canCreateDutyMemberUser ? accessAdminClosedMessage : undefined}
+                          type="button"
+                        >
+                          Добавить в состав
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                  {canManage && shouldShowAccessAdminFallback ? <p className="draft-message">{accessAdminClosedMessage}</p> : null}
                   <div className="duty-member-search-filter-row">
                     <label className="filter-field">
-                      <span>Поиск по составу</span>
+                      <span className="filter-label-row">
+                        <span>Поиск</span>
+                        <span>{`Найдено: ${activeMembers.length + excludedMembers.length} из ${members.length}`}</span>
+                      </span>
                       <input onChange={(event) => setSearchQuery(event.target.value)} placeholder="ФИО, звание или доступ" type="search" value={searchQuery} />
                     </label>
                     <label className="filter-field duty-member-access-filter">
-                      <span>Фильтр доступа</span>
+                      <span>Доступ</span>
                       <select onChange={(event) => setAccessFilter(event.target.value as DutyAccessFilter)} value={accessFilter}>
                         {accessFilters.map((filter) => (
                           <option key={filter.value} value={filter.value}>
@@ -1155,20 +1175,6 @@ export default function DutyMembersPage() {
                       </select>
                     </label>
                   </div>
-                  {canManage ? (
-                    <>
-                      <button
-                        className="primary-command interactive-button duty-member-add-button"
-                        disabled={!canCreateDutyMemberUser}
-                        onClick={startCreate}
-                        title={!canCreateDutyMemberUser ? accessAdminClosedMessage : undefined}
-                        type="button"
-                      >
-                        Добавить в состав
-                      </button>
-                      {shouldShowAccessAdminFallback ? <p className="draft-message">{accessAdminClosedMessage}</p> : null}
-                    </>
-                  ) : null}
                 </div>
 
                 {isLoading ? <p className="empty-state">Загрузка состава…</p> : null}
@@ -1192,8 +1198,13 @@ export default function DutyMembersPage() {
                           <span className="duty-member-list-copy">
                             <span className="duty-member-list-head">
                               <strong className="duty-member-list-name">{getMemberPrimaryName(member)}</strong>
+                              {member.serviceStatus !== "active" ? (
+                                <span className={`badge-chip ${getServiceBadgeClass(member.serviceStatus)}`}>{serviceStatusLabels[member.serviceStatus]}</span>
+                              ) : null}
                             </span>
-                            {member.rank ? <span className="duty-member-list-line">Звание: {member.rank}</span> : null}
+                            <span className="duty-member-list-line">
+                              {[member.rank || "Звание не указано", member.callsign ? `«${member.callsign}»` : ""].filter(Boolean).join(" · ")}
+                            </span>
                           </span>
                         </button>
                       ))}
@@ -1224,8 +1235,13 @@ export default function DutyMembersPage() {
                             <span className="duty-member-list-copy">
                               <span className="duty-member-list-head">
                                 <strong className="duty-member-list-name">{getMemberPrimaryName(member)}</strong>
+                                {member.serviceStatus !== "active" ? (
+                                  <span className={`badge-chip ${getServiceBadgeClass(member.serviceStatus)}`}>{serviceStatusLabels[member.serviceStatus]}</span>
+                                ) : null}
                               </span>
-                              {member.rank ? <span className="duty-member-list-line">Звание: {member.rank}</span> : null}
+                              <span className="duty-member-list-line">
+                                {[member.rank || "Звание не указано", member.callsign ? `«${member.callsign}»` : ""].filter(Boolean).join(" · ")}
+                              </span>
                             </span>
                           </button>
                         ))}

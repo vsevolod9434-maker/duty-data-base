@@ -896,11 +896,11 @@ export default function StalkerProfilesPage() {
   }, [groups]);
 
   const profileGroupSearchResults = useMemo(() => {
-    if (!selectedProfile || !appliedGroupSearchQuery) {
+    if (!selectedProfile) {
       return [];
     }
 
-    const query = appliedGroupSearchQuery.toLowerCase();
+    const query = (appliedGroupSearchQuery ?? "").toLowerCase();
 
     return activeGroups
       .filter((group) => !group.members.some((member) => member.stalkerId === selectedProfile.id))
@@ -2831,13 +2831,13 @@ export default function StalkerProfilesPage() {
                       </select>
                     </label>
                     <label className="filter-field profile-create-wide">
-                      <span>Фотография</span>
+                      <span>Ссылка на фото</span>
                       <input onChange={(event) => updateDraft("photoUrl", event.target.value)} placeholder="Например: https://..." type="url" value={draft.photoUrl} />
                     </label>
                   </div>
 
                   <div className="profile-photo-preview">
-                    <span className="profile-photo-title">Фото профиля</span>
+                    <span className="profile-photo-title">Предпросмотр фото</span>
                     <div className="profile-photo-frame">
                       {normalizedPhotoUrl && !isPhotoPreviewFailed ? (
                         isPhotoPreviewLoaded ? (
@@ -2937,6 +2937,7 @@ export default function StalkerProfilesPage() {
                         <input
                           onChange={(event) => {
                             setGroupMemberDraft((currentDraft) => ({ ...currentDraft, groupSearchQuery: event.target.value }));
+                            setAppliedGroupSearchQuery(event.target.value.trim() || null);
                             setProfileGroupMessage("");
                           }}
                           onKeyDown={handleGroupSearchKeyDown}
@@ -2945,16 +2946,9 @@ export default function StalkerProfilesPage() {
                           value={groupMemberDraft.groupSearchQuery}
                         />
                       </label>
-                      <button className="command-row task-action-button" onClick={applyGroupSearch} type="button">
-                        Найти
-                      </button>
                     </div>
                     <div className="group-search-results">
-                      {!appliedGroupSearchQuery ? (
-                        <div className="empty-state compact-empty-state">
-                          <p>Введите название группы и нажмите Enter.</p>
-                        </div>
-                      ) : profileGroupSearchResults.length > 0 ? (
+                      {profileGroupSearchResults.length > 0 ? (
                         profileGroupSearchResults.map((group) => (
                           <div className="group-search-result" key={group.id}>
                             <div>
@@ -2973,7 +2967,7 @@ export default function StalkerProfilesPage() {
                         ))
                       ) : (
                         <div className="empty-state compact-empty-state">
-                          <p>Группы не найдены.</p>
+                          <p>{appliedGroupSearchQuery ? "Группы не найдены." : "Профиль уже состоит во всех активных группах."}</p>
                         </div>
                       )}
                     </div>
@@ -2986,7 +2980,7 @@ export default function StalkerProfilesPage() {
               </section>
 
               {activeGroups.length > 0 ? (
-                <section className="form-section">
+                <section className="form-section profile-group-role-section">
                   <div className="form-section-heading">
                     <h2>Роль в группе</h2>
                   </div>
