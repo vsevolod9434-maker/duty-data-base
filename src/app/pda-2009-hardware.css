@@ -11,7 +11,7 @@
 .pda-page {
   position: relative;
   min-height: 100vh;
-  padding: 10px;
+  padding: 0;
   background:
     linear-gradient(90deg, rgba(255,255,255,.018), transparent 3%, transparent 97%, rgba(255,255,255,.012)),
     repeating-linear-gradient(135deg, rgba(255,255,255,.012) 0 1px, transparent 1px 4px),
@@ -19,51 +19,18 @@
     #030404;
 }
 
-.pda-page::before,
-.pda-page::after {
-  position: fixed;
-  z-index: 40;
-  pointer-events: none;
-  color: #5f6466;
-  font: 700 8px/1 Consolas, "Lucida Console", monospace;
-  letter-spacing: .15em;
-  text-transform: uppercase;
-  text-shadow: 0 1px 0 #000;
-}
-
-.pda-page::before {
-  content: "DUTY // FIELD TERMINAL";
-  left: 25px;
-  bottom: 3px;
-}
-
-.pda-page::after {
-  content: "PDA-09 // 2009";
-  right: 25px;
-  bottom: 3px;
-}
-
 .pda-screen {
   position: relative;
   width: 100%;
-  min-height: calc(100vh - 20px);
-  height: calc(100vh - 20px);
-  border: 7px solid #181a1b;
-  border-top-color: #2c2f31;
-  border-left-color: #242729;
-  border-right-color: #0b0c0d;
-  border-bottom-color: #080909;
-  border-radius: 5px;
-  outline: 1px solid #424648;
-  outline-offset: -2px;
+  min-height: 100vh;
+  height: 100vh;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
   background:
     linear-gradient(180deg, rgba(255,255,255,.022), transparent 5rem),
     #08090a;
-  box-shadow:
-    inset 0 0 0 1px #050606,
-    inset 0 0 80px rgba(0,0,0,.48),
-    0 0 0 1px #000,
-    0 14px 36px rgba(0,0,0,.48);
+  box-shadow: inset 0 0 80px rgba(0,0,0,.48);
   backdrop-filter: none;
 }
 
@@ -73,13 +40,11 @@
   z-index: 13;
   inset: 0;
   pointer-events: none;
-  border: 1px solid rgba(255,255,255,.035);
+  border: 0;
   background:
     linear-gradient(115deg, rgba(255,255,255,.018), transparent 16%, transparent 77%, rgba(255,255,255,.008)),
     radial-gradient(ellipse at 50% 42%, transparent 52%, rgba(0,0,0,.19) 100%);
-  box-shadow:
-    inset 0 0 22px rgba(0,0,0,.26),
-    inset 0 0 0 1px rgba(255,255,255,.012);
+  box-shadow: inset 0 0 22px rgba(0,0,0,.26);
 }
 
 /* recessed screen lip */
@@ -179,18 +144,6 @@
     0 2px 7px rgba(0,0,0,.40);
 }
 
-.pda-shell-header::before,
-.pda-shell-header::after {
-  top: 5px;
-  width: 5px;
-  height: 5px;
-  border: 1px solid #5d6264;
-  background:
-    radial-gradient(circle at 40% 35%, #5b5f61 0 12%, #181a1b 18% 52%, #070808 58%);
-  box-shadow:
-    0 1px 0 rgba(255,255,255,.035),
-    inset 0 0 2px #000;
-}
 
 .pda-brand {
   gap: .6rem;
@@ -258,23 +211,17 @@
   letter-spacing: .035em;
 }
 
-.pda-tab::before,
-.registry-nav-tab::before {
-  content: "";
-  width: 3px;
-  height: 3px;
-  margin-right: .38rem;
-  border-radius: 50%;
-  background: #555a5c;
-  box-shadow: 0 0 0 1px #090a0b;
-}
 
 .pda-tab:hover,
 .registry-nav-tab:hover,
 .pda-nav-dropdown-trigger:hover {
-  border-color: #604044;
+  border-color: #515557;
   background:
-    linear-gradient(180deg, #332628 0, #211719 48%, #120d0e 52%, #1a1113 100%);
+    linear-gradient(180deg, #2a2d2f 0, #1c1f21 48%, #111315 52%, #17191b 100%);
+  color: #eef0f0;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.065),
+    inset 0 -1px 0 rgba(0,0,0,.85);
 }
 
 .pda-tab-active,
@@ -287,17 +234,9 @@
     linear-gradient(180deg, #5c191e 0, #351216 47%, #1b0d0f 52%, #281013 100%);
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.10),
-    inset 0 -2px 0 #be2a32,
-    0 0 5px rgba(118,26,31,.18);
+    inset 0 -2px 0 #be2a32;
 }
 
-.pda-tab-active::before,
-.registry-nav-tab-active::before {
-  background: #d2323a;
-  box-shadow:
-    0 0 5px rgba(210,50,58,.52),
-    0 0 0 1px #39070a;
-}
 
 .pda-nav-dropdown-menu {
   margin-top: 3px;
@@ -338,8 +277,11 @@
 .pda-status,
 .registry-status {
   position: relative;
+  width: 100%;
+  min-width: 0;
   gap: .4rem;
   min-height: 38px;
+  justify-content: flex-start;
   border: 1px solid #303436;
   border-radius: 1px;
   background:
@@ -351,11 +293,17 @@
 }
 
 .pda-user-email {
-  max-width: 10rem;
+  min-width: 0;
+  max-width: none;
+  flex: 1 1 auto;
+  overflow: visible;
   border: 0;
   border-right: 1px solid #2d3133;
-  padding: 0 .55rem 0 .2rem;
+  padding: 0 .55rem 0 0;
   color: #9ca1a3;
+  text-align: left;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 
 .pda-signout-button {
@@ -471,7 +419,6 @@
   .registry-section-header,
   .column-header,
   .list-column-header,
-  .list-header-block,
   .calculator-panel-header,
   .map-side-panel-head,
   .modal-header,
@@ -493,7 +440,6 @@
   .registry-section-header,
   .column-header,
   .list-column-header,
-  .list-header-block,
   .calculator-panel-header,
   .map-side-panel-head,
   .modal-header,
@@ -509,6 +455,12 @@
   background:
     linear-gradient(180deg, #c52c34 0 42%, #631318 44% 100%);
   box-shadow: 0 0 4px rgba(197,44,52,.20);
+}
+
+.profiles-page .list-column-header {
+  min-height: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 /* -------------------------------------------------------------------------- */

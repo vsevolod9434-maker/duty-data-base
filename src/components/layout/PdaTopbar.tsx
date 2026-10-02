@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useCurrentUserQuery, useDutyQueryClient } from "@/lib/data-cache";
 import { navigation } from "@/lib/navigation";
@@ -119,9 +118,6 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel, onSubt
     <header className="pda-topbar registry-topbar">
       <div className="pda-shell-header registry-shell-header">
         <div className="pda-brand registry-brand">
-          <span className="pda-brand-mark registry-brand-mark">
-            <Image alt="Эмблема группировки «Долг»" height={42} priority src={withBasePath("/duty-logo.png")} width={42} />
-          </span>
           <div className="pda-brand-copy registry-brand-copy">
             <strong>База данных «Долг»</strong>
           </div>
