@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
 import { ActionAuthorLine } from "@/components/ui/ActionAuthorLine";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { MobileBackButton } from "@/components/ui/MobileBackButton";
 import { Pagination } from "@/components/ui/Pagination";
 import { getTaskActionVisibility, TaskRecordCard } from "@/components/ui/TaskRecordCard";
 import { TradeRecordCard } from "@/components/ui/TradeRecordCard";
@@ -66,18 +67,22 @@ import {
   VIOLATIONS_STORAGE_KEY,
   writeStoredCollection,
 } from "@/lib/stalker-utils";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
+import { getTaskStatusClass, getTaskStatusLabel } from "@/lib/task-status";
+import {
+  createEmptyTradeDraftItem,
+  getTradeDraftItemsFromOperation,
+  getTradeItemsSummary,
+  validateTradeDraftItems,
+  type TradeDraftItem,
+} from "@/lib/trade-draft";
+import { TradeItemsEditor } from "@/components/ui/TradeItemsEditor";
 
 const profileTabs = ["Задания", "Продажи", "Покупки", "Нарушения"];
 
 const statusLabels: Record<StalkerProfile["status"], string> = {
   active: "Активен",
   archive: "Архив",
-};
-
-const taskStatusLabels: Record<Task["status"], string> = {
-  active: "Активное",
-  completed: "Выполненное",
-  cancelled: "Отменено",
 };
 
 type StalkerProfileApiResponse = {
@@ -386,12 +391,17 @@ function createEmptyTaskDraft() {
 function createEmptyTradeDraft(type: TradeType) {
   return {
     type,
-    itemName: "",
-    quantity: "1",
-    price: "",
+    items: [createEmptyTradeDraftItem()],
     issuedBy: "",
     notes: "",
     operationDate: getTodayDate(),
+  };
+}
+
+function getComparableTradeDraft<Draft extends { items: TradeDraftItem[] }>(draft: Draft) {
+  return {
+    ...draft,
+    items: draft.items.map((item) => ({ name: item.name, quantity: item.quantity, price: item.price, notes: item.notes })),
   };
 }
 
@@ -404,37 +414,7 @@ function createEmptyViolationDraft() {
   };
 }
 
-function getTaskStatusLabel(task: Task) {
-  if (task.status === "completed") {
-    return taskStatusLabels.completed;
-  }
 
-  if (task.status === "cancelled") {
-    return taskStatusLabels.cancelled;
-  }
-
-  if (isTaskOverdue(task)) {
-    return "Просроченное";
-  }
-
-  return taskStatusLabels.active;
-}
-
-function getTaskStatusClass(task: Task) {
-  if (task.status === "completed") {
-    return "badge-task-completed";
-  }
-
-  if (isTaskOverdue(task)) {
-    return "badge-task-overdue";
-  }
-
-  if (task.status === "cancelled") {
-    return "badge-task-cancelled";
-  }
-
-  return "badge-task-active";
-}
 
 function getViolationStatus(violation: Violation) {
   return violation.status ?? "active";
@@ -445,7 +425,7 @@ function isViolationActive(violation: Violation) {
 }
 
 function getViolationStatusLabel(violation: Violation) {
-  return isViolationActive(violation) ? "Активное нарушение" : "Закрыто";
+  return isViolationActive(violation) ? "Активно" : "Закрыто";
 }
 
 function getViolationStatusClass(violation: Violation) {
@@ -525,7 +505,7 @@ function getProfileServiceBadges({
   }
 
   if (computedTaskMark === "overdue") {
-    badges.push({ label: "Задание", className: "badge-service-task-overdue" });
+    badges.push({ label: "Просрочено", className: "badge-service-task-overdue" });
   }
 
   if (activeViolationCount > 0) {
@@ -580,6 +560,7 @@ export default function StalkerProfilesPage() {
   const [taskDraft, setTaskDraft] = useState(createEmptyTaskDraft);
   const [editTaskDraft, setEditTaskDraft] = useState(createEmptyTaskDraft);
   const [tradeDraft, setTradeDraft] = useState(() => createEmptyTradeDraft("sale"));
+  const [tradeItemError, setTradeItemError] = useState<{ itemKey: string; field: "name" | "quantity" | "price" } | null>(null);
   const [violationDraft, setViolationDraft] = useState(createEmptyViolationDraft);
   const [loadedPhotoPreviewKey, setLoadedPhotoPreviewKey] = useState("");
   const [failedPhotoPreviewKey, setFailedPhotoPreviewKey] = useState("");
@@ -915,11 +896,11 @@ export default function StalkerProfilesPage() {
   }, [groups]);
 
   const profileGroupSearchResults = useMemo(() => {
-    if (!selectedProfile || !appliedGroupSearchQuery) {
+    if (!selectedProfile) {
       return [];
     }
 
-    const query = appliedGroupSearchQuery.toLowerCase();
+    const query = (appliedGroupSearchQuery ?? "").toLowerCase();
 
     return activeGroups
       .filter((group) => !group.members.some((member) => member.stalkerId === selectedProfile.id))
@@ -957,16 +938,11 @@ export default function StalkerProfilesPage() {
   );
   const visibleProfileCount = isStorageReady ? visibleProfiles.length : 0;
   const shownProfileCount = isStorageReady ? paginatedProfiles.items.length : 0;
+  const tabProfileCount = isStorageReady ? profiles.filter((profile) => profile.status === profileListTab).length : 0;
   const normalizedPhotoUrl = draft.photoUrl.trim();
   const photoPreviewKey = `${editingProfileId || "new"}:${normalizedPhotoUrl || "empty"}`;
   const isPhotoPreviewLoaded = loadedPhotoPreviewKey === photoPreviewKey;
   const isPhotoPreviewFailed = failedPhotoPreviewKey === photoPreviewKey;
-  const tradeDraftQuantity = Number(tradeDraft.quantity.replace(",", "."));
-  const tradeDraftPrice = Number(tradeDraft.price.replace(",", "."));
-  const tradeDraftTotal =
-    Number.isFinite(tradeDraftQuantity) && Number.isFinite(tradeDraftPrice)
-      ? tradeDraftQuantity * tradeDraftPrice
-      : 0;
 
   function updateDraft<Field extends keyof typeof draft>(
     field: Field,
@@ -1065,7 +1041,7 @@ export default function StalkerProfilesPage() {
 
     setConfirmDialog({
       title: "Закрыть окно?",
-      message: "Вы уверены, что хотите закрыть окно?",
+      message: "Несохранённые изменения будут потеряны.",
       confirmLabel: "Закрыть",
       cancelLabel: "Остаться",
       variant: "warning",
@@ -1151,13 +1127,9 @@ export default function StalkerProfilesPage() {
       return createEmptyTradeDraft(tradeModalType ?? "sale");
     }
 
-    const firstItem = operation.items[0];
-
     return {
       type: operation.type,
-      itemName: firstItem?.name ?? "",
-      quantity: firstItem ? String(firstItem.quantity) : "1",
-      price: firstItem ? String(firstItem.price) : "",
+      items: getTradeDraftItemsFromOperation(operation),
       issuedBy: operation.issuedBy,
       notes: operation.notes,
       operationDate: operation.operationDate ?? operation.createdAt.slice(0, 10),
@@ -1165,7 +1137,7 @@ export default function StalkerProfilesPage() {
   }
 
   function isTradeDraftDirty() {
-    return isDirtyValue(tradeDraft, getInitialTradeDraft());
+    return isDirtyValue(getComparableTradeDraft(tradeDraft), getComparableTradeDraft(getInitialTradeDraft()));
   }
 
   function getInitialViolationDraft() {
@@ -1487,6 +1459,11 @@ export default function StalkerProfilesPage() {
     }
   }
 
+  function closeProfileDetail() {
+    setSelectedProfileId("");
+    router.replace("/stalkers/profiles", { scroll: false });
+  }
+
   function selectProfile(profileId: string) {
     setSelectedProfileId(profileId);
     setActiveProfileTab("Задания");
@@ -1538,12 +1515,9 @@ export default function StalkerProfilesPage() {
   }
 
   function openEditTradeModal(operation: TradeOperation) {
-    const firstItem = operation.items[0];
     setTradeDraft({
       type: operation.type,
-      itemName: firstItem?.name ?? "",
-      quantity: firstItem ? String(firstItem.quantity) : "1",
-      price: firstItem ? String(firstItem.price) : "",
+      items: getTradeDraftItemsFromOperation(operation),
       issuedBy: operation.issuedBy,
       notes: operation.notes,
       operationDate: operation.operationDate ?? operation.createdAt.slice(0, 10),
@@ -1554,6 +1528,7 @@ export default function StalkerProfilesPage() {
   }
 
   function closeTradeModal() {
+    setTradeItemError(null);
     setTradeModalType(null);
     setEditingTradeId("");
     setTradeDraft(createEmptyTradeDraft("sale"));
@@ -1655,42 +1630,21 @@ export default function StalkerProfilesPage() {
       return;
     }
 
-    const itemName = tradeDraft.itemName.trim();
-    const quantity = Number(tradeDraft.quantity.replace(",", "."));
-    const price = Number(tradeDraft.price.replace(",", "."));
+    const itemsValidation = validateTradeDraftItems(tradeDraft.items);
 
-    if (!itemName) {
-      setTradeFormMessage("Укажите предмет операции.");
+    if (!itemsValidation.ok) {
+      setTradeFormMessage(itemsValidation.message);
+      setTradeItemError({ itemKey: itemsValidation.itemKey, field: itemsValidation.field });
       return;
     }
 
-    if (!Number.isFinite(quantity) || quantity <= 0) {
-      setTradeFormMessage("Укажите корректное количество.");
-      return;
-    }
-
-    if (!Number.isFinite(price) || price < 0) {
-      setTradeFormMessage("Укажите корректную цену за единицу.");
-      return;
-    }
-
-    const item = {
-      id: `profile-trade-item-${Date.now()}`,
-      name: itemName,
-      quantity,
-      price,
-      notes: "",
-    };
+    const { items, totalAmount } = itemsValidation;
+    const itemName = getTradeItemsSummary(items);
 
     if (editingTradeId) {
-      const currentOperation = tradeOperations.find((operation) => operation.id === editingTradeId);
       const updatedOperation = await updateTradeOperation(editingTradeId, {
-        items: [
-          {
-            ...item,
-            id: currentOperation?.items[0]?.id ?? item.id,
-          },
-        ],
+        items,
+        totalAmount,
         notes: tradeDraft.notes.trim(),
         operationDate: tradeDraft.operationDate,
       }).catch(() => {
@@ -1716,8 +1670,8 @@ export default function StalkerProfilesPage() {
       subjectType: "stalker",
       stalkerId: selectedProfile.id,
       groupId: null,
-      items: [item],
-      totalAmount: quantity * price,
+      items,
+      totalAmount,
       notes: tradeDraft.notes.trim(),
       operationDate: tradeDraft.operationDate,
     }).catch(() => {
@@ -2137,7 +2091,7 @@ export default function StalkerProfilesPage() {
                     <button className="command-row task-action-button" onClick={() => openEditTradeModal(operation)} type="button">
                       Редактировать
                     </button>
-                    <button className="command-row task-action-button" onClick={() => deleteTradeOperation(operation)} type="button">
+                    <button className="command-row danger-command task-action-button" onClick={() => deleteTradeOperation(operation)} type="button">
                       Удалить
                     </button>
                   </>
@@ -2182,7 +2136,7 @@ export default function StalkerProfilesPage() {
                         Закрыть нарушение
                       </button>
                     ) : null}
-                    <button className="command-row task-action-button" onClick={() => deleteViolationRecord(violation.id)} type="button">
+                    <button className="command-row danger-command task-action-button" onClick={() => deleteViolationRecord(violation.id)} type="button">
                       Удалить
                     </button>
                   </>
@@ -2260,7 +2214,7 @@ export default function StalkerProfilesPage() {
 
         <div className="pda-content">
           <section className="section-panel profiles-workspace-panel">
-            <div className="profile-card-grid profiles-command-grid">
+            <div className={`profile-card-grid profiles-command-grid ${selectedProfile ? "has-selection" : ""}`}>
               <section className="profile-column profiles-list-column">
                 <div className="list-header-block">
                   <div className="column-header list-column-header">
@@ -2284,7 +2238,11 @@ export default function StalkerProfilesPage() {
                   <label className="filter-field">
                     <span className="filter-label-row">
                       <span>Поиск</span>
-                      <span>Показано: {shownProfileCount} из {visibleProfileCount}</span>
+                      <span>
+                        {searchQuery.trim()
+                          ? `Найдено: ${visibleProfileCount} из ${tabProfileCount}`
+                          : `Показано: ${shownProfileCount} из ${visibleProfileCount}`}
+                      </span>
                     </span>
                     <input
                       onChange={(event) => changeSearchQuery(event.target.value)}
@@ -2385,6 +2343,7 @@ export default function StalkerProfilesPage() {
               </section>
 
               <section className="profile-column detail-host-column">
+                {selectedProfile ? <MobileBackButton label="К реестру сталкеров" onClick={closeProfileDetail} /> : null}
                 {!isStorageReady || isProfileLoading ? (
                   <div className="empty-state">
                     <p>Загрузка профилей…</p>
@@ -2452,10 +2411,10 @@ export default function StalkerProfilesPage() {
                               <span className="profile-badge badge-chip badge-service-group">В группе</span>
                             ) : null}
                             {selectedTaskMark === "active" ? (
-                              <span className="profile-badge badge-chip badge-service-task-active">Активное задание</span>
+                              <span className="profile-badge badge-chip badge-service-task-active">Задание активно</span>
                             ) : null}
                             {selectedTaskMark === "overdue" ? (
-                              <span className="profile-badge badge-chip badge-service-task-overdue">Просроченное задание</span>
+                              <span className="profile-badge badge-chip badge-service-task-overdue">Задание просрочено</span>
                             ) : null}
                             {selectedProfileActiveViolationCount > 0 ? (
                               <span className="profile-badge badge-chip badge-service-violation-active">
@@ -2494,13 +2453,13 @@ export default function StalkerProfilesPage() {
                           </button>
                         )}
                         <button
-                          className="command-row task-action-button profile-entity-action profile-entity-action-danger"
+                          className="command-row danger-command task-action-button profile-entity-action profile-entity-action-danger"
                           disabled={isProfileSaving || isProfileDeleting}
                           onClick={() =>
                             setConfirmDialog({
                               title: "Удаление профиля",
-                              message: "Удалить профиль окончательно? Это действие нельзя отменить.",
-                              confirmLabel: "Удалить",
+                              message: `Профиль «${getProfileTitle(selectedProfile)}» будет удалён окончательно. Это действие нельзя отменить.`,
+                              confirmLabel: "Удалить профиль",
                               variant: "danger",
                               loading: isProfileDeleting,
                               onConfirm: async () => {
@@ -2568,13 +2527,15 @@ export default function StalkerProfilesPage() {
                             <span>Служебные отметки</span>
                           </div>
                           <div className="dossier-service-grid">
-                            <div title={`Кто внёс профиль: ${getProfileCreatedBy(selectedProfile)}`}>
-                              <span>Когда внесли профиль</span>
+                            <div>
+                              <span>Внесён</span>
                               <p>{formatDate(selectedProfile.createdAt)}</p>
+                              <small>{getProfileCreatedBy(selectedProfile)}</small>
                             </div>
-                            <div title={`Кто отредактировал профиль: ${getProfileUpdatedBy(selectedProfile)}`}>
-                              <span>Дата последнего редактирования</span>
+                            <div>
+                              <span>Изменён</span>
                               <p>{formatDate(selectedProfile.updatedAt)}</p>
+                              <small>{getProfileUpdatedBy(selectedProfile)}</small>
                             </div>
                           </div>
                         </section>
@@ -2677,9 +2638,9 @@ export default function StalkerProfilesPage() {
                                       {canManageNoteActions ? (
                                         <div className="stalker-note-inline-actions">
                                           <button className="command-row task-action-button" onClick={() => openEditNote(note)} type="button">
-                                            Изменить
+                                            Редактировать
                                           </button>
-                                          <button className="command-row task-action-button" onClick={() => requestDeleteNote(note)} type="button">
+                                          <button className="command-row danger-command task-action-button" onClick={() => requestDeleteNote(note)} type="button">
                                             Удалить
                                           </button>
                                         </div>
@@ -2742,7 +2703,7 @@ export default function StalkerProfilesPage() {
                                           ) : null}
                                           {taskActions.canComplete ? (
                                             <button className="command-row task-action-button" onClick={() => openCompleteTask(task)} type="button">
-                                              Засчитать
+                                              Зачесть
                                             </button>
                                           ) : null}
                                           {taskActions.canCancel ? (
@@ -2751,7 +2712,7 @@ export default function StalkerProfilesPage() {
                                             </button>
                                           ) : null}
                                           {taskActions.canDelete ? (
-                                            <button className="command-row task-action-button" onClick={() => deleteTask(task.id)} type="button">
+                                            <button className="command-row danger-command task-action-button" onClick={() => deleteTask(task.id)} type="button">
                                               Удалить
                                             </button>
                                           ) : null}
@@ -2805,9 +2766,10 @@ export default function StalkerProfilesPage() {
         >
           <form className="pda-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleProfileSubmit}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>{editingProfileId ? "Редактирование профиля" : "Создание профиля сталкера"}</h1>
-                <p>Профиль будет внесён в реестр</p>
+                <p>{editingProfileId ? "Изменения сохранятся в реестре сталкеров" : "Профиль будет внесён в реестр сталкеров"}</p>
               </div>
             </div>
 
@@ -2815,17 +2777,29 @@ export default function StalkerProfilesPage() {
               <section className="form-section">
                 <div className="form-section-heading">
                   <h2>Основные данные</h2>
-                  <span>Для создания достаточно ФИО или позывного</span>
+                  <span>Обязательно: ФИО или позывной</span>
                 </div>
                 <div className="modal-layout-grid">
                   <div className="profile-create-grid">
                     <label className="filter-field">
                       <span>ФИО</span>
-                      <input onChange={(event) => updateDraft("fullName", event.target.value)} placeholder="Например: Чередняк Савелий Алексеевич" type="text" value={draft.fullName} />
+                      <input
+                        aria-invalid={formMessage === "Укажите ФИО или позывной." || undefined}
+                        onChange={(event) => updateDraft("fullName", event.target.value)}
+                        placeholder="Например: Чередняк Савелий Алексеевич"
+                        type="text"
+                        value={draft.fullName}
+                      />
                     </label>
                     <label className="filter-field">
                       <span>Позывной</span>
-                      <input onChange={(event) => updateDraft("callsign", event.target.value)} placeholder="Например: Шрам" type="text" value={draft.callsign} />
+                      <input
+                        aria-invalid={formMessage === "Укажите ФИО или позывной." || undefined}
+                        onChange={(event) => updateDraft("callsign", event.target.value)}
+                        placeholder="Например: Шрам"
+                        type="text"
+                        value={draft.callsign}
+                      />
                     </label>
                     <label className="filter-field">
                       <span>Внутренний номер</span>
@@ -2857,13 +2831,13 @@ export default function StalkerProfilesPage() {
                       </select>
                     </label>
                     <label className="filter-field profile-create-wide">
-                      <span>Фотография</span>
+                      <span>Ссылка на фото</span>
                       <input onChange={(event) => updateDraft("photoUrl", event.target.value)} placeholder="Например: https://..." type="url" value={draft.photoUrl} />
                     </label>
                   </div>
 
                   <div className="profile-photo-preview">
-                    <span className="profile-photo-title">Фото профиля</span>
+                    <span className="profile-photo-title">Предпросмотр фото</span>
                     <div className="profile-photo-frame">
                       {normalizedPhotoUrl && !isPhotoPreviewFailed ? (
                         isPhotoPreviewLoaded ? (
@@ -2943,6 +2917,7 @@ export default function StalkerProfilesPage() {
         >
           <div className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>Добавить в группу</h1>
                 <p>Профиль: {getProfileTitle(selectedProfile)}</p>
@@ -2962,6 +2937,7 @@ export default function StalkerProfilesPage() {
                         <input
                           onChange={(event) => {
                             setGroupMemberDraft((currentDraft) => ({ ...currentDraft, groupSearchQuery: event.target.value }));
+                            setAppliedGroupSearchQuery(event.target.value.trim() || null);
                             setProfileGroupMessage("");
                           }}
                           onKeyDown={handleGroupSearchKeyDown}
@@ -2970,16 +2946,9 @@ export default function StalkerProfilesPage() {
                           value={groupMemberDraft.groupSearchQuery}
                         />
                       </label>
-                      <button className="command-row task-action-button" onClick={applyGroupSearch} type="button">
-                        Найти
-                      </button>
                     </div>
                     <div className="group-search-results">
-                      {!appliedGroupSearchQuery ? (
-                        <div className="empty-state compact-empty-state">
-                          <p>Введите название группы и нажмите Enter.</p>
-                        </div>
-                      ) : profileGroupSearchResults.length > 0 ? (
+                      {profileGroupSearchResults.length > 0 ? (
                         profileGroupSearchResults.map((group) => (
                           <div className="group-search-result" key={group.id}>
                             <div>
@@ -2998,7 +2967,7 @@ export default function StalkerProfilesPage() {
                         ))
                       ) : (
                         <div className="empty-state compact-empty-state">
-                          <p>Группы не найдены.</p>
+                          <p>{appliedGroupSearchQuery ? "Группы не найдены." : "Профиль уже состоит во всех активных группах."}</p>
                         </div>
                       )}
                     </div>
@@ -3011,7 +2980,7 @@ export default function StalkerProfilesPage() {
               </section>
 
               {activeGroups.length > 0 ? (
-                <section className="form-section">
+                <section className="form-section profile-group-role-section">
                   <div className="form-section-heading">
                     <h2>Роль в группе</h2>
                   </div>
@@ -3071,6 +3040,7 @@ export default function StalkerProfilesPage() {
         >
           <form className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleEditTaskSubmit}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>Редактирование задания</h1>
                 <p>Изменения будут закреплены в реестре</p>
@@ -3145,8 +3115,9 @@ export default function StalkerProfilesPage() {
         >
           <form className="pda-modal task-modal task-complete-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleCompleteTaskSubmit}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
-                <h1>Засчитать выполнение задания</h1>
+                <h1>Зачёт задания</h1>
                 <p>Статус выполнения будет закреплён в журнале после подтверждения</p>
               </div>
             </div>
@@ -3176,7 +3147,7 @@ export default function StalkerProfilesPage() {
                 Отмена
               </button>
               <button className="primary-command" type="submit">
-                Засчитать
+                Зачесть
               </button>
             </div>
           </form>
@@ -3190,6 +3161,7 @@ export default function StalkerProfilesPage() {
         >
           <form className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleTaskSubmit}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>Выдача задания</h1>
                 <p>Получатель: {getProfileTitle(selectedProfile)}</p>
@@ -3264,6 +3236,7 @@ export default function StalkerProfilesPage() {
         >
           <form className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleTradeSubmit}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>
                   {editingTradeId
@@ -3285,42 +3258,20 @@ export default function StalkerProfilesPage() {
             <div className="modal-body">
               <section className="form-section">
                 <div className="form-section-heading">
-                  <h2>Предмет и сумма</h2>
-                  <span>Один предмет сохраняется как элемент списка</span>
+                  <h2>Позиции операции</h2>
+                  <span>Количество и цена по каждой позиции</span>
                 </div>
-                <div className="task-form-grid">
-                  <label className="filter-field">
-                    <span>Предмет</span>
-                    <input
-                      onChange={(event) => updateTradeDraft("itemName", event.target.value)}
-                      placeholder="Название предмета"
-                      type="text"
-                      value={tradeDraft.itemName}
-                    />
-                  </label>
-                  <label className="filter-field">
-                    <span>Количество</span>
-                    <input
-                      min="0"
-                      onChange={(event) => updateTradeDraft("quantity", event.target.value)}
-                      type="number"
-                      value={tradeDraft.quantity}
-                    />
-                  </label>
-                  <label className="filter-field">
-                    <span>Цена</span>
-                    <input
-                      min="0"
-                      onChange={(event) => updateTradeDraft("price", event.target.value)}
-                      type="number"
-                      value={tradeDraft.price}
-                    />
-                  </label>
-                  <label className="filter-field">
-                    <span>Общая сумма</span>
-                    <input readOnly type="text" value={formatMoney(tradeDraftTotal)} />
-                  </label>
-                </div>
+                <TradeItemsEditor
+                  formatMoney={formatMoney}
+                  invalidField={tradeItemError?.field}
+                  invalidItemKey={tradeItemError?.itemKey}
+                  items={tradeDraft.items}
+                  onChange={(items) => {
+                    setTradeDraft((currentDraft) => ({ ...currentDraft, items }));
+                    setTradeFormMessage("");
+                    setTradeItemError(null);
+                  }}
+                />
               </section>
 
               <section className="form-section">
@@ -3373,6 +3324,7 @@ export default function StalkerProfilesPage() {
         >
           <form className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleViolationSubmit}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>{editingViolationId ? "Редактирование нарушения" : "Оформление нарушения"}</h1>
                 <p>Нарушитель: {getProfileTitle(selectedProfile)}</p>
@@ -3430,6 +3382,7 @@ export default function StalkerProfilesPage() {
         >
           <form className="pda-modal task-complete-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={closeViolationRecord}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>Закрыть нарушение</h1>
                 <p>

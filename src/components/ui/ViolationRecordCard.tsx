@@ -57,7 +57,7 @@ export function ViolationRecordCard({
 
       {violation.closureNote ? (
         <div className="profile-notes-wide profile-record-notes">
-          <span>Что сделал сталкер</span>
+          <span>Как закрыто</span>
           <p>{violation.closureNote}</p>
         </div>
       ) : null}

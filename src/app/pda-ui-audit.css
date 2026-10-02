@@ -139,7 +139,6 @@ body {
     grid-column: 1 / -1;
     grid-row: 2;
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
     width: 100%;
     min-width: 0;
   }
@@ -161,10 +160,6 @@ body {
 }
 
 @media (max-width: 760px) {
-  .pda-shell-header,
-  .registry-shell-header {
-    grid-template-columns: minmax(0, 1fr);
-  }
 
   .pda-brand,
   .registry-brand,
@@ -182,37 +177,11 @@ body {
 
   .pda-status,
   .registry-status {
-    grid-row: 2;
-    justify-self: stretch;
-    width: 100%;
     justify-content: flex-end;
-    flex-wrap: wrap;
-  }
-
-  .pda-main-nav,
-  .registry-main-nav {
-    grid-row: 3;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .pda-nav-dropdown-menu {
     max-width: calc(100vw - 1.25rem);
-  }
-}
-
-@media (max-width: 460px) {
-  .pda-main-nav,
-  .registry-main-nav {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .pda-status,
-  .registry-status {
-    justify-content: space-between;
-  }
-
-  .pda-clock {
-    margin-left: auto;
   }
 }
 
@@ -325,8 +294,6 @@ body {
 .pda-screen .badge-task-completed,
 .pda-screen .badge-task-cancelled,
 .pda-screen .badge-violation-closed,
-.pda-screen .badge-payment-paid,
-.pda-screen .badge-payment-pending,
 .pda-screen .trade-record-purchase-badge,
 .pda-screen .registry-status-badge-active {
   border-color: #484c4e !important;
@@ -337,7 +304,6 @@ body {
 
 .pda-screen .badge-task-overdue,
 .pda-screen .badge-violation-active,
-.pda-screen .badge-payment-overdue,
 .pda-screen .trade-record-sale-badge,
 .pda-screen .registry-status-badge-danger {
   border-color: #79232a !important;
@@ -485,5 +451,1995 @@ body {
 
   .login-card h2 {
     font-size: clamp(1.45rem, 7vw, 1.8rem);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Topbar v2: tabs sized by label, status never overlaps navigation           */
+/* -------------------------------------------------------------------------- */
+
+.pda-tab,
+.registry-nav-tab {
+  min-width: 5.4rem;
+  padding-inline: .78rem;
+}
+
+.pda-status,
+.registry-status {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.pda-user-email {
+  max-width: 13rem;
+}
+
+.pda-brand-copy strong::after {
+  font-size: 8px;
+}
+
+.pda-signal {
+  width: .5rem;
+  height: .5rem;
+  flex: 0 0 auto;
+  border-radius: 0;
+  opacity: 1;
+}
+
+.pda-signal-online {
+  background: #8fa07a;
+  box-shadow: 0 0 0 1px #050606, 0 0 4px rgba(143, 160, 122, .45);
+}
+
+.pda-signal-offline {
+  background: #c42b33;
+  box-shadow: 0 0 0 1px #050606, 0 0 5px rgba(196, 43, 51, .65);
+}
+
+@media (min-width: 1121px) and (max-width: 1279px) {
+  .pda-user-email {
+    display: none;
+  }
+}
+
+@media (max-width: 1120px) {
+  .pda-main-nav,
+  .registry-main-nav {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .pda-tab,
+  .registry-nav-tab {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .pda-shell-header,
+  .registry-shell-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: .4rem;
+  }
+
+  .pda-status,
+  .registry-status {
+    grid-column: 2;
+    grid-row: 1;
+    width: auto;
+    justify-self: end;
+    flex-wrap: nowrap;
+  }
+
+  .pda-user-email {
+    display: none;
+  }
+
+  .pda-main-nav,
+  .registry-main-nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 460px) {
+  .pda-brand-copy strong::after {
+    display: none;
+  }
+
+  .pda-brand-copy strong {
+    font-size: .74rem;
+    letter-spacing: .05em;
+  }
+
+  .pda-main-nav,
+  .registry-main-nav {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .pda-tab,
+  .registry-nav-tab {
+    min-height: 2.35rem;
+    padding-inline: .2rem;
+    font-size: .64rem;
+    letter-spacing: .01em;
+  }
+
+  .pda-status,
+  .registry-status {
+    justify-content: flex-end;
+    padding: .25rem .35rem;
+  }
+
+  .pda-clock {
+    margin-left: 0;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Map: object panel is a dedicated right column, not lost under the map      */
+/* -------------------------------------------------------------------------- */
+
+@media (min-width: 821px) {
+  .pda-screen .map-page-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 21.25rem;
+    gap: .5rem;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .pda-screen .map-side-panel {
+    position: relative;
+    top: auto;
+    right: auto;
+    width: auto;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+}
+
+@media (min-width: 821px) and (max-width: 1100px) {
+  .pda-screen .map-page-layout {
+    grid-template-columns: minmax(0, 1fr) 18rem;
+  }
+}
+
+@media (max-width: 820px) {
+  .pda-screen .map-page-layout {
+    position: relative;
+  }
+
+  .pda-screen .map-side-panel {
+    position: absolute;
+  }
+}
+
+.pda-screen .map-side-panel {
+  padding: .7rem .75rem;
+}
+
+.pda-screen .map-panel-tabs button {
+  min-width: 0;
+  overflow: hidden;
+  padding-inline: .2rem;
+  font-size: .68rem;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pda-screen .map-panel-message {
+  border-left: 0;
+  padding: .45rem 0;
+}
+
+@media (min-width: 821px) and (max-width: 1100px) {
+  .pda-screen .map-panel-tabs-primary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Long names never escape their cards                                        */
+/* -------------------------------------------------------------------------- */
+
+.pda-screen .apartment-tenant-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.pda-screen .apartment-tenant-row .member-identity,
+.pda-screen .apartment-tenant-title-row {
+  min-width: 0;
+}
+
+.pda-screen .apartment-tenant-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .3rem .4rem;
+}
+
+.pda-screen .apartment-tenant-title-row strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pda-screen .apartment-tenant-group-badge {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pda-screen .apartment-tenant-row .task-actions {
+  align-self: center;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Registry ↔ card on narrow screens: one view at a time, explicit way back    */
+/* -------------------------------------------------------------------------- */
+
+.mobile-back-button {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .pda-screen .profile-card-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-auto-rows: auto;
+    height: auto;
+    max-height: none;
+  }
+
+  .pda-screen .profile-card-grid > .profile-column {
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .pda-screen .profile-card-grid.has-selection > .profile-column:not(.detail-host-column),
+  .pda-screen .profile-card-grid:not(.has-selection) > .detail-host-column {
+    display: none;
+  }
+
+  .pda-screen .mobile-back-button {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    justify-self: start;
+    width: max-content;
+    max-width: 100%;
+    margin-bottom: .5rem;
+  }
+}
+
+.pda-screen .apartment-profile-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .5rem .75rem;
+}
+
+.pda-screen .apartment-profile-title {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.pda-screen .apartment-profile-title h3 {
+  overflow-wrap: anywhere;
+}
+
+.pda-screen .apartment-profile-controls {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* --- login heading scales with its own panel, never clipped --- */
+
+.login-briefing {
+  container-type: inline-size;
+}
+
+.login-briefing h1,
+.login-briefing-copy h1 {
+  max-width: 100%;
+  font-size: clamp(1.9rem, 11.5cqi, 4.4rem);
+  letter-spacing: 0;
+  line-height: .95;
+  overflow-wrap: normal;
+}
+
+.login-card input::placeholder {
+  font-weight: 400;
+}
+
+/* --- profile service marks: short labels, author visible, nothing clipped --- */
+
+.pda-screen .dossier-service-grid > div {
+  min-width: 0;
+}
+
+.pda-screen .dossier-service-grid span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pda-screen .dossier-service-grid small {
+  display: block;
+  margin-top: .15rem;
+  overflow: hidden;
+  color: #8d9294;
+  font-size: .72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Calculator: columns that fit, readable prices, cart rows without overlap    */
+/* -------------------------------------------------------------------------- */
+
+@media (min-width: 901px) {
+  .calculator-page .calculator-catalog-heading,
+  .calculator-page .calculator-catalog-card {
+    grid-template-columns: minmax(9rem, 1fr) repeat(3, minmax(5.6rem, 7.6rem)) minmax(6.8rem, auto);
+    column-gap: .5rem;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1180px) {
+  .calculator-page .calculator-catalog-heading span {
+    font-size: .62rem;
+    letter-spacing: .02em;
+  }
+}
+
+.calculator-page .calculator-card-title-line h3 {
+  overflow-wrap: normal;
+  hyphens: auto;
+}
+
+.calculator-page .calculator-catalog-heading span {
+  min-width: 0;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.calculator-page .calculator-cart-card-head {
+  flex-wrap: wrap;
+  row-gap: .45rem;
+}
+
+.calculator-page .calculator-cart-card-head strong {
+  flex: 1 1 8rem;
+  overflow-wrap: normal;
+}
+
+.calculator-page .calculator-card-title-line {
+  flex-wrap: wrap;
+  row-gap: .3rem;
+}
+
+.pda-screen .calculator-price-value-tenant,
+.pda-screen .calculator-cart-sum-tenant {
+  color: #c9cccd;
+}
+
+.pda-screen .calculator-price-value-general,
+.pda-screen .calculator-cart-sum-general {
+  color: #e2e4e4;
+}
+
+.calculator-page .calculator-price-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.calculator-page .calculator-add-button {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.pda-screen .calculator-add-button-in-cart {
+  border-color: #6b2a2f;
+  color: #f0d6d8;
+  box-shadow: inset 3px 0 0 #a52830;
+}
+
+.pda-screen .calculator-composition-button {
+  width: auto;
+  padding-inline: .35rem;
+  font-size: .62rem;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.calculator-page .calculator-cart-sums,
+.pda-screen .calculator-page .calculator-cart-sums {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1px;
+}
+
+.calculator-page .calculator-cart-sums div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .6rem;
+  padding: .3rem .5rem;
+}
+
+.calculator-page .calculator-cart-sums span {
+  min-width: 0;
+}
+
+.calculator-page .calculator-cart-sums p {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.calculator-page .calculator-total-hint {
+  display: block;
+  color: #8d9294;
+  font-size: .72rem;
+  line-height: 1.35;
+}
+
+@media (max-width: 900px) {
+  .calculator-page .calculator-price-value {
+    display: grid;
+    gap: .1rem;
+  }
+
+  .calculator-page .calculator-price-value::before {
+    content: attr(data-label);
+    color: #8d9294;
+    font-size: .64rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+}
+
+@media (max-width: 560px) {
+  .calculator-page .calculator-price-value {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: .6rem;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Journals: content never wider than the screen                               */
+/* -------------------------------------------------------------------------- */
+
+.pda-screen .journal-workspace,
+.pda-screen .journals-shell {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+.pda-screen .journal-filter-bar {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.pda-screen .journal-filter-bar .list-tab {
+  flex: 0 0 auto;
+}
+
+.pda-screen .task-record-header,
+.pda-screen .profile-record-title {
+  min-width: 0;
+}
+
+@media (max-width: 760px) {
+  .pda-screen .task-record-header,
+  .pda-screen .profile-record-title {
+    flex-wrap: wrap;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Modal window chrome: pinned title bar and action bar, close button          */
+/* -------------------------------------------------------------------------- */
+
+.pda-modal .modal-header,
+.pda-modal .map-form-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding-right: 3rem;
+}
+
+.pda-modal:not(.confirm-dialog) .modal-actions,
+.pda-modal .map-form-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin-top: 0;
+  border-top: 1px solid #34383a;
+  background: linear-gradient(180deg, #191b1d, #0f1112);
+  box-shadow: 0 -6px 12px rgba(0, 0, 0, .38);
+}
+
+.modal-close-button {
+  position: absolute;
+  top: .55rem;
+  right: .55rem;
+  z-index: 6;
+  display: inline-grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border: 1px solid #45494b;
+  border-top-color: #55595b;
+  border-bottom-color: #0a0b0b;
+  border-radius: 1px;
+  background: linear-gradient(180deg, #25282a, #121415);
+  color: #b4b8b9;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05);
+  cursor: pointer;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.modal-close-button:hover {
+  border-color: #7b252b;
+  background: linear-gradient(180deg, #3f1418, #1c0c0e);
+  color: #fff;
+}
+
+.modal-close-button:focus-visible {
+  outline: 2px solid #c42b33;
+  outline-offset: 2px;
+}
+
+.pda-modal .modal-header,
+.pda-modal .map-form-header,
+.confirm-dialog .modal-header {
+  position: sticky;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Notice tray: PDA status-line confirmations                                  */
+/* -------------------------------------------------------------------------- */
+
+.pda-notice-tray {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 80;
+  display: grid;
+  gap: .35rem;
+  width: min(30rem, calc(100vw - 2rem));
+  pointer-events: none;
+}
+
+.pda-notice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: .6rem;
+  border: 1px solid #45494b;
+  border-left: 4px solid #8fa07a;
+  border-radius: 1px;
+  background: linear-gradient(180deg, #1b1d1f, #0d0f10);
+  color: #d7dada;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .05),
+    0 8px 20px rgba(0, 0, 0, .55);
+  padding: .5rem .5rem .5rem .7rem;
+  pointer-events: auto;
+  animation: pda-notice-in 160ms ease-out;
+}
+
+.pda-notice-warn {
+  border-left-color: #a52830;
+}
+
+.pda-notice-error {
+  border-color: #79232a;
+  border-left-color: #d0343c;
+  background: linear-gradient(180deg, #2a1215, #140a0b);
+}
+
+.pda-notice-label {
+  color: #8d9294;
+  font-size: .64rem;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.pda-notice-message {
+  min-width: 0;
+  overflow: hidden;
+  font-size: .82rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pda-notice-time {
+  color: #8d9294;
+  font-size: .72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pda-notice-close {
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid #34383a;
+  background: #0a0b0c;
+  color: #9ca1a3;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.pda-notice-close:hover {
+  border-color: #7b252b;
+  color: #fff;
+}
+
+@keyframes pda-notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 560px) {
+  .pda-notice-tray {
+    right: .5rem;
+    bottom: .5rem;
+    width: calc(100vw - 1rem);
+  }
+}
+
+/* --- form errors: visible above the action bar, invalid fields marked --- */
+
+.pda-modal .modal-message-slot {
+  min-height: 0;
+  padding: 0 1rem;
+}
+
+.pda-modal .modal-message-slot:not(:empty) {
+  position: sticky;
+  bottom: 3.6rem;
+  z-index: 4;
+  background: #0f1112;
+  padding: .5rem 1rem;
+}
+
+.pda-modal .modal-message-slot .draft-message,
+.pda-modal .modal-message-slot .form-error {
+  margin: 0;
+  border: 1px solid #5a2025;
+  border-left: 3px solid #c42b33;
+  background: #1f0e10;
+  color: #f0c4c7;
+  padding: .45rem .65rem;
+}
+
+.pda-screen :is(input, select, textarea)[aria-invalid="true"],
+.pda-modal :is(input, select, textarea)[aria-invalid="true"] {
+  border-color: #b3333a !important;
+  box-shadow: 0 0 0 1px rgba(196, 43, 51, .45), inset 0 2px 5px rgba(0, 0, 0, .6) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Status badges: red only for overdue, violations and danger                  */
+/* -------------------------------------------------------------------------- */
+
+.pda-screen .badge-service-task-active,
+.pda-screen .badge-chip.badge-service-task-active,
+.pda-screen .profile-badge.badge-service-task-active {
+  border-color: #4c5153 !important;
+  background: linear-gradient(180deg, #24282a, #151718) !important;
+  color: #cfd2d3 !important;
+  box-shadow: inset 2px 0 0 #6f7577 !important;
+}
+
+.pda-screen .badge-service-task-overdue,
+.pda-screen .badge-chip.badge-service-task-overdue,
+.pda-screen .profile-badge.badge-service-task-overdue,
+.pda-screen .badge-service-violation-active,
+.pda-screen .badge-chip.badge-service-violation-active {
+  border-color: #79232a !important;
+  background: linear-gradient(180deg, #3b1115, #210b0e) !important;
+  color: #eea8ad !important;
+  box-shadow: inset 2px 0 0 #a52830 !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Button roles: primary (one per screen), secondary, danger                   */
+/* -------------------------------------------------------------------------- */
+
+:is(.pda-screen, .pda-modal, .pda-page) .danger-command,
+.danger-command {
+  border: 1px solid #5e2026 !important;
+  border-top-color: #7a2b31 !important;
+  border-bottom-color: #2a0b0e !important;
+  border-radius: 1px !important;
+  background: linear-gradient(180deg, #221214, #140a0b) !important;
+  color: #eda9ae !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04), inset 0 -1px 0 rgba(0, 0, 0, .7) !important;
+  text-shadow: none !important;
+}
+
+:is(.pda-screen, .pda-modal, .pda-page) .danger-command:hover:not(:disabled),
+.danger-command:hover:not(:disabled) {
+  border-color: #a52830 !important;
+  background: linear-gradient(180deg, #4a161a, #260c0f) !important;
+  color: #fff !important;
+}
+
+.pda-modal .confirm-dialog-confirm-danger,
+.confirm-dialog .confirm-dialog-confirm-danger {
+  border: 1px solid #87242a !important;
+  border-top-color: #b64046 !important;
+  border-bottom-color: #460b0f !important;
+  background: linear-gradient(180deg, #a5262d 0, #77171c 49%, #540f13 51%, #681218 100%) !important;
+  color: #fff !important;
+}
+
+.pda-modal .confirm-dialog-confirm-warning,
+.confirm-dialog .confirm-dialog-confirm-warning {
+  border: 1px solid #5e2026 !important;
+  background: linear-gradient(180deg, #2c1416, #170a0c) !important;
+  color: #f3c2c5 !important;
+}
+
+/* --- label / value fields: label always above value, no empty filler cells --- */
+
+.pda-screen .registry-info-grid {
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.pda-screen .registry-info-field > span {
+  display: block;
+  margin-bottom: .2rem;
+  color: #8d9294;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.pda-screen .registry-info-field > strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.pda-screen .member-avatar {
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Journals header: one tab strip with consistent counters                     */
+/* -------------------------------------------------------------------------- */
+
+.pda-screen .journal-tab-card {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "label count"
+    "note count";
+  align-items: center;
+  column-gap: .6rem;
+  row-gap: .05rem;
+  text-align: left;
+}
+
+.pda-screen .journal-tab-card > span {
+  grid-area: label;
+}
+
+.pda-screen .journal-tab-card > strong {
+  grid-area: count;
+  font-variant-numeric: tabular-nums;
+}
+
+.pda-screen .journal-tab-note {
+  grid-area: note;
+  color: #80868a;
+  font-size: .64rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.pda-screen .journal-tab-note-alert {
+  color: #e2878d;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Record cards (tasks, trade, violations): one dense layout everywhere        */
+/* -------------------------------------------------------------------------- */
+
+.pda-screen .profile-record-card {
+  gap: .4rem !important;
+  padding: .55rem .7rem !important;
+}
+
+.pda-screen .profile-record-card .task-record-header {
+  align-items: flex-start;
+  gap: .6rem;
+}
+
+.pda-screen .profile-record-card .profile-record-title {
+  row-gap: .15rem;
+}
+
+.pda-screen .profile-record-card .profile-record-title > strong {
+  font-size: .9rem;
+  line-height: 1.25;
+}
+
+.pda-screen .profile-record-card .profile-record-facts {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)) !important;
+  gap: 0 !important;
+  border: 0 !important;
+  border-top: 1px solid #2b2f31 !important;
+  background: transparent !important;
+  margin: 0 !important;
+  padding: .35rem 0 0 !important;
+}
+
+.pda-screen .profile-record-card .profile-record-facts > div {
+  min-width: 0;
+  border: 0 !important;
+  border-left: 1px solid #2b2f31 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: .1rem .65rem !important;
+}
+
+.pda-screen .profile-record-card .profile-record-facts > div:first-child {
+  border-left: 0 !important;
+  padding-left: 0 !important;
+}
+
+.pda-screen .profile-record-card .profile-record-facts dt {
+  color: #80868a;
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.pda-screen .profile-record-card .profile-record-facts dd {
+  margin: .1rem 0 0;
+  overflow-wrap: anywhere;
+  font-size: .84rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pda-screen .profile-record-card .profile-record-notes,
+.pda-screen .profile-record-card .profile-record-items {
+  border: 0 !important;
+  border-top: 1px dashed #2b2f31 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  padding: .35rem 0 0 !important;
+}
+
+.pda-screen .profile-record-card .profile-record-notes {
+  display: flex !important;
+  align-items: baseline;
+  gap: .5rem;
+}
+
+.pda-screen .profile-record-card .profile-record-notes > span,
+.pda-screen .profile-record-card .profile-record-items > span {
+  flex: 0 0 auto;
+  color: #80868a;
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.pda-screen .profile-record-card .profile-record-notes > span::before {
+  content: none !important;
+}
+
+.pda-screen .profile-record-card .profile-record-notes p {
+  margin: 0;
+  font-size: .84rem;
+}
+
+.pda-screen .profile-record-card .task-actions {
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: .25rem;
+  border-left: 0 !important;
+  padding-left: 0 !important;
+}
+
+.pda-screen .profile-record-card .task-action-button {
+  min-height: 1.65rem !important;
+  padding: .2rem .5rem !important;
+  font-size: .7rem !important;
+}
+
+.pda-screen .trade-record-sale-badge,
+.pda-screen .trade-record-purchase-badge {
+  border-color: #484c4e !important;
+  background: linear-gradient(180deg, #232628, #141617) !important;
+  color: #c7caca !important;
+  box-shadow: inset 2px 0 0 #6f7577 !important;
+}
+
+.pda-screen .trade-record-card {
+  border-left-color: #34383a !important;
+  box-shadow: none !important;
+}
+
+.pda-screen .profile-record-card .profile-record-items > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .8rem;
+  border: 0 !important;
+  background: transparent !important;
+  padding: .1rem 0 !important;
+}
+
+.pda-screen .profile-record-card .profile-record-items > div strong {
+  font-size: .84rem;
+}
+
+.pda-screen .profile-record-card .profile-record-items > div span {
+  color: #a9adae;
+  font-size: .8rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pda-screen .journal-toolbar {
+  padding-top: .6rem !important;
+  padding-bottom: .6rem !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Trade items editor                                                          */
+/* -------------------------------------------------------------------------- */
+
+.trade-items-editor {
+  display: grid;
+  gap: .3rem;
+}
+
+.trade-items-head,
+.trade-items-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 5.5rem 7.5rem 7.5rem 2.1rem;
+  align-items: center;
+  gap: .35rem;
+}
+
+.trade-items-head span {
+  color: #80868a;
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.trade-items-row input {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.2rem;
+  border: 1px solid #34383a;
+  border-radius: 1px;
+  background: #070808;
+  color: #e2e4e4;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, .6);
+  font-size: .86rem;
+  padding: .35rem .5rem;
+}
+
+.trade-items-row input:focus {
+  border-color: #8f2a31;
+  outline: none;
+}
+
+.trade-items-sum {
+  overflow: hidden;
+  color: #c9cccd;
+  font-size: .84rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trade-items-remove {
+  min-height: 2.2rem !important;
+  padding: 0 !important;
+  font-size: 1rem !important;
+}
+
+.trade-items-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .6rem;
+  border-top: 1px solid #2b2f31;
+  padding-top: .45rem;
+}
+
+.trade-items-total {
+  display: flex;
+  align-items: baseline;
+  gap: .6rem;
+}
+
+.trade-items-total span {
+  color: #80868a;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.trade-items-total strong {
+  color: #f0f1f1;
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .trade-items-head {
+    display: none;
+  }
+
+  .trade-items-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 2.1rem;
+    border-bottom: 1px dashed #2b2f31;
+    padding-bottom: .35rem;
+  }
+
+  .trade-items-row > input:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .trade-items-sum {
+    grid-column: 1 / 3;
+    text-align: left;
+  }
+}
+
+.trade-items-footer .trade-items-add {
+  flex: 0 0 auto;
+  width: auto !important;
+  padding-inline: .8rem !important;
+}
+
+.trade-items-total strong {
+  white-space: nowrap;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Home: duty officer summary                                                 */
+/* -------------------------------------------------------------------------- */
+
+.pda-screen .dashboard-page {
+  display: grid;
+  align-content: start;
+  gap: .6rem;
+  padding: .6rem;
+}
+
+.dashboard-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: .3rem .9rem;
+  border: 1px solid #34383a;
+  border-top: 2px solid #535759;
+  background: linear-gradient(180deg, #17191b, #0e1011);
+  padding: .55rem .8rem;
+}
+
+.dashboard-header h1 {
+  margin: 0;
+  color: #e7e9e9;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.dashboard-header p {
+  margin: 0;
+  color: #8d9294;
+  font-size: .8rem;
+}
+
+.dashboard {
+  display: grid;
+  gap: .6rem;
+}
+
+.dashboard-date {
+  margin: 0;
+  color: #8d9294;
+  font-size: .72rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.dashboard-state {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  border: 1px dashed #34383a;
+  color: #a9adae;
+  padding: .8rem;
+}
+
+.dashboard-state p {
+  margin: 0;
+}
+
+.dashboard-counters {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 2px;
+  border: 1px solid #34383a;
+  background: #050606;
+  padding: 2px;
+}
+
+.dashboard-counter {
+  display: grid;
+  gap: .15rem;
+  min-width: 0;
+  border: 1px solid #2b2f31;
+  border-top-color: #3d4143;
+  background: linear-gradient(180deg, #1a1c1e, #101213);
+  color: inherit;
+  padding: .55rem .7rem;
+  text-decoration: none;
+}
+
+.dashboard-counter:hover,
+.dashboard-counter:focus-visible {
+  border-color: #6b2a2f;
+  background: linear-gradient(180deg, #241517, #120b0c);
+}
+
+.dashboard-counter:focus-visible {
+  outline: 2px solid #c42b33;
+  outline-offset: 1px;
+}
+
+.dashboard-counter-label {
+  color: #a9adae;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.dashboard-counter-value {
+  color: #eef0f0;
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.dashboard-counter-note {
+  overflow: hidden;
+  color: #80868a;
+  font-size: .7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-counter-alert {
+  box-shadow: inset 3px 0 0 #a52830;
+}
+
+.dashboard-counter-alert .dashboard-counter-note {
+  color: #e2878d;
+}
+
+.dashboard-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  align-items: start;
+  gap: .6rem;
+}
+
+.dashboard-panel {
+  display: grid;
+  gap: .55rem;
+  min-width: 0;
+  border: 1px solid #34383a;
+  border-top: 2px solid #535759;
+  background: linear-gradient(180deg, #151719, #0d0f10 76%);
+  padding: .6rem .7rem .7rem;
+}
+
+.dashboard-panel-attention {
+  border-top-color: #842027;
+}
+
+.dashboard-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .6rem;
+  border-bottom: 1px solid #2b2f31;
+  padding-bottom: .4rem;
+}
+
+.dashboard-panel-head h2 {
+  margin: 0;
+  color: #e7e9e9;
+  font-size: .82rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.dashboard-panel-head span {
+  color: #80868a;
+  font-size: .7rem;
+  text-transform: uppercase;
+}
+
+.dashboard-list {
+  display: grid;
+  gap: 1px;
+}
+
+.dashboard-list h3 {
+  margin: .2rem 0 .2rem;
+  color: #8d9294;
+  font-size: .66rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.dashboard-row {
+  display: grid;
+  grid-template-columns: 5.6rem minmax(0, 1fr) minmax(0, 12rem);
+  align-items: baseline;
+  gap: .6rem;
+  border-left: 2px solid transparent;
+  background: #0c0d0e;
+  color: inherit;
+  padding: .32rem .5rem;
+  text-decoration: none;
+}
+
+.dashboard-row:nth-child(even) {
+  background: #101213;
+}
+
+.dashboard-row:hover,
+.dashboard-row:focus-visible {
+  border-left-color: #a52830;
+  background: #191113;
+}
+
+.dashboard-row:focus-visible {
+  outline: 1px solid #c42b33;
+  outline-offset: -1px;
+}
+
+.dashboard-row-date {
+  color: #a9adae;
+  font-size: .78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-row-date-alert {
+  color: #ef8f95;
+  font-weight: 700;
+}
+
+.dashboard-row-main {
+  overflow: hidden;
+  color: #dfe1e1;
+  font-size: .84rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-row-meta {
+  overflow: hidden;
+  color: #8d9294;
+  font-size: .76rem;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-more {
+  color: #c9cccd;
+  font-size: .74rem;
+  padding: .3rem .5rem;
+}
+
+.dashboard-empty {
+  margin: 0;
+  color: #8d9294;
+  font-size: .82rem;
+  padding: .3rem 0;
+}
+
+@media (max-width: 1180px) {
+  .dashboard-counters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .dashboard-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .dashboard-counters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-row {
+    grid-template-columns: 5rem minmax(0, 1fr);
+  }
+
+  .dashboard-row-meta {
+    grid-column: 2;
+    text-align: left;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Registry header: title left, primary action right, tabs and search below   */
+/* -------------------------------------------------------------------------- */
+
+.pda-screen .list-header-block {
+  display: grid !important;
+  gap: .45rem !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  padding: 0 0 .45rem !important;
+}
+
+.pda-screen .list-header-block::before,
+.pda-screen .list-header-block::after,
+.pda-screen .list-column-header::before,
+.pda-screen .list-column-header::after {
+  content: none !important;
+}
+
+.pda-screen .list-column-header {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: .45rem .6rem !important;
+  min-height: 2.4rem;
+  border: 1px solid #34383a !important;
+  border-top: 2px solid #535759 !important;
+  background: linear-gradient(180deg, #1b1d1f, #111314) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04) !important;
+  margin: 0 !important;
+  padding: .4rem .55rem .4rem .7rem !important;
+}
+
+.pda-screen .list-column-header h2,
+.pda-screen .list-column-header .profile-column-heading h2 {
+  margin: 0 !important;
+  color: #e7e9e9 !important;
+  font-size: .86rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .08em !important;
+  line-height: 1.2 !important;
+  text-transform: uppercase !important;
+}
+
+.pda-screen .list-column-header .profile-column-heading {
+  display: flex;
+  align-items: baseline;
+  gap: .6rem;
+  border: 0 !important;
+  padding: 0 !important;
+}
+
+.pda-screen .list-column-header .profile-column-heading span {
+  color: #8d9294;
+  font-size: .72rem;
+}
+
+.pda-screen .list-column-header > button {
+  flex: 0 0 auto;
+  width: auto !important;
+  min-height: 1.95rem !important;
+  margin: 0 !important;
+  padding: .3rem .75rem !important;
+  font-size: .76rem !important;
+}
+
+.pda-screen .list-header-block .list-tabs {
+  justify-self: start;
+  margin: 0 !important;
+}
+
+.pda-screen .list-tabs .list-tab {
+  min-height: 1.85rem !important;
+  padding: .25rem .8rem !important;
+  font-size: .7rem !important;
+}
+
+.pda-screen .filter-label-row {
+  display: flex !important;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .6rem;
+  padding: 0 .1rem .25rem !important;
+}
+
+.pda-screen .profile-list-filter,
+.pda-screen .duty-member-search-filter-row {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  margin: 0 0 .45rem !important;
+  padding: 0 !important;
+}
+
+.pda-screen .profile-list-filter .filter-field > span,
+.pda-screen .duty-member-search-filter-row .filter-field > span {
+  padding-inline: .1rem;
+}
+
+@media (max-width: 900px) {
+  .pda-screen .list-column-header > button {
+    flex: 1 1 100%;
+  }
+}
+
+/* --- duty members list: compact rows like other registries --- */
+
+.pda-screen .duty-members-list-controls {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.pda-screen .duty-members-list-controls::after {
+  content: none !important;
+}
+
+.pda-screen .duty-member-search-filter-row {
+  align-items: end;
+}
+
+.pda-screen .duty-member-list-row {
+  min-height: 0 !important;
+  padding: .55rem .7rem !important;
+}
+
+.pda-screen .duty-member-list-copy {
+  display: grid;
+  gap: .2rem;
+}
+
+.pda-screen .duty-member-list-head {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.pda-screen .duty-member-list-line {
+  border: 0 !important;
+  background: transparent !important;
+  color: #a9adae !important;
+  font-size: .78rem !important;
+  padding: 0 !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Type scale for cards: one entity title size, one block heading style       */
+/* -------------------------------------------------------------------------- */
+
+.pda-screen .profile-hero-title,
+.pda-screen .group-hero-title,
+.pda-screen .apartment-profile-title h3 {
+  font-size: 1.75rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .01em !important;
+  line-height: 1.15 !important;
+  text-transform: none !important;
+}
+
+.pda-screen .dossier-cell-heading span,
+.pda-screen .task-section-header > span,
+.pda-screen .block-heading-row h2,
+.pda-screen .stalker-notes-header h2,
+.pda-screen .apartment-notes-header > span {
+  color: #e2e4e4 !important;
+  font-size: .8rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .08em !important;
+  text-transform: uppercase !important;
+}
+
+@media (max-width: 560px) {
+  .pda-screen .profile-hero-title,
+  .pda-screen .group-hero-title,
+  .pda-screen .apartment-profile-title h3 {
+    font-size: 1.4rem !important;
+  }
+}
+
+/* --- secondary hero actions: standard height, not oversized slabs --- */
+
+.pda-screen .duty-member-action-button,
+.pda-screen .profile-entity-action {
+  min-height: 2rem !important;
+  padding: .3rem .7rem !important;
+  font-size: .74rem !important;
+}
+
+.pda-screen .duty-member-hero-actions {
+  align-content: start;
+  gap: .3rem !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Modal windows: one frame, one label style, one action bar                   */
+/* -------------------------------------------------------------------------- */
+
+.pda-modal {
+  width: min(960px, calc(100vw - 2rem)) !important;
+  border: 1px solid #45494b !important;
+  border-top: 2px solid #842027 !important;
+  border-radius: 1px !important;
+}
+
+.pda-modal.confirm-dialog,
+.pda-modal.task-complete-modal,
+.pda-modal.journal-action-modal {
+  width: min(560px, calc(100vw - 2rem)) !important;
+}
+
+.pda-modal .modal-header h1 {
+  margin: 0;
+  color: #eef0f0 !important;
+  font-size: .95rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .08em !important;
+  text-transform: uppercase !important;
+}
+
+.pda-modal .modal-header p {
+  margin: .2rem 0 0;
+  color: #8d9294 !important;
+  font-size: .78rem !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.pda-modal .modal-header .eyebrow-text {
+  display: none;
+}
+
+.pda-modal .form-section-heading h2 {
+  font-size: .74rem !important;
+  letter-spacing: .08em !important;
+}
+
+.pda-modal .form-section-heading span {
+  color: #80868a !important;
+  font-size: .7rem !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.pda-modal .filter-field > span:first-child {
+  color: #9ca1a3 !important;
+  font-size: .66rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .06em !important;
+  text-transform: uppercase !important;
+}
+
+.pda-modal .modal-actions {
+  gap: .4rem !important;
+}
+
+.pda-modal .modal-actions :is(.primary-command, .command-row, .journal-modal-submit) {
+  min-height: 2.15rem !important;
+  padding: .35rem 1rem !important;
+  font-size: .8rem !important;
+  letter-spacing: .02em !important;
+  text-transform: none !important;
+}
+
+.pda-modal .modal-actions :is(.primary-command, .journal-modal-submit):not(.confirm-dialog-confirm-warning) {
+  border: 1px solid #87242a !important;
+  border-top-color: #b64046 !important;
+  border-bottom-color: #460b0f !important;
+  background: linear-gradient(180deg, #a5262d 0, #77171c 49%, #540f13 51%, #681218 100%) !important;
+  color: #fff !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), inset 0 -1px 0 rgba(0, 0, 0, .7) !important;
+}
+
+.pda-modal .modal-actions :is(.primary-command, .journal-modal-submit):hover:not(:disabled) {
+  background: linear-gradient(180deg, #bd2d35 0, #8a1b21 49%, #631116 51%, #7a151b 100%) !important;
+}
+
+.pda-modal .profile-photo-title {
+  color: #9ca1a3 !important;
+  font-size: .66rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .06em !important;
+  text-transform: uppercase !important;
+}
+
+.pda-modal .profile-group-role-section {
+  order: -1;
+}
+
+.pda-modal select.group-role-select,
+.pda-screen select.group-role-select {
+  min-width: 14rem;
+  min-height: 2.2rem;
+  border: 1px solid #34383a;
+  border-radius: 1px;
+  background-color: #070808;
+  color: #e2e4e4;
+  font-size: .86rem;
+  padding: .3rem .5rem;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Empty states: one terse system message instead of striped slabs            */
+/* -------------------------------------------------------------------------- */
+
+.pda-screen .empty-state {
+  display: grid !important;
+  align-content: center;
+  justify-items: start;
+  gap: .25rem !important;
+  height: auto !important;
+  min-height: 0 !important;
+  border: 1px dashed #3a3e40 !important;
+  border-radius: 1px !important;
+  background: #0b0c0d !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  padding: .7rem .85rem !important;
+  text-align: left !important;
+}
+
+.pda-screen .empty-state::before {
+  content: none !important;
+}
+
+.pda-screen .empty-state p {
+  margin: 0 !important;
+  color: #c9cccd !important;
+  font-size: .84rem !important;
+  font-weight: 700 !important;
+}
+
+.pda-screen .empty-state p::before {
+  content: "■ ";
+  color: #6f7577;
+  font-size: .7em;
+}
+
+.pda-screen .empty-state span {
+  color: #8d9294 !important;
+  font-size: .76rem !important;
+}
+
+.pda-screen .empty-state .primary-command,
+.pda-screen .empty-state .command-row {
+  width: auto !important;
+  margin-top: .35rem !important;
+}
+
+.pda-screen .profile-detail-empty {
+  min-height: 9rem !important;
+  justify-items: center;
+  text-align: center !important;
+}
+
+/* --- registry column wide enough for full names --- */
+
+@media (min-width: 1181px) {
+  .pda-screen .profiles-page .profiles-command-grid,
+  .pda-screen .groups-page .groups-command-grid,
+  .profiles-page .profiles-command-grid,
+  .groups-page .groups-command-grid,
+  .apartments-page .apartments-two-column-layout {
+    grid-template-columns: minmax(23rem, 27rem) minmax(0, 1fr) !important;
+  }
+}
+
+/* --- affiliation is information, not an alarm --- */
+
+.pda-screen .badge-affiliation-duty,
+.pda-screen .badge-chip.badge-affiliation-duty,
+.pda-screen .profile-affiliation-badge.badge-affiliation-duty {
+  border-color: #5a3034 !important;
+  background: linear-gradient(180deg, #24191a, #161112) !important;
+  color: #d9c4c6 !important;
+  box-shadow: inset 2px 0 0 #7a2b31 !important;
+}
+
+.pda-screen .duty-badge-access-level-officer,
+.pda-screen .duty-badge-access-level-basic,
+.pda-screen .duty-badge-access-neutral {
+  border-color: #4c5153 !important;
+  background: linear-gradient(180deg, #24282a, #151718) !important;
+  color: #d7dada !important;
+}
+
+/* --- duty service badges: muted signal colours --- */
+
+.pda-screen .duty-badge-service-active,
+.pda-screen .duty-badge-access-active {
+  border-color: #46503c !important;
+  background: linear-gradient(180deg, #1d2219, #121510) !important;
+  color: #b9c6a9 !important;
+  box-shadow: inset 2px 0 0 #6f8059 !important;
+}
+
+.pda-screen .duty-badge-service-reserve,
+.pda-screen .duty-badge-service-suspended {
+  border-color: #5a5236 !important;
+  background: linear-gradient(180deg, #221f15, #15130d) !important;
+  color: #d3c89f !important;
+}
+
+.pda-screen .duty-badge-access-blocked {
+  border-color: #79232a !important;
+  background: linear-gradient(180deg, #3b1115, #210b0e) !important;
+  color: #eea8ad !important;
+}
+
+.pda-screen .duty-member-hero-actions {
+  display: flex !important;
+  flex-direction: column;
+  grid-auto-rows: auto !important;
+}
+
+.pda-screen .duty-member-hero-actions > * {
+  flex: 0 0 auto;
+  height: auto !important;
+}
+
+/* --- decorative red rails removed: red marks state, not decoration --- */
+
+.pda-screen :is(.profile-hero-note, .group-hero-note, .apartment-hero-notes, .duty-member-notes, .calculator-total-block) {
+  border-left-color: #4a4e50 !important;
+}
+
+.pda-screen :is(.calculator-info-button, .calculator-info-tooltip, .calculator-composition-tooltip) {
+  border-top-color: #4a4e50 !important;
+}
+
+.pda-screen .calculator-total-block,
+.pda-screen .calculator-cart-sums {
+  background: #0c0e0f !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Status bar: the bottom line of a service terminal                           */
+/* -------------------------------------------------------------------------- */
+
+.pda-statusbar {
+  order: 99;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0;
+  min-height: 1.6rem;
+  border-top: 1px solid #303436;
+  background: linear-gradient(180deg, #111314, #08090a);
+  color: #8d9294;
+  font-size: .66rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: 0 .6rem;
+  white-space: nowrap;
+}
+
+.pda-statusbar > span {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: 0 .65rem;
+}
+
+.pda-statusbar > span + span:not(.pda-statusbar-spacer) {
+  border-left: 1px solid #26292b;
+}
+
+.pda-statusbar-device {
+  padding-left: 0 !important;
+  color: #b4b8b9;
+}
+
+.pda-statusbar-device::before {
+  content: "";
+  width: .45rem;
+  height: .45rem;
+  background: #a52830;
+}
+
+.pda-statusbar-path {
+  overflow: hidden;
+  color: #d7dada;
+  text-overflow: ellipsis;
+}
+
+.pda-statusbar-spacer {
+  flex: 1 1 auto;
+  border: 0 !important;
+}
+
+.pda-statusbar-link-offline {
+  color: #ef8f95;
+}
+
+.pda-statusbar kbd {
+  border: 1px solid #45494b;
+  border-bottom-width: 2px;
+  background: #151718;
+  color: #d7dada;
+  font-family: var(--font-pda-ui);
+  font-size: .62rem;
+  padding: 0 .3rem;
+}
+
+.pda-status .pda-signal {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .pda-statusbar-hint,
+  .pda-statusbar-device {
+    display: none !important;
+  }
+
+  .pda-statusbar > span:nth-child(2) {
+    border-left: 0 !important;
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 460px) {
+  .pda-statusbar-path {
+    display: none !important;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Micro polish: focus, numerals, hover, stable fields                         */
+/* -------------------------------------------------------------------------- */
+
+body {
+  font-variant-numeric: tabular-nums;
+}
+
+:where(button, a, [role="button"], [role="tab"], summary):focus-visible {
+  outline: 2px solid #c42b33 !important;
+  outline-offset: 2px !important;
+}
+
+.pda-screen :is(input, select, textarea):focus,
+.pda-modal :is(input, select, textarea):focus {
+  transform: none !important;
+}
+
+.pda-screen :is(.profile-list-item, .group-list-card, .apartment-list-card, .duty-member-list-row):hover:not(.profile-list-item-active, .apartment-list-card-active, .duty-member-list-row-active) {
+  border-color: #50555a !important;
+  background: linear-gradient(180deg, #1c1f21, #131516) !important;
+}
+
+.pda-screen :is(.profile-list-item, .group-list-card, .apartment-list-card, .duty-member-list-row, .dashboard-row) {
+  cursor: pointer;
+}
+
+.pagination-row .pagination-status {
+  color: #a9adae;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.pda-screen .map-side-panel-head {
+  padding-inline: 0 !important;
+}
+
+@media (min-width: 901px) and (max-width: 1180px) {
+  .pda-screen .apartments-page .apartments-two-column-layout,
+  .apartments-page .apartments-two-column-layout {
+    grid-template-columns: minmax(17rem, 21rem) minmax(0, 1fr) !important;
+    grid-template-rows: none !important;
+  }
+
+  .apartments-page .apartments-two-column-layout > .profile-column {
+    max-height: none;
+    min-height: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .pda-screen .profile-record-card .profile-record-title {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: .3rem .4rem;
+  }
+
+  .pda-screen .profile-record-card .profile-record-title > strong,
+  .pda-screen .profile-record-card .profile-record-title > .profile-record-subtitle {
+    flex: 1 1 100%;
+  }
+
+  .pda-screen .profile-record-card .task-record-header {
+    flex-direction: column;
+  }
+
+  .pda-screen .profile-record-card .task-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 560px) {
+  .pda-screen .profile-record-card .profile-record-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    row-gap: .35rem !important;
+  }
+
+  .pda-screen .profile-record-card .profile-record-facts > div:nth-child(odd) {
+    border-left: 0 !important;
+    padding-left: 0 !important;
   }
 }

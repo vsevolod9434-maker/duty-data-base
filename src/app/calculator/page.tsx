@@ -225,14 +225,18 @@ export default function CalculatorPage() {
                   <div className="calculator-catalog-table">
                     <div className="calculator-catalog-heading" aria-hidden="true">
                       <span>Наименование</span>
-                      <span>Общая цена</span>
-                      <span>Для сотрудничающих</span>
-                      <span>Для жильцов</span>
-                      <span>Действие</span>
+                      <span>Общая</span>
+                      <span>Сотрудничающим</span>
+                      <span>Жильцам</span>
+                      <span>Расчёт</span>
                     </div>
                     <div className="calculator-catalog-list">
                       {filteredItems.map((item) => {
                         const compositionTooltip = item.contents?.trim();
+                        const cartQuantity = normalizeQuantity(
+                          cartItems.find((cartItem) => cartItem.item.id === item.id)?.quantityInput ?? "0",
+                        );
+                        const isInCart = cartItems.some((cartItem) => cartItem.item.id === item.id);
 
                         return (
                         <article className="calculator-catalog-card" key={item.id}>
@@ -247,7 +251,7 @@ export default function CalculatorPage() {
                                     className="calculator-info-button"
                                     type="button"
                                   >
-                                    i
+                                    ₽
                                   </button>
                                   <span className="calculator-tooltip-content" role="tooltip">
                                     Наша цена: {formatMoney(parsePrice(item.basePrice))} ₽
@@ -261,7 +265,7 @@ export default function CalculatorPage() {
                                     className="calculator-info-button calculator-composition-button"
                                     type="button"
                                   >
-                                    ¡
+                                    Состав
                                   </button>
                                   <span className="calculator-tooltip-content calculator-composition-tooltip-content" role="tooltip">
                                     <strong>Состав</strong>
@@ -272,19 +276,24 @@ export default function CalculatorPage() {
                             </div>
                           </div>
 
-                          <div className="calculator-price-value calculator-price-value-general">
+                          <div className="calculator-price-value calculator-price-value-general" data-label="Общая">
                             {formatMoney(parsePrice(item.generalPrice))} ₽
                           </div>
-                          <div className="calculator-price-value calculator-price-value-partner">
+                          <div className="calculator-price-value calculator-price-value-partner" data-label="Сотрудничающим">
                             {formatMoney(parsePrice(item.partnerPrice))} ₽
                           </div>
-                          <div className="calculator-price-value calculator-price-value-tenant">
+                          <div className="calculator-price-value calculator-price-value-tenant" data-label="Жильцам">
                             {formatMoney(parsePrice(item.tenantPrice))} ₽
                           </div>
 
                           <div className="calculator-catalog-action">
-                            <button className="primary-command calculator-add-button" onClick={() => addToCart(item)} type="button">
-                              Добавить
+                            <button
+                              className={`command-row calculator-add-button ${isInCart ? "calculator-add-button-in-cart" : ""}`}
+                              onClick={() => addToCart(item)}
+                              title={isInCart ? "Увеличить количество в расчёте" : "Добавить позицию в расчёт"}
+                              type="button"
+                            >
+                              {isInCart ? `Ещё · ${cartQuantity} шт.` : "Добавить"}
                             </button>
                           </div>
                         </article>
@@ -339,7 +348,7 @@ export default function CalculatorPage() {
                                   +
                                 </button>
                               </div>
-                              <button className="command-row calculator-remove-button" onClick={() => removeFromCart(cartItem.item.id)} type="button">
+                              <button className="command-row danger-command calculator-remove-button" onClick={() => removeFromCart(cartItem.item.id)} type="button">
                                 Удалить
                               </button>
                             </div>
@@ -351,11 +360,11 @@ export default function CalculatorPage() {
                               <p>{formatMoney(parsePrice(cartItem.item.generalPrice) * quantity)} ₽</p>
                             </div>
                             <div className="calculator-cart-sum-partner">
-                              <span>Для сотрудничающих</span>
+                              <span>Сотрудничающим</span>
                               <p>{formatMoney(parsePrice(cartItem.item.partnerPrice) * quantity)} ₽</p>
                             </div>
                             <div className="calculator-cart-sum-tenant">
-                              <span>Для жильцов</span>
+                              <span>Жильцам</span>
                               <p>{formatMoney(parsePrice(cartItem.item.tenantPrice) * quantity)} ₽</p>
                             </div>
                           </div>
@@ -372,17 +381,20 @@ export default function CalculatorPage() {
                 <section className="calculator-total-block" aria-labelledby="calculator-total-title">
                   <h2 id="calculator-total-title">Итог расчёта</h2>
                   <div>
-                    <span>Общая цена (≥25%)</span>
+                    <span>Общая</span>
                     <p>{formatMoney(totals.general)} ₽</p>
                   </div>
                   <div>
-                    <span>Цена для сотрудничающих сталкеров (≥20%)</span>
+                    <span>Сотрудничающим сталкерам</span>
                     <p>{formatMoney(totals.partner)} ₽</p>
                   </div>
                   <div>
-                    <span>Цена для наших жильцов (≥18%)</span>
+                    <span>Нашим жильцам</span>
                     <p>{formatMoney(totals.tenant)} ₽</p>
                   </div>
+                  <small className="calculator-total-hint">
+                    Наценка к нашей цене: общая — от 25%, сотрудничающим — от 20%, жильцам — от 18%.
+                  </small>
                 </section>
               </aside>
             </div>

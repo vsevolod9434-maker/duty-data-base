@@ -1542,7 +1542,7 @@ export function TileMapViewer({
               <button className="command-row interactive-button" onClick={() => onMarkerEdit?.(selectedMarkerPopover.marker)} type="button">
                 Редактировать
               </button>
-              <button className="primary-command interactive-button" onClick={() => onMarkerDelete?.(selectedMarkerPopover.marker)} type="button">
+              <button className="command-row danger-command interactive-button" onClick={() => onMarkerDelete?.(selectedMarkerPopover.marker)} type="button">
                 Удалить
               </button>
             </div>
@@ -1593,7 +1593,7 @@ export function TileMapViewer({
               <button className="command-row interactive-button" onClick={() => onLabelEdit?.(selectedLabelPopover.label)} type="button">
                 Редактировать
               </button>
-              <button className="primary-command interactive-button" onClick={() => onLabelDelete?.(selectedLabelPopover.label)} type="button">
+              <button className="command-row danger-command interactive-button" onClick={() => onLabelDelete?.(selectedLabelPopover.label)} type="button">
                 Удалить
               </button>
             </div>
@@ -1654,7 +1654,7 @@ export function TileMapViewer({
               <button className="command-row interactive-button" onClick={() => onZoneEdit?.(selectedZonePopover.zone)} type="button">
                 Редактировать
               </button>
-              <button className="primary-command interactive-button" onClick={() => onZoneDelete?.(selectedZonePopover.zone)} type="button">
+              <button className="command-row danger-command interactive-button" onClick={() => onZoneDelete?.(selectedZonePopover.zone)} type="button">
                 Удалить
               </button>
             </div>
@@ -1702,7 +1702,7 @@ export function TileMapViewer({
               <button className="command-row interactive-button" onClick={() => onRouteEdit?.(selectedRoutePopover.route)} type="button">
                 Редактировать
               </button>
-              <button className="primary-command interactive-button" onClick={() => onRouteDelete?.(selectedRoutePopover.route)} type="button">
+              <button className="command-row danger-command interactive-button" onClick={() => onRouteDelete?.(selectedRoutePopover.route)} type="button">
                 Удалить
               </button>
             </div>

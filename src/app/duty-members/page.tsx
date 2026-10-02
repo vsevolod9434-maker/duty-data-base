@@ -20,6 +20,7 @@ import {
   updateDutyMemberAccess,
   updateDutyMemberProfile,
 } from "@/lib/supabase/access-admin-client";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 
 type DutyServiceStatus = "active" | "leave" | "wounded" | "missing" | "discharged";
 type DutyMemberProfileStatus = "active" | "archived";
@@ -401,6 +402,7 @@ export default function DutyMembersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [accessFilter, setAccessFilter] = useState<DutyAccessFilter>("all");
   const [draft, setDraft] = useState<DutyMemberDraft>(emptyDraft);
+  const [initialDraft, setInitialDraft] = useState<DutyMemberDraft>(emptyDraft);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -609,6 +611,7 @@ export default function DutyMembersPage() {
     setIsCreating(true);
     setEditingId(null);
     setDraft(emptyDraft);
+    setInitialDraft(emptyDraft);
     setActionMessage("");
   }
 
@@ -621,6 +624,7 @@ export default function DutyMembersPage() {
     setIsCreating(false);
     setEditingId(member.id);
     setDraft(createDraft(member));
+    setInitialDraft(createDraft(member));
     setActionMessage("");
   }
 
@@ -628,7 +632,26 @@ export default function DutyMembersPage() {
     setIsCreating(false);
     setEditingId(null);
     setDraft(emptyDraft);
+    setInitialDraft(emptyDraft);
     setActionMessage("");
+  }
+
+  function requestCloseForm() {
+    if (JSON.stringify(draft) === JSON.stringify(initialDraft)) {
+      closeForm();
+      return;
+    }
+
+    setConfirmDialog({
+      title: "Закрыть окно?",
+      message: "Несохранённые изменения будут потеряны.",
+      confirmLabel: "Закрыть",
+      variant: "warning",
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        closeForm();
+      },
+    });
   }
 
   async function handleMemberSubmit(event: FormEvent<HTMLFormElement>) {
@@ -973,12 +996,13 @@ export default function DutyMembersPage() {
     const isStaticProfileEdit = Boolean(isStaticExportEnabled && editingId);
 
     return (
-      <div className="pda-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && closeForm()}>
+      <div className="pda-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && requestCloseForm()}>
         <form className="pda-modal duty-member-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleMemberSubmit}>
           <div className="section-header modal-header">
+            <ModalCloseButton />
             <div className="min-w-0">
-              <span className="eyebrow-text">{editingId ? "Изменение профиля" : "Новый пользователь"}</span>
-              <h1>{editingId ? "Редактирование профиля состава" : "Добавление пользователя"}</h1>
+              <h1>{editingId ? "Редактирование профиля состава" : "Добавление в состав"}</h1>
+              <p>{editingId ? "Изменения вступят в силу после сохранения" : "Создаётся профиль члена группировки и учётная запись доступа"}</p>
             </div>
           </div>
           <div className="modal-body duty-member-modal-body">
@@ -997,7 +1021,13 @@ export default function DutyMembersPage() {
               ) : null}
               <label className="filter-field duty-member-form-wide">
                 <span>ФИО</span>
-                <input disabled={isSaving} maxLength={120} onChange={(event) => updateDraft("fullName", event.target.value)} value={draft.fullName} />
+                <input
+                  aria-invalid={actionMessage === "Укажите ФИО." || undefined}
+                  disabled={isSaving}
+                  maxLength={120}
+                  onChange={(event) => updateDraft("fullName", event.target.value)}
+                  value={draft.fullName}
+                />
               </label>
               <label className="filter-field">
                 <span>Звание</span>
@@ -1070,11 +1100,11 @@ export default function DutyMembersPage() {
                 </>
               ) : null}
               <label className="filter-field duty-member-form-wide">
-                <span>Фотография</span>
+                <span>Ссылка на фото</span>
                 <input disabled={isSaving} maxLength={500} onChange={(event) => updateDraft("photoUrl", event.target.value)} placeholder="Например: https://..." type="url" value={draft.photoUrl} />
               </label>
               <div className="profile-photo-preview duty-member-photo-preview">
-                <span className="profile-photo-title">Фотография профиля</span>
+                <span className="profile-photo-title">Предпросмотр фото</span>
                 <div className="profile-photo-frame">
                   <DutyMemberPhoto alt="Фотография профиля состава" src={normalizedPhotoUrl} />
                 </div>
@@ -1087,11 +1117,11 @@ export default function DutyMembersPage() {
             {actionMessage ? <p className="draft-message">{actionMessage}</p> : null}
           </div>
           <div className="modal-actions duty-member-form-actions">
-          <button className="command-row interactive-button" disabled={isSaving} onClick={closeForm} type="button">
+          <button className="command-row interactive-button" disabled={isSaving} onClick={requestCloseForm} type="button">
             Отмена
           </button>
           <button className="primary-command interactive-button" disabled={isSaving} type="submit">
-            {isSaving ? "Сохранение…" : isCreating ? "Создать пользователя" : "Сохранить профиль"}
+            {isSaving ? "Сохранение…" : isCreating ? "Добавить в состав" : "Сохранить изменения"}
           </button>
           </div>
         </form>
@@ -1102,20 +1132,40 @@ export default function DutyMembersPage() {
   return (
     <main className="pda-page duty-members-page">
       <section className="pda-screen">
-        <PdaTopbar activeLabel="Состав" activeSubtabLabel="Профили состава" />
+        <PdaTopbar activeLabel="Состав" />
 
         <div className="pda-content duty-members-content">
           <section className="duty-members-shell">
             <section className="duty-members-layout">
               <div className="registry-panel registry-panel-list duty-members-list-panel">
                 <div className="registry-panel duty-members-list-controls">
+                  <div className="list-header-block">
+                    <div className="column-header list-column-header">
+                      <h2>Реестр состава</h2>
+                      {canManage ? (
+                        <button
+                          className="primary-command interactive-button duty-member-add-button"
+                          disabled={!canCreateDutyMemberUser}
+                          onClick={startCreate}
+                          title={!canCreateDutyMemberUser ? accessAdminClosedMessage : undefined}
+                          type="button"
+                        >
+                          Добавить в состав
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                  {canManage && shouldShowAccessAdminFallback ? <p className="draft-message">{accessAdminClosedMessage}</p> : null}
                   <div className="duty-member-search-filter-row">
                     <label className="filter-field">
-                      <span>Поиск по составу</span>
+                      <span className="filter-label-row">
+                        <span>Поиск</span>
+                        <span>{`Найдено: ${activeMembers.length + excludedMembers.length} из ${members.length}`}</span>
+                      </span>
                       <input onChange={(event) => setSearchQuery(event.target.value)} placeholder="ФИО, звание или доступ" type="search" value={searchQuery} />
                     </label>
                     <label className="filter-field duty-member-access-filter">
-                      <span>Фильтр доступа</span>
+                      <span>Доступ</span>
                       <select onChange={(event) => setAccessFilter(event.target.value as DutyAccessFilter)} value={accessFilter}>
                         {accessFilters.map((filter) => (
                           <option key={filter.value} value={filter.value}>
@@ -1125,20 +1175,6 @@ export default function DutyMembersPage() {
                       </select>
                     </label>
                   </div>
-                  {canManage ? (
-                    <>
-                      <button
-                        className="primary-command interactive-button duty-member-add-button"
-                        disabled={!canCreateDutyMemberUser}
-                        onClick={startCreate}
-                        title={!canCreateDutyMemberUser ? accessAdminClosedMessage : undefined}
-                        type="button"
-                      >
-                        Добавить пользователя
-                      </button>
-                      {shouldShowAccessAdminFallback ? <p className="draft-message">{accessAdminClosedMessage}</p> : null}
-                    </>
-                  ) : null}
                 </div>
 
                 {isLoading ? <p className="empty-state">Загрузка состава…</p> : null}
@@ -1162,8 +1198,13 @@ export default function DutyMembersPage() {
                           <span className="duty-member-list-copy">
                             <span className="duty-member-list-head">
                               <strong className="duty-member-list-name">{getMemberPrimaryName(member)}</strong>
+                              {member.serviceStatus !== "active" ? (
+                                <span className={`badge-chip ${getServiceBadgeClass(member.serviceStatus)}`}>{serviceStatusLabels[member.serviceStatus]}</span>
+                              ) : null}
                             </span>
-                            {member.rank ? <span className="duty-member-list-line">Звание: {member.rank}</span> : null}
+                            <span className="duty-member-list-line">
+                              {[member.rank || "Звание не указано", member.callsign ? `«${member.callsign}»` : ""].filter(Boolean).join(" · ")}
+                            </span>
                           </span>
                         </button>
                       ))}
@@ -1194,8 +1235,13 @@ export default function DutyMembersPage() {
                             <span className="duty-member-list-copy">
                               <span className="duty-member-list-head">
                                 <strong className="duty-member-list-name">{getMemberPrimaryName(member)}</strong>
+                                {member.serviceStatus !== "active" ? (
+                                  <span className={`badge-chip ${getServiceBadgeClass(member.serviceStatus)}`}>{serviceStatusLabels[member.serviceStatus]}</span>
+                                ) : null}
                               </span>
-                              {member.rank ? <span className="duty-member-list-line">Звание: {member.rank}</span> : null}
+                              <span className="duty-member-list-line">
+                                {[member.rank || "Звание не указано", member.callsign ? `«${member.callsign}»` : ""].filter(Boolean).join(" · ")}
+                              </span>
                             </span>
                           </button>
                         ))}
@@ -1229,7 +1275,10 @@ export default function DutyMembersPage() {
                               <h1 className="profile-hero-title">{getMemberPrimaryName(selectedMember)}</h1>
                               <div className="duty-member-hero-lines">
                                 <p>{selectedMember.rank ? `Звание: ${selectedMember.rank}` : "Звание не указано"}</p>
-                                <p>{`Уровень допуска: ${getAccessLevelLabel(selectedMember)}`}</p>
+                                {selectedMember.callsign ? <p>{`Позывной: ${selectedMember.callsign}`}</p> : null}
+                                {selectedMember.positions.length > 0 ? (
+                                  <p>{`Должность: ${selectedMember.positions.map((position) => position.title).join("; ")}`}</p>
+                                ) : null}
                               </div>
                             </div>
                           </div>
@@ -1269,7 +1318,7 @@ export default function DutyMembersPage() {
                               </button>
                             ) : null}
                             {canManageTarget(selectedMember) && !isSelectedMemberExcluded ? (
-                              <button className="primary-command interactive-button duty-member-action-button duty-member-danger-action" disabled={!canExcludeTarget(selectedMember)} onClick={() => requestExclude(selectedMember)} type="button">
+                              <button className="command-row danger-command interactive-button duty-member-action-button duty-member-danger-action" disabled={!canExcludeTarget(selectedMember)} onClick={() => requestExclude(selectedMember)} type="button">
                                 Исключить из состава
                               </button>
                             ) : null}
@@ -1322,6 +1371,7 @@ export default function DutyMembersPage() {
         <div className="pda-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && closeResetPassword()}>
           <form className="pda-modal duty-member-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleResetPasswordSubmit}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <span className="eyebrow-text">Служебный доступ</span>
                 <h1>Сбросить пароль</h1>

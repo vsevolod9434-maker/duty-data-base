@@ -284,6 +284,11 @@ export function isTaskOverdue(task: Task) {
   return new Date(task.dueAt) < getSystemToday();
 }
 
+export function getProfileInitials(profile?: Pick<StalkerProfile, "callsign" | "fullName"> | null) {
+  const source = (profile?.callsign || profile?.fullName || "").trim();
+  return source ? source.slice(0, 2).toLocaleUpperCase("ru-RU") : "—";
+}
+
 export function getAffiliationBadgeClass(affiliation?: StalkerAffiliation) {
   switch (affiliation) {
     case "loner":

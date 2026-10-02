@@ -8,6 +8,8 @@ import { useEffect, useMemo, useState } from "react";
 import { PdaTopbar } from "@/components/layout/PdaTopbar";
 import { ActionAuthorLine } from "@/components/ui/ActionAuthorLine";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { MobileBackButton } from "@/components/ui/MobileBackButton";
+import { Pagination } from "@/components/ui/Pagination";
 import { getTaskActionVisibility, TaskRecordCard } from "@/components/ui/TaskRecordCard";
 import { addActivityLogEntry } from "@/lib/activity-log";
 import { apiFetch, apiFetchJson } from "@/lib/api-client";
@@ -26,6 +28,7 @@ import {
   forceSystemYear,
   getAffiliationBadgeClass,
   getAffiliationLabel,
+  getProfileInitials,
   getPaginatedItems,
   getGroupRoleLabel,
   matchesStalkerProfileSearch,
@@ -41,6 +44,8 @@ import {
   STALKER_TASKS_STORAGE_KEY,
   writeStoredCollection,
 } from "@/lib/stalker-utils";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
+import { getTaskStatusClass, getTaskStatusLabel } from "@/lib/task-status";
 
 
 const statusLabels: Record<StalkerGroup["status"], string> = {
@@ -121,37 +126,6 @@ const emptyGroupTaskDraft = {
   status: "active" as Task["status"],
 };
 
-function Pagination({
-  page,
-  pageCount,
-  onPageChange,
-}: {
-  page: number;
-  pageCount: number;
-  onPageChange: (page: number) => void;
-}) {
-  if (pageCount <= 1) {
-    return null;
-  }
-
-  return (
-    <div className="pagination-row">
-      <button className="command-row pagination-button" disabled={page <= 1} onClick={() => onPageChange(page - 1)} type="button">
-        Назад
-      </button>
-      <span>Страница {page} из {pageCount}</span>
-      <button className="command-row pagination-button" disabled={page >= pageCount} onClick={() => onPageChange(page + 1)} type="button">
-        Вперёд
-      </button>
-    </div>
-  );
-}
-
-const taskStatusLabels: Record<Task["status"], string> = {
-  active: "Активно",
-  completed: "Выполнено",
-  cancelled: "Отменено",
-};
 
 function formatDate(value: string) {
   return value ? new Date(value).toLocaleDateString("ru-RU") : "Не указана";
@@ -229,29 +203,7 @@ async function saveStalkerGroupRequest(
   return normalizeApiGroup(responsePayload);
 }
 
-function getTaskStatusLabel(task: Task) {
-  if (task.status === "completed") {
-    return taskStatusLabels.completed;
-  }
 
-  if (task.status === "cancelled") {
-    return taskStatusLabels.cancelled;
-  }
-
-  return isTaskOverdue(task) ? "Просроченное" : taskStatusLabels.active;
-}
-
-function getTaskStatusClass(task: Task) {
-  if (task.status === "completed") {
-    return "badge-task-completed";
-  }
-
-  if (task.status === "cancelled") {
-    return "badge-task-cancelled";
-  }
-
-  return isTaskOverdue(task) ? "badge-task-overdue" : "badge-task-active";
-}
 
 function isDirtyValue(currentValue: unknown, initialValue: unknown) {
   return JSON.stringify(currentValue) !== JSON.stringify(initialValue);
@@ -458,6 +410,7 @@ export default function StalkerGroupsPage() {
   const paginatedGroups = useMemo(() => getPaginatedItems(visibleGroups, groupPage), [groupPage, visibleGroups]);
   const visibleGroupCount = isStorageReady ? visibleGroups.length : 0;
   const shownGroupCount = isStorageReady ? paginatedGroups.items.length : 0;
+  const tabGroupCount = isStorageReady ? groups.filter((group) => group.status === groupListTab).length : 0;
   const selectedGroup = useMemo(
     () => groups.find((group) => group.id === selectedGroupId),
     [groups, selectedGroupId],
@@ -532,7 +485,7 @@ export default function StalkerGroupsPage() {
 
     setConfirmDialog({
       title: "Закрыть окно?",
-      message: "Вы уверены, что хотите закрыть окно?",
+      message: "Несохранённые изменения будут потеряны.",
       confirmLabel: "Закрыть",
       cancelLabel: "Остаться",
       variant: "warning",
@@ -1274,6 +1227,11 @@ export default function StalkerGroupsPage() {
     closeCompleteGroupTaskModal();
   }
 
+  function closeGroupDetail() {
+    setSelectedGroupId("");
+    router.replace("/stalkers/groups", { scroll: false });
+  }
+
   function openGroup(groupId: string) {
     setSelectedGroupId(groupId);
     setActiveGroupTab("Состав");
@@ -1350,7 +1308,7 @@ export default function StalkerGroupsPage() {
 
         <div className="pda-content">
           <section className="section-panel groups-workspace-panel">
-            <div className="profile-card-grid groups-command-grid">
+            <div className={`profile-card-grid groups-command-grid ${selectedGroup ? "has-selection" : ""}`}>
               <section className="profile-column groups-list-column">
                 <div className="list-header-block">
                   <div className="column-header list-column-header">
@@ -1374,7 +1332,11 @@ export default function StalkerGroupsPage() {
                   <label className="filter-field">
                     <span className="filter-label-row">
                       <span>Поиск</span>
-                      <span>Показано: {shownGroupCount} из {visibleGroupCount}</span>
+                      <span>
+                        {searchQuery.trim()
+                          ? `Найдено: ${visibleGroupCount} из ${tabGroupCount}`
+                          : `Показано: ${shownGroupCount} из ${visibleGroupCount}`}
+                      </span>
                     </span>
                     <input
                       onChange={(event) => changeSearchQuery(event.target.value)}
@@ -1462,6 +1424,7 @@ export default function StalkerGroupsPage() {
               </section>
 
               <section className="profile-column detail-host-column">
+                {selectedGroup ? <MobileBackButton label="К реестру групп" onClick={closeGroupDetail} /> : null}
                 {!isStorageReady || isGroupLoading ? (
                   <div className="empty-state">
                     <p>Загрузка групп…</p>
@@ -1484,10 +1447,10 @@ export default function StalkerGroupsPage() {
                               </span>
                             ) : null}
                             {selectedGroupTaskMark === "active" ? (
-                              <span className="profile-badge badge-chip badge-task-active">Активное задание</span>
+                              <span className="profile-badge badge-chip badge-task-active">Задание активно</span>
                             ) : null}
                             {selectedGroupTaskMark === "overdue" ? (
-                              <span className="profile-badge badge-chip badge-task-overdue">Просроченное задание</span>
+                              <span className="profile-badge badge-chip badge-task-overdue">Задание просрочено</span>
                             ) : null}
                           </div>
 
@@ -1518,13 +1481,13 @@ export default function StalkerGroupsPage() {
                           </button>
                         )}
                         <button
-                          className="command-row task-action-button group-entity-action group-entity-action-danger"
+                          className="command-row danger-command task-action-button group-entity-action group-entity-action-danger"
                           disabled={isGroupSaving || isGroupDeleting}
                           onClick={() =>
                             setConfirmDialog({
                               title: "Удаление группы",
-                              message: "Удалить группу окончательно? Профили участников удалены не будут.",
-                              confirmLabel: "Удалить",
+                              message: `Группа «${selectedGroup.name || "Без названия"}» будет удалена окончательно. Профили участников сохранятся.`,
+                              confirmLabel: "Удалить группу",
                               variant: "danger",
                               loading: isGroupDeleting,
                               onConfirm: async () => {
@@ -1581,7 +1544,7 @@ export default function StalkerGroupsPage() {
                                       ) : null}
                                       {taskActions.canComplete ? (
                                         <button className="command-row task-action-button" onClick={() => completeGroupTask(task.id)} type="button">
-                                          Засчитать
+                                          Зачесть
                                         </button>
                                       ) : null}
                                       {taskActions.canCancel ? (
@@ -1590,7 +1553,7 @@ export default function StalkerGroupsPage() {
                                         </button>
                                       ) : null}
                                       {taskActions.canDelete ? (
-                                        <button className="command-row task-action-button" onClick={() => deleteGroupTask(task.id)} type="button">
+                                        <button className="command-row danger-command task-action-button" onClick={() => deleteGroupTask(task.id)} type="button">
                                           Удалить
                                         </button>
                                       ) : null}
@@ -1628,11 +1591,7 @@ export default function StalkerGroupsPage() {
                                     {profile?.photoUrl ? (
                                       <img alt="Фотография участника группы" src={profile.photoUrl} />
                                     ) : (
-                                      <img
-                                        alt="Стандартное изображение участника группы"
-                                        className="member-avatar-placeholder"
-                                        src={withBasePath("/no-data-person.png")}
-                                      />
+                                      getProfileInitials(profile)
                                     )}
                                   </div>
                                   <div className="member-identity">
@@ -1661,7 +1620,7 @@ export default function StalkerGroupsPage() {
                                       Редактировать
                                     </button>
                                     <button
-                                      className="command-row task-action-button group-remove-button"
+                                      className="command-row danger-command task-action-button group-remove-button"
                                       onClick={() =>
                                         setConfirmDialog({
                                           title: "Исключение участника",
@@ -1695,7 +1654,7 @@ export default function StalkerGroupsPage() {
                   </div>
                 ) : (
                   <div className="empty-state profile-detail-empty group-detail-empty">
-                    <p>Выберите группу из списка слева.</p>
+                    <p>Выберите группу в реестре.</p>
                     <span>Здесь появятся состав, заметки и действия выбранной группы.</span>
                   </div>
                 )}
@@ -1712,9 +1671,10 @@ export default function StalkerGroupsPage() {
         >
           <form className="pda-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleGroupSubmit}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>{editingGroupId ? "Редактирование группы" : "Создание группы"}</h1>
-                <p>Группа будет закреплена в реестре</p>
+                <p>{editingGroupId ? "Изменения сохранятся в реестре групп" : "Группа будет внесена в реестр групп"}</p>
               </div>
             </div>
 
@@ -1728,6 +1688,7 @@ export default function StalkerGroupsPage() {
                   <label className="filter-field">
                     <span>Название</span>
                     <input
+                      aria-invalid={formMessage === "Укажите название группы." || undefined}
                       onChange={(event) => setDraft((currentDraft) => ({ ...currentDraft, name: event.target.value }))}
                       placeholder="Например: Северный блок"
                       type="text"
@@ -1735,7 +1696,7 @@ export default function StalkerGroupsPage() {
                     />
                   </label>
                   <label className="filter-field">
-                    <span>Изображение группы</span>
+                    <span>Ссылка на изображение</span>
                     <input
                       onChange={(event) => setDraft((currentDraft) => ({ ...currentDraft, photoUrl: event.target.value }))}
                       placeholder="https://..."
@@ -1856,7 +1817,7 @@ export default function StalkerGroupsPage() {
                                 value={member.customRoleName ?? ""}
                               />
                             ) : null}
-                            <button className="command-row task-action-button group-remove-button" onClick={() => removeMember(member.id)} type="button">
+                            <button className="command-row danger-command task-action-button group-remove-button" onClick={() => removeMember(member.id)} type="button">
                               Убрать
                             </button>
                           </div>
@@ -1899,6 +1860,7 @@ export default function StalkerGroupsPage() {
         >
           <form className="pda-modal task-modal journal-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={handleGroupTaskSubmit}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>{editingGroupTaskId ? "Редактировать задание группы" : "Выдать задание группе"}</h1>
                 <p>Исполнитель: {selectedGroup.name}</p>
@@ -1981,6 +1943,7 @@ export default function StalkerGroupsPage() {
         >
           <div className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>Добавить участника</h1>
                 <p>Группа: {selectedGroup.name}</p>
@@ -2136,6 +2099,7 @@ export default function StalkerGroupsPage() {
         >
           <div className="pda-modal task-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
                 <h1>Редактирование роли</h1>
                 <p>
@@ -2222,8 +2186,9 @@ export default function StalkerGroupsPage() {
         >
           <form className="pda-modal task-complete-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={submitCompleteGroupTask}>
             <div className="section-header modal-header">
+              <ModalCloseButton />
               <div className="min-w-0">
-                <h1>Засчитать групповое задание</h1>
+                <h1>Зачёт группового задания</h1>
                 <p>Выполнение будет засчитано текущим пользователем.</p>
               </div>
             </div>
@@ -2251,7 +2216,7 @@ export default function StalkerGroupsPage() {
                 Отмена
               </button>
               <button className="primary-command" type="submit">
-                Засчитать
+                Зачесть
               </button>
             </div>
           </form>

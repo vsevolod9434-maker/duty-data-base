@@ -1,3 +1,5 @@
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
+
 type ConfirmDialogProps = {
   open?: boolean;
   title: string;
@@ -54,6 +56,7 @@ export function ConfirmDialog({
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="section-header modal-header">
+          <ModalCloseButton />
           <div className="min-w-0">
             <h1 id="confirm-dialog-title">{title}</h1>
             {dialogMessage ? <p>{dialogMessage}</p> : null}
