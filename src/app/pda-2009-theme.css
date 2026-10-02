@@ -151,22 +151,6 @@ body::after {
   position: relative;
 }
 
-.pda-shell-header::before,
-.pda-shell-header::after {
-  content: "";
-  position: absolute;
-  top: .45rem;
-  width: 4px;
-  height: 4px;
-  border: 1px solid #565a5c;
-  border-radius: 50%;
-  background: #111315;
-  box-shadow: inset 0 0 0 1px #050506;
-  opacity: .78;
-}
-
-.pda-shell-header::before { left: .42rem; }
-.pda-shell-header::after { right: .42rem; }
 
 .pda-brand-mark,
 .registry-brand-mark {
@@ -356,7 +340,6 @@ body::after {
   .registry-section-header,
   .column-header,
   .list-column-header,
-  .list-header-block,
   .calculator-panel-header,
   .map-side-panel-head,
   .modal-header,
@@ -868,11 +851,6 @@ button:focus-visible {
   .pda-tab,
   .registry-nav-tab {
     letter-spacing: .02em;
-  }
-
-  .pda-shell-header::before,
-  .pda-shell-header::after {
-    display: none;
   }
 
   .login-shell::before {
