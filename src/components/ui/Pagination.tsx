@@ -22,7 +22,7 @@ export function Pagination({ page, pageCount, onPageChange }: PaginationProps) {
       >
         Назад
       </button>
-      <span>Страница {page} из {pageCount}</span>
+      <span className="pagination-status">Стр. {page} / {pageCount}</span>
       <button
         className="command-row pagination-button"
         disabled={page >= pageCount}

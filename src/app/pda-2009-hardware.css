@@ -253,7 +253,7 @@
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.04),
     inset 0 -1px 0 #050606;
-  font: 700 9px/1 var(--font-pda-ui);
+  font: 700 10px/1 var(--font-pda-ui);
   letter-spacing: .04em;
   text-transform: uppercase;
 }
@@ -308,35 +308,6 @@
     inset 0 -1px 0 rgba(0,0,0,.68),
     0 0 0 1px rgba(0,0,0,.44),
     3px 4px 9px rgba(0,0,0,.19);
-}
-
-.pda-screen :is(
-  .registry-panel,
-  .section-panel,
-  .profiles-workspace-panel,
-  .groups-workspace-panel,
-  .apartments-workspace-panel,
-  .journals-panel,
-  .calculator-catalog-panel,
-  .calculator-cart-panel,
-  .duty-members-list-panel,
-  .duty-member-detail-panel,
-  .map-side-panel,
-  .map-panel-editor,
-  .ui-page-header
-)::after {
-  content: "";
-  position: absolute;
-  top: 4px;
-  right: 5px;
-  width: 4px;
-  height: 4px;
-  border: 1px solid #525658;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 40% 35%, #5c6062 0 14%, #151718 22% 58%, #060707 62%);
-  opacity: .72;
-  pointer-events: none;
 }
 
 .pda-screen :is(
@@ -411,31 +382,6 @@
   .calculator-catalog-card
 ) {
   position: relative;
-}
-
-.pda-screen :is(
-  .profile-list-item,
-  .group-list-card,
-  .apartment-list-card,
-  .duty-member-list-line,
-  .calculator-catalog-card
-)::after {
-  content: "";
-  position: absolute;
-  right: 5px;
-  top: 5px;
-  width: 3px;
-  height: 3px;
-  background: #363a3c;
-  box-shadow: 0 0 0 1px #050606;
-}
-
-.pda-screen :is(
-  .profile-list-item-active,
-  .apartment-list-card-active
-)::after {
-  background: #b32931;
-  box-shadow: 0 0 4px rgba(179,41,49,.38);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -770,8 +716,8 @@
   position: absolute;
   right: 12px;
   top: 9px;
-  color: #5f6466;
-  font: 700 7px/1 var(--font-pda-ui);
+  color: #6f7577;
+  font: 700 9px/1 var(--font-pda-ui);
   letter-spacing: .12em;
 }
 

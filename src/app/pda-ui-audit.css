@@ -2266,3 +2266,180 @@ body {
 .pda-screen .calculator-cart-sums {
   background: #0c0e0f !important;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Status bar: the bottom line of a service terminal                           */
+/* -------------------------------------------------------------------------- */
+
+.pda-statusbar {
+  order: 99;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0;
+  min-height: 1.6rem;
+  border-top: 1px solid #303436;
+  background: linear-gradient(180deg, #111314, #08090a);
+  color: #8d9294;
+  font-size: .66rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: 0 .6rem;
+  white-space: nowrap;
+}
+
+.pda-statusbar > span {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: 0 .65rem;
+}
+
+.pda-statusbar > span + span:not(.pda-statusbar-spacer) {
+  border-left: 1px solid #26292b;
+}
+
+.pda-statusbar-device {
+  padding-left: 0 !important;
+  color: #b4b8b9;
+}
+
+.pda-statusbar-device::before {
+  content: "";
+  width: .45rem;
+  height: .45rem;
+  background: #a52830;
+}
+
+.pda-statusbar-path {
+  overflow: hidden;
+  color: #d7dada;
+  text-overflow: ellipsis;
+}
+
+.pda-statusbar-spacer {
+  flex: 1 1 auto;
+  border: 0 !important;
+}
+
+.pda-statusbar-link-offline {
+  color: #ef8f95;
+}
+
+.pda-statusbar kbd {
+  border: 1px solid #45494b;
+  border-bottom-width: 2px;
+  background: #151718;
+  color: #d7dada;
+  font-family: inherit;
+  font-size: .62rem;
+  padding: 0 .3rem;
+}
+
+.pda-status .pda-signal {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .pda-statusbar-hint,
+  .pda-statusbar-device {
+    display: none !important;
+  }
+
+  .pda-statusbar > span:nth-child(2) {
+    border-left: 0 !important;
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 460px) {
+  .pda-statusbar-path {
+    display: none !important;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Micro polish: focus, numerals, hover, stable fields                         */
+/* -------------------------------------------------------------------------- */
+
+body {
+  font-variant-numeric: tabular-nums;
+}
+
+:where(button, a, [role="button"], [role="tab"], summary):focus-visible {
+  outline: 2px solid #c42b33 !important;
+  outline-offset: 2px !important;
+}
+
+.pda-screen :is(input, select, textarea):focus,
+.pda-modal :is(input, select, textarea):focus {
+  transform: none !important;
+}
+
+.pda-screen :is(.profile-list-item, .group-list-card, .apartment-list-card, .duty-member-list-row):hover:not(.profile-list-item-active, .apartment-list-card-active, .duty-member-list-row-active) {
+  border-color: #50555a !important;
+  background: linear-gradient(180deg, #1c1f21, #131516) !important;
+}
+
+.pda-screen :is(.profile-list-item, .group-list-card, .apartment-list-card, .duty-member-list-row, .dashboard-row) {
+  cursor: pointer;
+}
+
+.pagination-row .pagination-status {
+  color: #a9adae;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.pda-screen .map-side-panel-head {
+  padding-inline: 0 !important;
+}
+
+@media (min-width: 901px) and (max-width: 1180px) {
+  .pda-screen .apartments-page .apartments-two-column-layout,
+  .apartments-page .apartments-two-column-layout {
+    grid-template-columns: minmax(17rem, 21rem) minmax(0, 1fr) !important;
+    grid-template-rows: none !important;
+  }
+
+  .apartments-page .apartments-two-column-layout > .profile-column {
+    max-height: none;
+    min-height: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .pda-screen .profile-record-card .profile-record-title {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: .3rem .4rem;
+  }
+
+  .pda-screen .profile-record-card .profile-record-title > strong,
+  .pda-screen .profile-record-card .profile-record-title > .profile-record-subtitle {
+    flex: 1 1 100%;
+  }
+
+  .pda-screen .profile-record-card .task-record-header {
+    flex-direction: column;
+  }
+
+  .pda-screen .profile-record-card .task-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 560px) {
+  .pda-screen .profile-record-card .profile-record-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    row-gap: .35rem !important;
+  }
+
+  .pda-screen .profile-record-card .profile-record-facts > div:nth-child(odd) {
+    border-left: 0 !important;
+    padding-left: 0 !important;
+  }
+}
