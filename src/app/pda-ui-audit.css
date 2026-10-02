@@ -2332,7 +2332,7 @@ body {
   border-bottom-width: 2px;
   background: #151718;
   color: #d7dada;
-  font-family: inherit;
+  font-family: var(--font-pda-ui);
   font-size: .62rem;
   padding: 0 .3rem;
 }
