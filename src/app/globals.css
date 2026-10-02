@@ -503,7 +503,7 @@ button {
 
 .pda-shell-header {
   display: grid;
-  grid-template-columns: minmax(12rem, 0.7fr) minmax(0, 2.2fr) minmax(18rem, 0.9fr);
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
   align-items: center;
   gap: 0.85rem;
   min-height: 4.2rem;
@@ -5499,16 +5499,6 @@ button {
   padding-left: 0.62rem;
 }
 
-.profiles-page .block-heading-row::before,
-.profiles-page .task-section-header::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0.25rem;
-  bottom: 0.45rem;
-  width: 3px;
-  background: var(--profile-red-line);
-}
 
 .profiles-page .block-heading-row > span,
 .profiles-page .task-section-header span {
@@ -5871,10 +5861,6 @@ button {
   padding-bottom: 0.32rem;
 }
 
-.profiles-page .profile-context-column .block-heading-row::before {
-  top: 0.12rem;
-  bottom: 0.32rem;
-}
 
 .profiles-page .profile-context-column .block-heading-row > span {
   font-size: 0.7rem;
@@ -6140,7 +6126,7 @@ body::after,
 
 .registry-shell-header,
 .pda-shell-header {
-  grid-template-columns: minmax(12rem, 0.7fr) minmax(0, 2fr) minmax(19rem, 0.9fr);
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
   min-height: 3.8rem;
   border-bottom: 0;
   padding: 0.5rem 0.85rem;
@@ -11271,10 +11257,6 @@ body::after,
   padding-bottom: 0.34rem;
 }
 
-.profiles-page .profile-summary-grid .block-heading-row::before {
-  top: 0.12rem;
-  bottom: 0.34rem;
-}
 
 .profiles-page .profile-summary-grid .relation-list {
   gap: 0;
@@ -12252,13 +12234,14 @@ body::after,
   border-bottom: 1px solid var(--profiles-line);
   background: transparent;
   box-shadow: none;
-  padding-bottom: 0.52rem;
+  padding: 0 0.62rem 0.52rem;
 }
 
 .profiles-page .list-column-header {
   min-height: 0;
   background: transparent;
   box-shadow: none;
+  padding-inline: 0;
 }
 
 .profiles-page .list-column-header h2 {
@@ -15953,14 +15936,15 @@ body::after,
 
 .pda-user-email {
   display: block;
+  width: max-content;
   min-width: 0;
-  max-width: none;
-  flex: 1 1 auto;
-  overflow: visible;
+  max-width: min(38vw, 32rem);
+  flex: 0 1 auto;
+  overflow: hidden;
   color: #d8d2c8;
   line-height: 1.05;
   text-align: left;
-  text-overflow: clip;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 

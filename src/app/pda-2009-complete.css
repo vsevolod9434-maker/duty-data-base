@@ -88,6 +88,7 @@
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.035),
     inset 0 -1px 0 rgba(0,0,0,.72);
+  padding-inline: var(--pda09-text-inset);
 }
 
 .pda-screen :is(
@@ -171,17 +172,6 @@
   text-transform: uppercase;
 }
 
-.pda-screen :is(
-  .form-section-heading,
-  .dossier-cell-heading,
-  .map-form-section-head,
-  .duty-member-list-section-heading
-)::before {
-  content: "//";
-  margin-right: .42rem;
-  color: #a1272d;
-  letter-spacing: -.08em;
-}
 
 /* ---------- command / filter rails ---------- */
 
@@ -1575,15 +1565,6 @@
     inset 0 -1px 0 rgba(0,0,0,.62);
 }
 
-.pda-screen .ui-stat-card::before {
-  content: "";
-  position: absolute;
-  left: -1px;
-  top: -1px;
-  bottom: -1px;
-  width: 2px;
-  background: #68161b;
-}
 
 .pda-screen .ui-stat-card > span {
   color: #777d7f;
