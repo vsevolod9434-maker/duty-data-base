@@ -70,7 +70,7 @@ export function ConfirmDialog({
             onClick={onConfirm}
             type="button"
           >
-            {loading ? "Выполнение..." : confirmLabel}
+            {loading ? "Выполнение…" : confirmLabel}
           </button>
         </div>
       </div>

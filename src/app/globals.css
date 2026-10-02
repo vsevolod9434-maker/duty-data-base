@@ -1,7 +1,10 @@
 @import "tailwindcss";
 
 :root {
-  --font-khand: "Arial Narrow", "Roboto Condensed", "Segoe UI", sans-serif;
+  --font-pda-ui: "Arial Narrow", "Segoe UI", Arial, sans-serif;
+  --font-khand: var(--font-pda-ui);
+  --default-font-family: var(--font-pda-ui);
+  --default-mono-font-family: var(--font-pda-ui);
   --background: #050607;
   --device: #080a0b;
   --screen: #090b0c;
@@ -46,8 +49,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: system-ui, Arial, Helvetica, sans-serif;
-  --font-mono: var(--font-khand), Arial, Helvetica, sans-serif;
+  --font-sans: var(--font-pda-ui);
+  --font-mono: var(--font-pda-ui);
 }
 
 * {
@@ -69,18 +72,21 @@ body {
     repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.014) 0 1px, transparent 1px 72px),
     #070807;
   color: var(--foreground);
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 16px;
   line-height: 1.5;
+  font-kerning: normal;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 .font-khand,
 .font-terminal {
-  font-family: var(--font-khand), Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
 }
 
 .font-readable {
-  font-family: system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
 }
 
 body::before,
@@ -116,8 +122,16 @@ a {
   text-decoration: none;
 }
 
-button {
+button,
+input,
+select,
+textarea {
   font: inherit;
+  font-family: var(--font-pda-ui);
+}
+
+::placeholder {
+  font-family: var(--font-pda-ui);
 }
 
 .pda-page {
@@ -503,7 +517,7 @@ button {
 
 .pda-shell-header {
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  grid-template-columns: minmax(0, 1fr) max-content minmax(0, 1fr);
   align-items: center;
   gap: 0.85rem;
   min-height: 4.2rem;
@@ -515,6 +529,7 @@ button {
   display: flex;
   min-width: 0;
   align-items: center;
+  justify-self: start;
   gap: 0.72rem;
 }
 
@@ -535,7 +550,7 @@ button {
     inset 0 1px 0 rgba(255, 255, 255, 0.12),
     0 0 18px rgba(184, 74, 66, 0.18);
   color: var(--foreground-strong);
-  font-family: var(--font-khand), "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1;
@@ -544,7 +559,7 @@ button {
 .pda-brand strong {
   display: block;
   color: var(--foreground-strong);
-  font-family: var(--font-khand), "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 1rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -562,6 +577,7 @@ button {
 .pda-main-nav {
   display: flex;
   min-width: 0;
+  justify-self: center;
   justify-content: center;
   gap: 0.42rem;
   overflow-x: auto;
@@ -570,11 +586,12 @@ button {
 .pda-status {
   display: flex;
   align-items: center;
+  justify-self: end;
   justify-content: flex-start;
   gap: 0.6rem;
   min-width: fit-content;
   color: var(--muted);
-  font-family: var(--font-khand), "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -668,7 +685,7 @@ button {
   border-radius: var(--radius-control);
   background: var(--tab);
   color: var(--muted);
-  font-family: var(--font-khand), "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -745,7 +762,7 @@ button {
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  font-family: var(--font-khand), "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -867,7 +884,7 @@ button {
   border-radius: 999px;
   background: rgba(85, 31, 28, 0.32);
   color: var(--accent-soft);
-  font-family: var(--font-khand), "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -878,7 +895,7 @@ button {
 .ui-page-header h1 {
   margin-top: 0.48rem;
   color: var(--foreground-strong);
-  font-family: var(--font-khand), "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: clamp(1.5rem, 2vw, 2rem);
   font-weight: 700;
   line-height: 1;
@@ -927,7 +944,7 @@ button {
 
 .quick-link-row span {
   color: var(--muted);
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.82rem;
   line-height: 1.25;
 }
@@ -949,7 +966,7 @@ button {
 .ui-stat-card span {
   display: inline-flex;
   color: var(--accent-soft);
-  font-family: var(--font-khand), "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -959,7 +976,7 @@ button {
   display: block;
   margin-top: 0.28rem;
   color: var(--foreground-strong);
-  font-family: var(--font-khand), "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: clamp(1.6rem, 2.4vw, 2.3rem);
   line-height: 0.95;
 }
@@ -1053,7 +1070,7 @@ button {
 
 .dashboard-summary-value {
   color: var(--foreground-strong);
-  font-family: var(--font-khand), "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: clamp(2rem, 3vw, 2.8rem);
   line-height: 0.95;
 }
@@ -1199,7 +1216,7 @@ button {
 .dashboard-section-head h2,
 .dashboard-card-head h2 {
   color: var(--foreground-strong);
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.92rem;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -1228,7 +1245,7 @@ button {
 .dashboard-key-value {
   margin-top: 0.85rem;
   color: var(--foreground-strong);
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: clamp(2rem, 3vw, 2.65rem);
   font-weight: 800;
   line-height: 0.95;
@@ -1341,7 +1358,7 @@ button {
 .section-header h1,
 .column-header h2 {
   color: var(--foreground-strong);
-  font-family: var(--font-khand), "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-weight: 700;
   letter-spacing: 0;
 }
@@ -1375,7 +1392,7 @@ button {
 .panel-heading h1,
 .panel-heading h2 {
   color: var(--foreground-strong);
-  font-family: var(--font-khand), "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.9rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -1384,7 +1401,7 @@ button {
 
 .panel-heading span {
   color: var(--muted);
-  font-family: var(--font-khand), "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.74rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1403,7 +1420,7 @@ button {
   align-items: center;
   border-bottom: 1px solid rgba(212, 199, 170, 0.09);
   color: var(--muted);
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.9rem;
 }
 
@@ -1433,7 +1450,7 @@ button {
   min-height: 1.9rem;
   background: rgba(60, 64, 59, 0.3);
   color: var(--steel);
-  font-family: var(--font-khand), "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -1444,7 +1461,7 @@ button {
 .data-value {
   background: var(--cell);
   color: var(--foreground-strong);
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
 }
 
 .data-value {
@@ -1460,7 +1477,7 @@ button {
     rgba(12, 14, 14, 0.55);
   color: var(--muted);
   cursor: pointer;
-  font-family: var(--font-khand), "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.9rem;
   font-weight: 600;
   line-height: 1.1;
@@ -1511,7 +1528,7 @@ button {
 
 .work-header h1 {
   color: var(--foreground-strong);
-  font-family: var(--font-khand), "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 1.35rem;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -1520,7 +1537,7 @@ button {
 .work-header p {
   margin-top: 0.28rem;
   color: var(--muted);
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.95rem;
 }
 
@@ -1532,7 +1549,7 @@ button {
     linear-gradient(180deg, rgba(161, 57, 50, 0.92), rgba(96, 35, 31, 0.96));
   color: var(--foreground-strong);
   cursor: pointer;
-  font-family: var(--font-khand), "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.94rem;
   font-weight: 700;
   line-height: 1.1;
@@ -1567,7 +1584,7 @@ button {
 
 .filter-field span {
   color: var(--muted);
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.82rem;
 }
 
@@ -1580,7 +1597,7 @@ button {
 
 .filter-label-row > span:first-child {
   color: var(--foreground);
-  font-family: var(--font-khand), "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -1602,7 +1619,7 @@ button {
   border-radius: var(--radius-control);
   background: rgba(6, 8, 8, 0.46);
   color: var(--foreground-strong);
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.92rem;
   height: 2.28rem;
   outline: none;
@@ -1629,7 +1646,7 @@ button {
 
 .table-summary {
   color: var(--muted);
-  font-family: system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.92rem;
   padding-top: 0.7rem;
 }
@@ -1640,14 +1657,14 @@ button {
 
 .readable-table .data-row {
   color: var(--foreground);
-  font-family: system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.95rem;
   min-height: 2.55rem;
 }
 
 .readable-table .data-head {
   color: var(--muted);
-  font-family: var(--font-khand), Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.84rem;
   min-height: 2.2rem;
 }
@@ -1655,7 +1672,7 @@ button {
 .empty-row {
   border-top: 1px solid var(--line-soft);
   color: var(--muted);
-  font-family: system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   padding: 1.3rem 1rem;
 }
 
@@ -1677,7 +1694,7 @@ button {
   border: 1px solid var(--line-soft);
   background: rgba(92, 91, 82, 0.22);
   color: var(--foreground);
-  font-family: var(--font-khand), Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.95rem;
   padding: 0.45rem 0.65rem;
 }
@@ -1704,7 +1721,7 @@ button {
 .profile-photo-title {
   display: block;
   color: var(--muted);
-  font-family: var(--font-khand), Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.88rem;
   font-weight: 600;
   letter-spacing: 0.1em;
@@ -1995,7 +2012,7 @@ button {
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  font-family: var(--font-khand), Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.74rem;
   font-weight: 600;
   line-height: 1;
@@ -2340,7 +2357,7 @@ button {
 }
 
 .profile-badge {
-  font-family: var(--font-khand), Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.86rem;
   font-weight: 600;
   padding: 0.32rem 0.58rem;
@@ -2355,7 +2372,7 @@ button {
 
 .profile-identity h3 {
   color: var(--foreground);
-  font-family: var(--font-khand), Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 1.55rem;
   font-weight: 700;
 }
@@ -2399,7 +2416,7 @@ button {
 
 .profile-case-title h3 {
   color: var(--foreground-strong);
-  font-family: var(--font-khand), "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: clamp(2rem, 3vw, 3.1rem);
   font-weight: 700;
   line-height: 1.05;
@@ -2409,7 +2426,7 @@ button {
   display: inline-flex;
   margin-bottom: 0.38rem;
   color: var(--accent-soft);
-  font-family: var(--font-khand), "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -2532,7 +2549,7 @@ button {
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  font-family: var(--font-khand), Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 1rem;
   font-weight: 600;
   padding: 0.55rem 0.75rem;
@@ -2731,7 +2748,7 @@ button {
 
 .form-section-heading h2 {
   color: var(--foreground-strong);
-  font-family: var(--font-khand), "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.86rem;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -2768,7 +2785,7 @@ button {
   border-radius: var(--radius-control);
   background: rgba(6, 8, 8, 0.46);
   color: var(--foreground-strong);
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.92rem;
   line-height: 1.45;
   outline: none;
@@ -2915,7 +2932,7 @@ button {
 
 .task-status-badge {
   flex: 0 0 auto;
-  font-family: var(--font-khand), Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.82rem;
   padding: 0.28rem 0.46rem;
 }
@@ -3288,7 +3305,7 @@ button {
 
 .journal-stat strong {
   color: var(--foreground-strong);
-  font-family: var(--font-khand), Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 1.65rem;
   line-height: 1;
 }
@@ -3337,7 +3354,7 @@ button {
 .journal-tab-card strong {
   flex: 0 0 auto;
   color: var(--foreground-strong);
-  font-family: var(--font-khand), Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 1.35rem;
   line-height: 1;
 }
@@ -3603,7 +3620,7 @@ button {
     linear-gradient(135deg, rgba(112, 28, 28, 0.26), transparent 54%),
     linear-gradient(180deg, rgba(27, 31, 29, 0.86), rgba(8, 10, 10, 0.96));
   color: var(--foreground-strong);
-  font-family: var(--font-khand), Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 2.2rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -4279,7 +4296,7 @@ button {
   background:
     linear-gradient(135deg, rgba(52, 55, 51, 0.72), rgba(7, 9, 9, 0.72));
   color: var(--steel);
-  font-family: var(--font-khand), "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.9rem;
   font-weight: 700;
   overflow: hidden;
@@ -4880,7 +4897,7 @@ button {
   min-height: 1.6rem;
   min-width: 4.3rem;
   border-radius: 0;
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.68rem;
   letter-spacing: 0.04em;
   padding: 0.22rem 0.42rem;
@@ -5111,7 +5128,7 @@ button {
   border: 0;
   border-right: 1px solid rgba(190, 204, 209, 0.1);
   border-radius: 0;
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.74rem;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -5230,7 +5247,7 @@ button {
 }
 
 .profiles-page .form-section-heading h2 {
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.74rem;
   letter-spacing: 0.06em;
 }
@@ -6090,7 +6107,7 @@ button {
 body {
   background: var(--registry-bg);
   color: var(--foreground);
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
 }
 
 body::before,
@@ -6126,7 +6143,7 @@ body::after,
 
 .registry-shell-header,
 .pda-shell-header {
-  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  grid-template-columns: minmax(0, 1fr) max-content minmax(0, 1fr);
   min-height: 3.8rem;
   border-bottom: 0;
   padding: 0.5rem 0.85rem;
@@ -6164,7 +6181,7 @@ body::after,
 .registry-brand-copy strong,
 .pda-brand strong {
   color: var(--foreground-strong);
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 1.08rem;
   letter-spacing: 0.03em;
   line-height: 1.05;
@@ -6198,7 +6215,7 @@ body::after,
   border-radius: 0;
   background: transparent;
   color: var(--muted);
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.94rem;
   font-weight: 800;
   letter-spacing: 0.02em;
@@ -6231,7 +6248,7 @@ body::after,
 .pda-status {
   gap: 0.48rem;
   color: var(--muted);
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.72rem;
   letter-spacing: 0.04em;
 }
@@ -6284,7 +6301,7 @@ body::after,
   border-color: transparent;
   background: transparent;
   color: var(--muted);
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.72rem;
   letter-spacing: 0.02em;
   padding: 0.28rem 0.58rem;
@@ -6348,7 +6365,7 @@ body::after,
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.72rem;
   font-weight: 900;
   letter-spacing: 0.03em;
@@ -6427,7 +6444,7 @@ body::after,
 .duty-mode-header h1,
 .profile-detail-block h2 {
   color: var(--foreground-strong);
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.92rem;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -6464,7 +6481,7 @@ body::after,
 .apartment-profile-title h3,
 .profile-identity h3 {
   color: var(--foreground-strong);
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: clamp(1.35rem, 2vw, 2rem);
   font-weight: 800;
   letter-spacing: 0.01em;
@@ -6494,7 +6511,7 @@ body::after,
 .dashboard-summary-metric dt,
 .dashboard-recent-entry-meta {
   color: var(--muted);
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -6503,7 +6520,7 @@ body::after,
 
 .dashboard-summary-header h2 {
   color: var(--foreground-strong);
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.92rem;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -6531,7 +6548,7 @@ body::after,
 }
 
 .dashboard-summary-value {
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: clamp(1.85rem, 2.5vw, 2.35rem);
   font-weight: 800;
 }
@@ -7889,7 +7906,7 @@ body::after,
 .map-form-header h1 {
   margin: 0.28rem 0 0;
   color: var(--foreground-strong);
-  font-family: var(--font-khand), "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: clamp(1.35rem, 2.35vw, 1.85rem);
   font-weight: 700;
   line-height: 1;
@@ -8249,7 +8266,7 @@ body::after,
 
 .map-form-info-line strong {
   color: var(--foreground-strong);
-  font-family: var(--font-khand), "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 1.25rem;
   line-height: 1;
 }
@@ -8408,7 +8425,7 @@ body::after,
 .task-meta-strip dt,
 .profile-record-facts dt {
   color: var(--muted);
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -8603,7 +8620,7 @@ body::after,
   border-color: var(--registry-border);
   background: #101315;
   color: var(--foreground);
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.68rem;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -8637,7 +8654,7 @@ body::after,
   background: #0b0e10;
   color: var(--foreground);
   box-shadow: none;
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: 0.02em;
@@ -8770,7 +8787,7 @@ body::after,
 
 .journal-overview-copy h1 {
   color: var(--foreground-strong);
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 1.28rem;
 }
 
@@ -13351,7 +13368,7 @@ body::after,
 .calculator-page .calculator-composition-button {
   border-color: rgba(112, 158, 128, 0.24);
   color: #c8dfd0;
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-pda-ui);
 }
 
 .calculator-page .calculator-composition-button:hover,
@@ -14857,7 +14874,7 @@ body::after,
 
 .journals-page .journal-overview-copy h1 {
   color: var(--journals-text);
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.92rem;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -14900,7 +14917,7 @@ body::after,
 
 .journals-page .journal-stat strong {
   color: var(--journals-text);
-  font-family: var(--font-khand), "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 1.34rem;
   font-weight: 700;
   line-height: 1;
@@ -14954,7 +14971,7 @@ body::after,
 
 .journals-page .journal-tab-card strong {
   color: var(--journals-text);
-  font-family: var(--font-khand), "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 1rem;
   font-weight: 700;
 }
@@ -15001,7 +15018,7 @@ body::after,
 
 .journals-page .journal-title-block h1 {
   color: var(--journals-text);
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.8rem;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -15318,7 +15335,7 @@ body::after,
 
 .journals-page .modal-header h1 {
   color: var(--journals-text);
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.8rem;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -15358,7 +15375,7 @@ body::after,
 
 .journals-page .form-section-heading h2 {
   color: var(--journals-text);
-  font-family: "Segoe UI", system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: 0.74rem;
   font-weight: 800;
   letter-spacing: 0.06em;

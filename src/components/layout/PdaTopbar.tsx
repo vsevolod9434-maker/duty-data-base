@@ -179,7 +179,7 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel, onSubt
                     onClick={() => {
                       cancelDropdownClose();
                       setOpenDropdownLabel(null);
-                      router.push(withBasePath(tab.href));
+                      router.push(tab.href);
                     }}
                     onFocus={() => openDropdown(tab.label)}
                     type="button"
@@ -239,7 +239,7 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel, onSubt
             </span>
           ) : null}
           <button className="pda-signout-button" disabled={isSigningOut} onClick={signOut} type="button">
-            {isSigningOut ? "Выход..." : "Выйти"}
+            {isSigningOut ? "Выход…" : "Выйти"}
           </button>
           <span className="pda-clock">{moscowTime ?? "--:--"}</span>
           <span className="pda-signal" aria-hidden="true" />

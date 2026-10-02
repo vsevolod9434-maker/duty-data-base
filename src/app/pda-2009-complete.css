@@ -146,7 +146,7 @@
   .map-panel-editor-head
 ) h3 {
   color: #e1e4e4;
-  font-family: "Arial Narrow", "Roboto Condensed", "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-weight: 700;
   letter-spacing: .045em;
   text-transform: uppercase;
@@ -165,7 +165,7 @@
   .duty-member-list-section-heading
 ) {
   color: #9ea3a5;
-  font-family: Consolas, "Lucida Console", monospace;
+  font-family: var(--font-pda-ui);
   font-size: .70rem;
   font-weight: 700;
   letter-spacing: .065em;
@@ -230,7 +230,7 @@
 .pda-screen .filter-field > span,
 .pda-screen .filter-field > label {
   color: #94999a;
-  font-family: Consolas, "Lucida Console", monospace;
+  font-family: var(--font-pda-ui);
   font-size: .69rem;
   font-weight: 700;
   letter-spacing: .06em;
@@ -383,7 +383,7 @@
   .duty-member-list-name
 ) {
   color: #e4e6e6;
-  font-family: "Arial Narrow", "Roboto Condensed", "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-weight: 700;
   letter-spacing: .025em;
 }
@@ -488,7 +488,7 @@
 ) {
   background: rgba(6,7,7,.86);
   color: #8d9294;
-  font-family: Consolas, "Lucida Console", monospace;
+  font-family: var(--font-pda-ui);
   font-size: .68rem;
   letter-spacing: .04em;
 }
@@ -527,7 +527,7 @@
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.04),
     inset 0 -1px 0 rgba(0,0,0,.75);
-  font-family: "Arial Narrow", "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-weight: 700;
   letter-spacing: .03em;
 }
@@ -623,7 +623,7 @@
   border-radius: 1px;
   background: #260d10;
   color: #e0a2a6;
-  font-family: Consolas, "Lucida Console", monospace;
+  font-family: var(--font-pda-ui);
 }
 
 .pda-screen .draft-message,
@@ -672,7 +672,7 @@
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.04),
     inset 0 -1px 0 rgba(0,0,0,.65);
-  font-family: "Arial Narrow", "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-size: .72rem;
   font-weight: 700;
   letter-spacing: .035em;
@@ -777,7 +777,7 @@
     ),
     #0b0d0e;
   color: #777d7f;
-  font-family: Consolas, "Lucida Console", monospace;
+  font-family: var(--font-pda-ui);
 }
 
 /* ---------- apartments ---------- */
@@ -794,7 +794,7 @@
 
 .pda-screen .apartment-list-metric-value {
   color: #d4d7d7;
-  font-family: Consolas, "Lucida Console", monospace;
+  font-family: var(--font-pda-ui);
 }
 
 .pda-screen .apartment-checkbox-list {
@@ -917,7 +917,7 @@
   .calculator-cart-sum-tenant,
   .calculator-price-value
 ) {
-  font-family: Consolas, "Lucida Console", monospace;
+  font-family: var(--font-pda-ui);
 }
 
 .pda-screen .calculator-price-value-general,
@@ -993,7 +993,7 @@
 
 .pda-screen .registry-info-field dt {
   color: #7e8486;
-  font-family: Consolas, "Lucida Console", monospace;
+  font-family: var(--font-pda-ui);
   font-size: .68rem;
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -1087,7 +1087,7 @@
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.035),
     0 2px 6px rgba(0,0,0,.45);
-  font-family: Consolas, "Lucida Console", monospace;
+  font-family: var(--font-pda-ui);
 }
 
 .pda-screen .map-viewer-mode {
@@ -1216,7 +1216,7 @@
   border: 1px solid #34383a;
   background: #090a0b;
   color: #8e9395;
-  font-family: Consolas, "Lucida Console", monospace;
+  font-family: var(--font-pda-ui);
 }
 
 .pda-screen .map-route-builder-progress-ready {
@@ -1359,7 +1359,7 @@
   .calculator-composition-button,
   .calculator-info-button
 ) {
-  font-family: "Arial Narrow", "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-weight: 700;
   letter-spacing: .02em;
 }
@@ -1406,7 +1406,7 @@
   border-bottom: 1px solid #313537;
   background: #131516;
   color: #bec2c2;
-  font-family: Consolas, "Lucida Console", monospace;
+  font-family: var(--font-pda-ui);
   letter-spacing: .055em;
   text-transform: uppercase;
 }
@@ -1441,7 +1441,7 @@
   .member-identity
 ) {
   color: #dadddd;
-  font-family: "Arial Narrow", "Roboto Condensed", "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   font-weight: 700;
 }
 
@@ -1568,14 +1568,14 @@
 
 .pda-screen .ui-stat-card > span {
   color: #777d7f;
-  font-family: Consolas, "Lucida Console", monospace;
+  font-family: var(--font-pda-ui);
   letter-spacing: .065em;
   text-transform: uppercase;
 }
 
 .pda-screen .ui-stat-card > strong {
   color: #e0e3e3;
-  font-family: Consolas, "Lucida Console", monospace;
+  font-family: var(--font-pda-ui);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1595,7 +1595,7 @@
   border-left: 2px solid #4e5254;
   padding-left: .55rem;
   color: #797f81;
-  font-family: Consolas, "Lucida Console", monospace;
+  font-family: var(--font-pda-ui);
   font-size: .70rem;
 }
 
@@ -1626,7 +1626,7 @@
 .pda-screen .task-item-mainline > strong,
 .pda-screen .profile-record-title > strong {
   color: #dce0e0;
-  font-family: "Arial Narrow", "Roboto Condensed", "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   letter-spacing: .018em;
 }
 
@@ -1641,7 +1641,7 @@
   .violation-record-facts
 ) dt {
   color: #747a7c;
-  font-family: Consolas, "Lucida Console", monospace;
+  font-family: var(--font-pda-ui);
   font-size: .67rem;
   letter-spacing: .055em;
   text-transform: uppercase;
@@ -1662,7 +1662,7 @@
 }
 
 .pda-screen .profile-record-due {
-  font-family: Consolas, "Lucida Console", monospace;
+  font-family: var(--font-pda-ui);
 }
 
 .pda-screen .profile-record-due-future {
@@ -1708,7 +1708,7 @@
   .profile-record-items
 ) > span:first-child {
   color: #7d8385;
-  font-family: Consolas, "Lucida Console", monospace;
+  font-family: var(--font-pda-ui);
   font-size: .67rem;
   letter-spacing: .055em;
   text-transform: uppercase;
@@ -1728,7 +1728,7 @@
 
 .pda-screen .profile-record-items > div > span {
   color: #858b8d;
-  font-family: Consolas, "Lucida Console", monospace;
+  font-family: var(--font-pda-ui);
 }
 
 .pda-screen .task-record-completed,
@@ -1781,13 +1781,13 @@
 
 .pda-screen .journal-stat > strong {
   color: #e0e2e2;
-  font-family: Consolas, "Lucida Console", monospace;
+  font-family: var(--font-pda-ui);
   font-variant-numeric: tabular-nums;
 }
 
 .pda-screen .journal-stat > span {
   color: #777d7f;
-  font-family: Consolas, "Lucida Console", monospace;
+  font-family: var(--font-pda-ui);
   font-size: .67rem;
   letter-spacing: .05em;
   text-transform: uppercase;
@@ -1853,7 +1853,7 @@
   border-left: 1px solid #35393b;
   padding-left: .65rem;
   color: #8f9496;
-  font-family: Consolas, "Lucida Console", monospace;
+  font-family: var(--font-pda-ui);
   font-size: .70rem;
 }
 
@@ -1883,7 +1883,7 @@
 /* ---------- map geometry states ---------- */
 
 .pda-screen .map-label {
-  font-family: "Arial Narrow", "Segoe UI", sans-serif;
+  font-family: var(--font-pda-ui);
   text-shadow:
     0 1px 0 #000,
     0 0 4px rgba(0,0,0,.75);

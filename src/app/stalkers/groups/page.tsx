@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 /* eslint-disable @next/next/no-img-element */
 import { useQuery } from "@tanstack/react-query";
@@ -1383,7 +1383,7 @@ export default function StalkerGroupsPage() {
                       title={isStaticExportEnabled ? transactionalImportMessage : undefined}
                       type="button"
                     >
-                      {isGroupImporting ? "Импорт..." : "Импортировать записи"}
+                      {isGroupImporting ? "Импорт…" : "Импортировать записи"}
                     </button>
                     {isStaticExportEnabled ? <span>{transactionalImportMessage}</span> : null}
                   </div>
@@ -1392,7 +1392,7 @@ export default function StalkerGroupsPage() {
                 <div className="profile-list">
                   {!isStorageReady || isGroupLoading ? (
                     <div className="empty-state">
-                      <p>Загрузка групп...</p>
+                      <p>Загрузка групп…</p>
                     </div>
                   ) : paginatedGroups.items.length > 0 ? (
                     paginatedGroups.items.map((group) => (
@@ -1427,7 +1427,7 @@ export default function StalkerGroupsPage() {
               <section className="profile-column detail-host-column">
                 {!isStorageReady || isGroupLoading ? (
                   <div className="empty-state">
-                    <p>Загрузка групп...</p>
+                    <p>Загрузка групп…</p>
                   </div>
                 ) : selectedGroup ? (
                   <div className="profile-detail">
@@ -1587,10 +1587,10 @@ export default function StalkerGroupsPage() {
                                 <div className="group-member-row detailed-member-row apartment-tenant-row" key={member.id}>
                                   <div className="member-avatar">
                                     {profile?.photoUrl ? (
-                                      <img alt="Фото участника группы" src={profile.photoUrl} />
+                                      <img alt="Фотография участника группы" src={profile.photoUrl} />
                                     ) : (
                                       <img
-                                        alt="Стоковое изображение участника группы"
+                                        alt="Стандартное изображение участника группы"
                                         className="member-avatar-placeholder"
                                         src={withBasePath("/no-data-person.png")}
                                       />
@@ -1638,7 +1638,7 @@ export default function StalkerGroupsPage() {
                           ) : (
                             <div className="empty-state compact-empty-state">
                               <p>Участники не добавлены.</p>
-                              <span>Добавьте сталкерские профили в состав группы.</span>
+                              <span>Добавьте профили сталкеров в состав группы.</span>
                             </div>
                           )}
                         </div>
@@ -1837,7 +1837,7 @@ export default function StalkerGroupsPage() {
                 Отмена
               </button>
               <button className="primary-command" disabled={isGroupSaving} type="submit">
-                {isGroupSaving ? "Сохранение..." : editingGroupId ? "Сохранить изменения" : "Сохранить группу"}
+                {isGroupSaving ? "Сохранение…" : editingGroupId ? "Сохранить изменения" : "Сохранить группу"}
               </button>
             </div>
           </form>
@@ -2074,7 +2074,7 @@ export default function StalkerGroupsPage() {
                 onClick={addMemberToSelectedGroup}
                 type="button"
               >
-                {isGroupSaving ? "Добавление..." : "Добавить"}
+                {isGroupSaving ? "Добавление…" : "Добавить"}
               </button>
             </div>
           </div>
@@ -2160,7 +2160,7 @@ export default function StalkerGroupsPage() {
                 Отмена
               </button>
               <button className="primary-command" disabled={isGroupSaving} onClick={saveSelectedGroupMemberRole} type="button">
-                {isGroupSaving ? "Сохранение..." : "Сохранить"}
+                {isGroupSaving ? "Сохранение…" : "Сохранить"}
               </button>
             </div>
           </div>

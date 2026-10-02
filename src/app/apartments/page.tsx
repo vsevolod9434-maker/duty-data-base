@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 /* eslint-disable @next/next/no-img-element */
 import { useQuery } from "@tanstack/react-query";
@@ -1055,7 +1055,7 @@ export default function ApartmentsPage() {
               title={isStaticExportEnabled ? transactionalImportMessage : undefined}
               type="button"
             >
-              {isApartmentImporting ? "Импорт..." : "Импортировать записи"}
+              {isApartmentImporting ? "Импорт…" : "Импортировать записи"}
             </button>
             {isStaticExportEnabled ? <span>{transactionalImportMessage}</span> : null}
           </div>
@@ -1071,14 +1071,14 @@ export default function ApartmentsPage() {
               onClick={createDefaultServerApartments}
               type="button"
             >
-              {isApartmentInitializing ? "Создание..." : "Создать базовые квартиры"}
+              {isApartmentInitializing ? "Создание…" : "Создать базовые квартиры"}
             </button>
           </div>
         ) : null}
 
         {!isStorageReady || isApartmentLoading ? (
           <div className="empty-state">
-            <p>Загрузка квартир...</p>
+            <p>Загрузка квартир…</p>
           </div>
         ) : (
           <div className="profile-list apartment-profile-list">
@@ -1199,7 +1199,7 @@ export default function ApartmentsPage() {
                       Отмена
                     </button>
                     <button className="command-row task-action-button" disabled={isApartmentSaving} type="submit">
-                      {isApartmentSaving ? "Сохранение..." : "Сохранить"}
+                      {isApartmentSaving ? "Сохранение…" : "Сохранить"}
                     </button>
                   </div>
                 </form>
@@ -1409,7 +1409,7 @@ export default function ApartmentsPage() {
             <div className="modal-body">
               <section className="form-section">
                 <div className="form-section-heading">
-                  <h2>Сталкерские профили</h2>
+                  <h2>Профили сталкеров</h2>
                   <span>Найдите одного или нескольких жильцов</span>
                 </div>
 
@@ -1462,7 +1462,7 @@ export default function ApartmentsPage() {
                 </div>
 
                 <button className="command-row tenant-modal-command" disabled={isApartmentSaving} onClick={addSelectedProfiles} type="button">
-                  {isApartmentSaving ? "Добавление..." : "Добавить выбранные профили"}
+                  {isApartmentSaving ? "Добавление…" : "Добавить выбранные профили"}
                 </button>
               </section>
 
@@ -1485,7 +1485,7 @@ export default function ApartmentsPage() {
                   </label>
                 </div>
                 <button className="command-row tenant-modal-command" disabled={isApartmentSaving} onClick={importSelectedGroup} type="button">
-                  {isApartmentSaving ? "Импорт..." : "Импортировать состав группы"}
+                  {isApartmentSaving ? "Импорт…" : "Импортировать состав группы"}
                 </button>
               </section>
             </div>
@@ -1581,7 +1581,7 @@ export default function ApartmentsPage() {
                 Отмена
               </button>
               <button className="primary-command" disabled={isApartmentSaving} type="submit">
-                {isApartmentSaving ? "Сохранение..." : editingPaymentId ? "Сохранить изменения" : "Сохранить оплату"}
+                {isApartmentSaving ? "Сохранение…" : editingPaymentId ? "Сохранить изменения" : "Сохранить оплату"}
               </button>
             </div>
           </form>
