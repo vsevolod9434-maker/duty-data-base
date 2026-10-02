@@ -1267,3 +1267,312 @@ body {
   font-weight: 800;
   letter-spacing: .04em;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Journals header: one tab strip with consistent counters                     */
+/* -------------------------------------------------------------------------- */
+
+.pda-screen .journal-tab-card {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "label count"
+    "note count";
+  align-items: center;
+  column-gap: .6rem;
+  row-gap: .05rem;
+  text-align: left;
+}
+
+.pda-screen .journal-tab-card > span {
+  grid-area: label;
+}
+
+.pda-screen .journal-tab-card > strong {
+  grid-area: count;
+  font-variant-numeric: tabular-nums;
+}
+
+.pda-screen .journal-tab-note {
+  grid-area: note;
+  color: #80868a;
+  font-size: .64rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.pda-screen .journal-tab-note-alert {
+  color: #e2878d;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Record cards (tasks, trade, violations): one dense layout everywhere        */
+/* -------------------------------------------------------------------------- */
+
+.pda-screen .profile-record-card {
+  gap: .4rem !important;
+  padding: .55rem .7rem !important;
+}
+
+.pda-screen .profile-record-card .task-record-header {
+  align-items: flex-start;
+  gap: .6rem;
+}
+
+.pda-screen .profile-record-card .profile-record-title {
+  row-gap: .15rem;
+}
+
+.pda-screen .profile-record-card .profile-record-title > strong {
+  font-size: .9rem;
+  line-height: 1.25;
+}
+
+.pda-screen .profile-record-card .profile-record-facts {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)) !important;
+  gap: 0 !important;
+  border: 0 !important;
+  border-top: 1px solid #2b2f31 !important;
+  background: transparent !important;
+  margin: 0 !important;
+  padding: .35rem 0 0 !important;
+}
+
+.pda-screen .profile-record-card .profile-record-facts > div {
+  min-width: 0;
+  border: 0 !important;
+  border-left: 1px solid #2b2f31 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: .1rem .65rem !important;
+}
+
+.pda-screen .profile-record-card .profile-record-facts > div:first-child {
+  border-left: 0 !important;
+  padding-left: 0 !important;
+}
+
+.pda-screen .profile-record-card .profile-record-facts dt {
+  color: #80868a;
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.pda-screen .profile-record-card .profile-record-facts dd {
+  margin: .1rem 0 0;
+  overflow-wrap: anywhere;
+  font-size: .84rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pda-screen .profile-record-card .profile-record-notes,
+.pda-screen .profile-record-card .profile-record-items {
+  border: 0 !important;
+  border-top: 1px dashed #2b2f31 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  padding: .35rem 0 0 !important;
+}
+
+.pda-screen .profile-record-card .profile-record-notes {
+  display: flex !important;
+  align-items: baseline;
+  gap: .5rem;
+}
+
+.pda-screen .profile-record-card .profile-record-notes > span,
+.pda-screen .profile-record-card .profile-record-items > span {
+  flex: 0 0 auto;
+  color: #80868a;
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.pda-screen .profile-record-card .profile-record-notes > span::before {
+  content: none !important;
+}
+
+.pda-screen .profile-record-card .profile-record-notes p {
+  margin: 0;
+  font-size: .84rem;
+}
+
+.pda-screen .profile-record-card .task-actions {
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: .25rem;
+  border-left: 0 !important;
+  padding-left: 0 !important;
+}
+
+.pda-screen .profile-record-card .task-action-button {
+  min-height: 1.65rem !important;
+  padding: .2rem .5rem !important;
+  font-size: .7rem !important;
+}
+
+.pda-screen .trade-record-sale-badge,
+.pda-screen .trade-record-purchase-badge {
+  border-color: #484c4e !important;
+  background: linear-gradient(180deg, #232628, #141617) !important;
+  color: #c7caca !important;
+  box-shadow: inset 2px 0 0 #6f7577 !important;
+}
+
+.pda-screen .trade-record-card {
+  border-left-color: #34383a !important;
+  box-shadow: none !important;
+}
+
+.pda-screen .profile-record-card .profile-record-items > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .8rem;
+  border: 0 !important;
+  background: transparent !important;
+  padding: .1rem 0 !important;
+}
+
+.pda-screen .profile-record-card .profile-record-items > div strong {
+  font-size: .84rem;
+}
+
+.pda-screen .profile-record-card .profile-record-items > div span {
+  color: #a9adae;
+  font-size: .8rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pda-screen .journal-toolbar {
+  padding-top: .6rem !important;
+  padding-bottom: .6rem !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Trade items editor                                                          */
+/* -------------------------------------------------------------------------- */
+
+.trade-items-editor {
+  display: grid;
+  gap: .3rem;
+}
+
+.trade-items-head,
+.trade-items-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 5.5rem 7.5rem 7.5rem 2.1rem;
+  align-items: center;
+  gap: .35rem;
+}
+
+.trade-items-head span {
+  color: #80868a;
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.trade-items-row input {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.2rem;
+  border: 1px solid #34383a;
+  border-radius: 1px;
+  background: #070808;
+  color: #e2e4e4;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, .6);
+  font-size: .86rem;
+  padding: .35rem .5rem;
+}
+
+.trade-items-row input:focus {
+  border-color: #8f2a31;
+  outline: none;
+}
+
+.trade-items-sum {
+  overflow: hidden;
+  color: #c9cccd;
+  font-size: .84rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trade-items-remove {
+  min-height: 2.2rem !important;
+  padding: 0 !important;
+  font-size: 1rem !important;
+}
+
+.trade-items-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .6rem;
+  border-top: 1px solid #2b2f31;
+  padding-top: .45rem;
+}
+
+.trade-items-total {
+  display: flex;
+  align-items: baseline;
+  gap: .6rem;
+}
+
+.trade-items-total span {
+  color: #80868a;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.trade-items-total strong {
+  color: #f0f1f1;
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .trade-items-head {
+    display: none;
+  }
+
+  .trade-items-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 2.1rem;
+    border-bottom: 1px dashed #2b2f31;
+    padding-bottom: .35rem;
+  }
+
+  .trade-items-row > input:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .trade-items-sum {
+    grid-column: 1 / 3;
+    text-align: left;
+  }
+}
+
+.trade-items-footer .trade-items-add {
+  flex: 0 0 auto;
+  width: auto !important;
+  padding-inline: .8rem !important;
+}
+
+.trade-items-total strong {
+  white-space: nowrap;
+}

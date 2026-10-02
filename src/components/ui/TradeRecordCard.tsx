@@ -30,11 +30,11 @@ function getQuantityLabel(operation: TradeOperation) {
   }
 
   if (operation.items.length === 1) {
-    return String(firstItem.quantity);
+    return `${firstItem.quantity} шт.`;
   }
 
   const totalQuantity = operation.items.reduce((sum, item) => sum + item.quantity, 0);
-  return `${totalQuantity} шт. в ${operation.items.length} позициях`;
+  return `${operation.items.length} · всего ${totalQuantity} шт.`;
 }
 
 export function TradeRecordCard({
@@ -73,13 +73,15 @@ export function TradeRecordCard({
           <dd>{formatDate(operation.operationDate ?? operation.createdAt)}</dd>
         </div>
         <div>
-          <dt>Количество</dt>
+          <dt>{operation.items.length > 1 ? "Позиций" : "Количество"}</dt>
           <dd>{getQuantityLabel(operation)}</dd>
         </div>
-        <div>
-          <dt>Цена</dt>
-          <dd>{firstItem ? formatMoney(firstItem.price) : "не указано"}</dd>
-        </div>
+        {operation.items.length <= 1 ? (
+          <div>
+            <dt>Цена за ед.</dt>
+            <dd>{firstItem ? formatMoney(firstItem.price) : "не указано"}</dd>
+          </div>
+        ) : null}
         <div>
           <dt>Общая сумма</dt>
           <dd className="profile-record-emphasis">{formatMoney(operation.totalAmount)}</dd>

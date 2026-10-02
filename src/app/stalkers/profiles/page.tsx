@@ -69,6 +69,14 @@ import {
 } from "@/lib/stalker-utils";
 import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import { getTaskStatusClass, getTaskStatusLabel } from "@/lib/task-status";
+import {
+  createEmptyTradeDraftItem,
+  getTradeDraftItemsFromOperation,
+  getTradeItemsSummary,
+  validateTradeDraftItems,
+  type TradeDraftItem,
+} from "@/lib/trade-draft";
+import { TradeItemsEditor } from "@/components/ui/TradeItemsEditor";
 
 const profileTabs = ["Задания", "Продажи", "Покупки", "Нарушения"];
 
@@ -383,12 +391,17 @@ function createEmptyTaskDraft() {
 function createEmptyTradeDraft(type: TradeType) {
   return {
     type,
-    itemName: "",
-    quantity: "1",
-    price: "",
+    items: [createEmptyTradeDraftItem()],
     issuedBy: "",
     notes: "",
     operationDate: getTodayDate(),
+  };
+}
+
+function getComparableTradeDraft<Draft extends { items: TradeDraftItem[] }>(draft: Draft) {
+  return {
+    ...draft,
+    items: draft.items.map((item) => ({ name: item.name, quantity: item.quantity, price: item.price, notes: item.notes })),
   };
 }
 
@@ -412,7 +425,7 @@ function isViolationActive(violation: Violation) {
 }
 
 function getViolationStatusLabel(violation: Violation) {
-  return isViolationActive(violation) ? "Активное нарушение" : "Закрыто";
+  return isViolationActive(violation) ? "Активно" : "Закрыто";
 }
 
 function getViolationStatusClass(violation: Violation) {
@@ -547,6 +560,7 @@ export default function StalkerProfilesPage() {
   const [taskDraft, setTaskDraft] = useState(createEmptyTaskDraft);
   const [editTaskDraft, setEditTaskDraft] = useState(createEmptyTaskDraft);
   const [tradeDraft, setTradeDraft] = useState(() => createEmptyTradeDraft("sale"));
+  const [tradeItemError, setTradeItemError] = useState<{ itemKey: string; field: "name" | "quantity" | "price" } | null>(null);
   const [violationDraft, setViolationDraft] = useState(createEmptyViolationDraft);
   const [loadedPhotoPreviewKey, setLoadedPhotoPreviewKey] = useState("");
   const [failedPhotoPreviewKey, setFailedPhotoPreviewKey] = useState("");
@@ -929,12 +943,6 @@ export default function StalkerProfilesPage() {
   const photoPreviewKey = `${editingProfileId || "new"}:${normalizedPhotoUrl || "empty"}`;
   const isPhotoPreviewLoaded = loadedPhotoPreviewKey === photoPreviewKey;
   const isPhotoPreviewFailed = failedPhotoPreviewKey === photoPreviewKey;
-  const tradeDraftQuantity = Number(tradeDraft.quantity.replace(",", "."));
-  const tradeDraftPrice = Number(tradeDraft.price.replace(",", "."));
-  const tradeDraftTotal =
-    Number.isFinite(tradeDraftQuantity) && Number.isFinite(tradeDraftPrice)
-      ? tradeDraftQuantity * tradeDraftPrice
-      : 0;
 
   function updateDraft<Field extends keyof typeof draft>(
     field: Field,
@@ -1119,13 +1127,9 @@ export default function StalkerProfilesPage() {
       return createEmptyTradeDraft(tradeModalType ?? "sale");
     }
 
-    const firstItem = operation.items[0];
-
     return {
       type: operation.type,
-      itemName: firstItem?.name ?? "",
-      quantity: firstItem ? String(firstItem.quantity) : "1",
-      price: firstItem ? String(firstItem.price) : "",
+      items: getTradeDraftItemsFromOperation(operation),
       issuedBy: operation.issuedBy,
       notes: operation.notes,
       operationDate: operation.operationDate ?? operation.createdAt.slice(0, 10),
@@ -1133,7 +1137,7 @@ export default function StalkerProfilesPage() {
   }
 
   function isTradeDraftDirty() {
-    return isDirtyValue(tradeDraft, getInitialTradeDraft());
+    return isDirtyValue(getComparableTradeDraft(tradeDraft), getComparableTradeDraft(getInitialTradeDraft()));
   }
 
   function getInitialViolationDraft() {
@@ -1511,12 +1515,9 @@ export default function StalkerProfilesPage() {
   }
 
   function openEditTradeModal(operation: TradeOperation) {
-    const firstItem = operation.items[0];
     setTradeDraft({
       type: operation.type,
-      itemName: firstItem?.name ?? "",
-      quantity: firstItem ? String(firstItem.quantity) : "1",
-      price: firstItem ? String(firstItem.price) : "",
+      items: getTradeDraftItemsFromOperation(operation),
       issuedBy: operation.issuedBy,
       notes: operation.notes,
       operationDate: operation.operationDate ?? operation.createdAt.slice(0, 10),
@@ -1527,6 +1528,7 @@ export default function StalkerProfilesPage() {
   }
 
   function closeTradeModal() {
+    setTradeItemError(null);
     setTradeModalType(null);
     setEditingTradeId("");
     setTradeDraft(createEmptyTradeDraft("sale"));
@@ -1628,42 +1630,21 @@ export default function StalkerProfilesPage() {
       return;
     }
 
-    const itemName = tradeDraft.itemName.trim();
-    const quantity = Number(tradeDraft.quantity.replace(",", "."));
-    const price = Number(tradeDraft.price.replace(",", "."));
+    const itemsValidation = validateTradeDraftItems(tradeDraft.items);
 
-    if (!itemName) {
-      setTradeFormMessage("Укажите предмет операции.");
+    if (!itemsValidation.ok) {
+      setTradeFormMessage(itemsValidation.message);
+      setTradeItemError({ itemKey: itemsValidation.itemKey, field: itemsValidation.field });
       return;
     }
 
-    if (!Number.isFinite(quantity) || quantity <= 0) {
-      setTradeFormMessage("Укажите корректное количество.");
-      return;
-    }
-
-    if (!Number.isFinite(price) || price < 0) {
-      setTradeFormMessage("Укажите корректную цену за единицу.");
-      return;
-    }
-
-    const item = {
-      id: `profile-trade-item-${Date.now()}`,
-      name: itemName,
-      quantity,
-      price,
-      notes: "",
-    };
+    const { items, totalAmount } = itemsValidation;
+    const itemName = getTradeItemsSummary(items);
 
     if (editingTradeId) {
-      const currentOperation = tradeOperations.find((operation) => operation.id === editingTradeId);
       const updatedOperation = await updateTradeOperation(editingTradeId, {
-        items: [
-          {
-            ...item,
-            id: currentOperation?.items[0]?.id ?? item.id,
-          },
-        ],
+        items,
+        totalAmount,
         notes: tradeDraft.notes.trim(),
         operationDate: tradeDraft.operationDate,
       }).catch(() => {
@@ -1689,8 +1670,8 @@ export default function StalkerProfilesPage() {
       subjectType: "stalker",
       stalkerId: selectedProfile.id,
       groupId: null,
-      items: [item],
-      totalAmount: quantity * price,
+      items,
+      totalAmount,
       notes: tradeDraft.notes.trim(),
       operationDate: tradeDraft.operationDate,
     }).catch(() => {
@@ -3283,42 +3264,20 @@ export default function StalkerProfilesPage() {
             <div className="modal-body">
               <section className="form-section">
                 <div className="form-section-heading">
-                  <h2>Предмет и сумма</h2>
-                  <span>Один предмет сохраняется как элемент списка</span>
+                  <h2>Позиции операции</h2>
+                  <span>Количество и цена по каждой позиции</span>
                 </div>
-                <div className="task-form-grid">
-                  <label className="filter-field">
-                    <span>Предмет</span>
-                    <input
-                      onChange={(event) => updateTradeDraft("itemName", event.target.value)}
-                      placeholder="Название предмета"
-                      type="text"
-                      value={tradeDraft.itemName}
-                    />
-                  </label>
-                  <label className="filter-field">
-                    <span>Количество</span>
-                    <input
-                      min="0"
-                      onChange={(event) => updateTradeDraft("quantity", event.target.value)}
-                      type="number"
-                      value={tradeDraft.quantity}
-                    />
-                  </label>
-                  <label className="filter-field">
-                    <span>Цена</span>
-                    <input
-                      min="0"
-                      onChange={(event) => updateTradeDraft("price", event.target.value)}
-                      type="number"
-                      value={tradeDraft.price}
-                    />
-                  </label>
-                  <label className="filter-field">
-                    <span>Общая сумма</span>
-                    <input readOnly type="text" value={formatMoney(tradeDraftTotal)} />
-                  </label>
-                </div>
+                <TradeItemsEditor
+                  formatMoney={formatMoney}
+                  invalidField={tradeItemError?.field}
+                  invalidItemKey={tradeItemError?.itemKey}
+                  items={tradeDraft.items}
+                  onChange={(items) => {
+                    setTradeDraft((currentDraft) => ({ ...currentDraft, items }));
+                    setTradeFormMessage("");
+                    setTradeItemError(null);
+                  }}
+                />
               </section>
 
               <section className="form-section">

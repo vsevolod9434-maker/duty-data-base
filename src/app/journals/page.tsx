@@ -8,10 +8,18 @@ import { ActionAuthorLine } from "@/components/ui/ActionAuthorLine";
 import { Pagination } from "@/components/ui/Pagination";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { TaskRecordCard } from "@/components/ui/TaskRecordCard";
+import { TradeItemsEditor } from "@/components/ui/TradeItemsEditor";
 import { TradeRecordCard } from "@/components/ui/TradeRecordCard";
 import { ViolationRecordCard } from "@/components/ui/ViolationRecordCard";
 import { addActivityLogEntry } from "@/lib/activity-log";
 import { journalTabQueryValues } from "@/lib/navigation";
+import {
+  createEmptyTradeDraftItem,
+  getTradeDraftItemsFromOperation,
+  getTradeItemsSummary,
+  validateTradeDraftItems,
+  type TradeDraftItem,
+} from "@/lib/trade-draft";
 import { getTaskStatusClass, getTaskStatusLabel } from "@/lib/task-status";
 import { apiFetchJson } from "@/lib/api-client";
 import { dutyDataKeys, scheduleClientStateSync, useCurrentUserCacheKey, useDutyQueryClient } from "@/lib/data-cache";
@@ -52,6 +60,7 @@ import {
   getProfileTitle,
   getSystemTimestamp,
   getTodayDate,
+  isTaskOverdue,
   SYSTEM_DATE_MAX,
   SYSTEM_DATE_MIN,
   STALKER_TASKS_STORAGE_KEY,
@@ -73,7 +82,7 @@ const taskStatusFilters = [
 
 const violationStatusFilters = [
   { label: "Активные", value: "active" },
-  { label: "Погашенные", value: "closed" },
+  { label: "Закрытые", value: "closed" },
   { label: "Все", value: "all" },
 ] as const;
 
@@ -124,13 +133,6 @@ const tradeTypeLabels: Record<TradeType, string> = {
   purchase: "Покупка",
 };
 
-const journalDescriptions: Record<JournalTab, string> = {
-  Задания: "Выдача, контроль сроков и закрытие рабочих заданий.",
-  Продажи: "Предметы, которые «Долг» продаёт сталкерам, группам или вручную указанным покупателям.",
-  Покупки: "Предметы, которые «Долг» покупает у сталкеров, групп или вручную указанных продавцов.",
-  Нарушения: "Фиксация активных и закрытых нарушений по профилям сталкеров и ручным записям.",
-};
-
 function createEmptyTaskDraft() {
   return {
     assigneeMode: "stalker" as TaskAssigneeMode,
@@ -154,12 +156,17 @@ function createEmptyTradeDraft(type: TradeType) {
     stalkerId: "",
     groupId: "",
     manualParticipantName: "",
-    itemName: "",
-    quantity: "1",
-    price: "",
+    items: [createEmptyTradeDraftItem()],
     issuedBy: "",
     notes: "",
     operationDate: getTodayDate(),
+  };
+}
+
+function getComparableTradeDraft<Draft extends { items: TradeDraftItem[] }>(draft: Draft) {
+  return {
+    ...draft,
+    items: draft.items.map((item) => ({ name: item.name, quantity: item.quantity, price: item.price, notes: item.notes })),
   };
 }
 
@@ -295,7 +302,7 @@ function isViolationActive(violation: Violation) {
 }
 
 function getViolationStatusLabel(violation: Violation) {
-  return isViolationActive(violation) ? "Активное нарушение" : "Закрыто";
+  return isViolationActive(violation) ? "Активно" : "Закрыто";
 }
 
 function getViolationStatusClass(violation: Violation) {
@@ -345,6 +352,7 @@ export default function JournalsPage() {
   const [confirmDialog, setConfirmDialog] = useState<JournalConfirmDialogState>(null);
   const [taskDraft, setTaskDraft] = useState(createEmptyTaskDraft);
   const [tradeDraft, setTradeDraft] = useState(() => createEmptyTradeDraft("sale"));
+  const [tradeItemError, setTradeItemError] = useState<{ itemKey: string; field: "name" | "quantity" | "price" } | null>(null);
   const [violationDraft, setViolationDraft] = useState(createEmptyViolationDraft);
   const [taskFormMessage, setTaskFormMessage] = useState("");
   const [taskTableMessage, setTaskTableMessage] = useState("");
@@ -755,20 +763,25 @@ export default function JournalsPage() {
     () => getPaginatedItems(visibleViolations, violationPage),
     [visibleViolations, violationPage],
   );
-  const tradeDraftQuantity = Number(tradeDraft.quantity.replace(",", "."));
-  const tradeDraftPrice = Number(tradeDraft.price.replace(",", "."));
-  const tradeDraftTotal =
-    Number.isFinite(tradeDraftQuantity) && Number.isFinite(tradeDraftPrice)
-      ? tradeDraftQuantity * tradeDraftPrice
-      : 0;
   const isEditingTask = Boolean(editingTaskId);
   const isEditingTrade = Boolean(editingTradeId);
   const isEditingViolation = Boolean(editingViolationId);
-  const journalCounters: Record<JournalTab, number> = {
-    Задания: visibleTasks.length,
-    Продажи: saleOperations.length,
-    Покупки: purchaseOperations.length,
-    Нарушения: visibleViolations.length,
+  const activeTaskCount = tasks.filter((task) => task.status === "active").length;
+  const overdueTaskCount = tasks.filter(isTaskOverdue).length;
+  const activeViolationCount = violations.filter((violation) => isViolationActive(violation)).length;
+  const journalCounters: Record<JournalTab, { total: number; note: string; isAlert: boolean }> = {
+    Задания: {
+      total: tasks.length,
+      note: overdueTaskCount > 0 ? `просрочено: ${overdueTaskCount}` : `активных: ${activeTaskCount}`,
+      isAlert: overdueTaskCount > 0,
+    },
+    Продажи: { total: saleOperations.length, note: "записей", isAlert: false },
+    Покупки: { total: purchaseOperations.length, note: "записей", isAlert: false },
+    Нарушения: {
+      total: violations.length,
+      note: `активных: ${activeViolationCount}`,
+      isAlert: activeViolationCount > 0,
+    },
   };
 
   function updateTaskDraft<Field extends keyof typeof taskDraft>(
@@ -864,17 +877,13 @@ export default function JournalsPage() {
       return createEmptyTradeDraft(tradeModalType ?? "sale");
     }
 
-    const firstItem = operation.items[0];
-
     return {
       type: operation.type,
       participantMode: operation.subjectType,
       stalkerId: operation.stalkerId ?? "",
       groupId: operation.groupId ?? "",
       manualParticipantName: operation.manualParticipantName ?? "",
-      itemName: firstItem?.name ?? "",
-      quantity: firstItem ? String(firstItem.quantity) : "1",
-      price: firstItem ? String(firstItem.price) : "",
+      items: getTradeDraftItemsFromOperation(operation),
       issuedBy: operation.issuedBy,
       notes: operation.notes,
       operationDate: (operation.operationDate ?? operation.createdAt).slice(0, 10),
@@ -882,7 +891,7 @@ export default function JournalsPage() {
   }
 
   function isTradeDraftDirty() {
-    return isDirtyValue(tradeDraft, getInitialTradeDraft());
+    return isDirtyValue(getComparableTradeDraft(tradeDraft), getComparableTradeDraft(getInitialTradeDraft()));
   }
 
   function getInitialViolationDraft() {
@@ -1005,17 +1014,13 @@ export default function JournalsPage() {
   }
 
   function openEditTradeModal(operation: TradeOperation) {
-    const firstItem = operation.items[0];
-
     setTradeDraft({
       type: operation.type,
       participantMode: operation.subjectType,
       stalkerId: operation.stalkerId ?? "",
       groupId: operation.groupId ?? "",
       manualParticipantName: operation.manualParticipantName ?? "",
-      itemName: firstItem?.name ?? "",
-      quantity: firstItem ? String(firstItem.quantity) : "1",
-      price: firstItem ? String(firstItem.price) : "",
+      items: getTradeDraftItemsFromOperation(operation),
       issuedBy: operation.issuedBy,
       notes: operation.notes,
       operationDate: (operation.operationDate ?? operation.createdAt).slice(0, 10),
@@ -1027,6 +1032,7 @@ export default function JournalsPage() {
   }
 
   function closeTradeModal() {
+    setTradeItemError(null);
     setTradeModalType(null);
     setEditingTradeId("");
     setTradeDraft(createEmptyTradeDraft("sale"));
@@ -1140,43 +1146,21 @@ export default function JournalsPage() {
   async function handleTradeSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const itemName = tradeDraft.itemName.trim();
-    const quantity = Number(tradeDraft.quantity.replace(",", "."));
-    const price = Number(tradeDraft.price.replace(",", "."));
+    const itemsValidation = validateTradeDraftItems(tradeDraft.items);
 
-    if (!itemName) {
-      setTradeFormMessage("Укажите предмет операции.");
+    if (!itemsValidation.ok) {
+      setTradeFormMessage(itemsValidation.message);
+      setTradeItemError({ itemKey: itemsValidation.itemKey, field: itemsValidation.field });
       return;
     }
 
-    if (!Number.isFinite(quantity) || quantity <= 0) {
-      setTradeFormMessage("Укажите корректное количество.");
-      return;
-    }
-
-    if (!Number.isFinite(price) || price < 0) {
-      setTradeFormMessage("Укажите корректную цену за единицу.");
-      return;
-    }
-
-    const item = {
-      id: `trade-item-${Date.now()}`,
-      name: itemName,
-      quantity,
-      price,
-      notes: "",
-    };
+    const { items, totalAmount } = itemsValidation;
+    const itemName = getTradeItemsSummary(items);
 
     if (editingTradeId) {
-      const currentOperation = tradeOperations.find((operation) => operation.id === editingTradeId);
       const updatedOperation = await updateTradeOperation(editingTradeId, {
-        items: [
-          {
-            ...item,
-            id: currentOperation?.items[0]?.id ?? item.id,
-          },
-        ],
-        totalAmount: quantity * price,
+        items,
+        totalAmount,
         notes: tradeDraft.notes.trim(),
         operationDate: tradeDraft.operationDate,
       }).catch(() => {
@@ -1249,8 +1233,8 @@ export default function JournalsPage() {
       stalkerId,
       groupId,
       manualParticipantName,
-      items: [item],
-      totalAmount: quantity * price,
+      items,
+      totalAmount,
       notes: tradeDraft.notes.trim(),
       operationDate: tradeDraft.operationDate,
     }).catch(() => {
@@ -2016,37 +2000,21 @@ export default function JournalsPage() {
         <div className="pda-content journals-content">
           <section className="section-panel journals-panel">
             <div className="journals-shell">
-              <div className="journal-overview">
-                <div className="journal-overview-copy">
-                  <h1>Журналы</h1>
-                  <p>{journalDescriptions[activeJournalTab]}</p>
-                </div>
-                <div className="journal-stats">
-                  <div className="journal-stat">
-                    <span>Активных заданий</span>
-                    <strong>{tasks.filter((task) => task.status === "active").length}</strong>
-                  </div>
-                  <div className="journal-stat">
-                    <span>Торговых операций</span>
-                    <strong>{tradeOperations.length}</strong>
-                  </div>
-                  <div className="journal-stat">
-                    <span>Активных нарушений</span>
-                    <strong>{violations.filter((violation) => isViolationActive(violation)).length}</strong>
-                  </div>
-                </div>
-              </div>
-
               <div className="journal-tabs-grid" role="tablist" aria-label="Разделы журналов">
                 {journalTabs.map((tab) => (
                   <button
+                    aria-selected={activeJournalTab === tab}
                     className={activeJournalTab === tab ? "journal-tab-card journal-tab-card-active" : "journal-tab-card"}
                     key={tab}
                     onClick={() => changeJournalTab(tab)}
+                    role="tab"
                     type="button"
                   >
                     <span>{tab}</span>
-                    <strong>{journalCounters[tab]}</strong>
+                    <small className={journalCounters[tab].isAlert ? "journal-tab-note journal-tab-note-alert" : "journal-tab-note"}>
+                      {journalCounters[tab].note}
+                    </small>
+                    <strong>{journalCounters[tab].total}</strong>
                   </button>
                 ))}
               </div>
@@ -2372,42 +2340,20 @@ export default function JournalsPage() {
 
               <section className="form-section">
                 <div className="form-section-heading">
-                  <h2>Предмет и сумма</h2>
-                  <span>Один предмет сохраняется как элемент списка</span>
+                  <h2>Позиции операции</h2>
+                  <span>Количество и цена по каждой позиции</span>
                 </div>
-                <div className="task-form-grid">
-                  <label className="filter-field">
-                    <span>Предмет</span>
-                    <input
-                      onChange={(event) => updateTradeDraft("itemName", event.target.value)}
-                      placeholder="Название предмета"
-                      type="text"
-                      value={tradeDraft.itemName}
-                    />
-                  </label>
-                  <label className="filter-field">
-                    <span>Количество</span>
-                    <input
-                      min="0"
-                      onChange={(event) => updateTradeDraft("quantity", event.target.value)}
-                      type="number"
-                      value={tradeDraft.quantity}
-                    />
-                  </label>
-                  <label className="filter-field">
-                    <span>Цена за единицу</span>
-                    <input
-                      min="0"
-                      onChange={(event) => updateTradeDraft("price", event.target.value)}
-                      type="number"
-                      value={tradeDraft.price}
-                    />
-                  </label>
-                  <label className="filter-field">
-                    <span>Общая сумма</span>
-                    <input readOnly type="text" value={formatMoney(tradeDraftTotal)} />
-                  </label>
-                </div>
+                <TradeItemsEditor
+                  formatMoney={formatMoney}
+                  invalidField={tradeItemError?.field}
+                  invalidItemKey={tradeItemError?.itemKey}
+                  items={tradeDraft.items}
+                  onChange={(items) => {
+                    setTradeDraft((currentDraft) => ({ ...currentDraft, items }));
+                    setTradeFormMessage("");
+                    setTradeItemError(null);
+                  }}
+                />
               </section>
 
               <section className="form-section">
