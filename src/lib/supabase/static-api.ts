@@ -2,6 +2,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getRoleLabel, type UserRole } from "@/lib/auth-roles";
+import { canManageCalculatorCatalog, validateCatalogItemInput } from "@/lib/calculator-catalog";
 import { getDutyAccessLevelLabel } from "@/lib/duty-members";
 import { DEFAULT_MAP_LAYER, normalizeMapLayerKey, normalizeMapLayerName } from "@/lib/map-layers";
 import { isStaticSupabaseApiRequest } from "@/lib/supabase/static-api-routing";
@@ -858,6 +859,143 @@ async function handleCalculatorCatalog(client: SupabaseClient) {
   });
 }
 
+const catalogItemColumns =
+  "id, categoryId, kind, name, contents, traderPrice, basePrice, generalPrice, partnerPrice, tenantPrice, note";
+
+async function resolveStaticCatalogCategoryId(client: SupabaseClient, categoryId: string | null, newCategoryName: string | null) {
+  if (newCategoryName) {
+    const { data: existing, error: existingError } = await client
+      .from("SupplyCatalogCategory")
+      .select("id")
+      .eq("name", newCategoryName)
+      .maybeSingle();
+
+    if (existingError) {
+      throw existingError;
+    }
+
+    if (existing) {
+      return stringValue(asRecord(existing).id);
+    }
+
+    const { data: lastCategory } = await client
+      .from("SupplyCatalogCategory")
+      .select("sortOrder")
+      .order("sortOrder", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const timestamp = nowIso();
+    const { data: created, error: createError } = await client
+      .from("SupplyCatalogCategory")
+      .insert({
+        id: crypto.randomUUID(),
+        name: newCategoryName,
+        sortOrder: Number(asRecord(lastCategory).sortOrder ?? 0) + 1,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      } as never)
+      .select("id")
+      .single();
+
+    if (createError) {
+      throw createError;
+    }
+
+    return stringValue(asRecord(created).id);
+  }
+
+  return categoryId;
+}
+
+async function handleCalculatorCatalogItem(client: SupabaseClient, method: string, init?: RequestInit, id?: string) {
+  const accessUser = await assertAuthenticated(client);
+
+  if (!canManageCalculatorCatalog(stringValue(accessUser.role))) {
+    return errorResponse("Изменять каталог могут только офицеры.", 403);
+  }
+
+  if (method === "DELETE" && id) {
+    const { error } = await client.from("SupplyCatalogItem").delete().eq("id", id);
+
+    if (error) {
+      throw error;
+    }
+
+    return json({ ok: true });
+  }
+
+  if ((method === "POST" && !id) || (method === "PATCH" && id)) {
+    const validation = validateCatalogItemInput(await requestBody(init));
+
+    if (!validation.ok) {
+      return errorResponse(validation.message);
+    }
+
+    const input = validation.value;
+    const categoryId = await resolveStaticCatalogCategoryId(client, input.categoryId, input.newCategoryName);
+
+    if (!categoryId) {
+      return errorResponse("Категория не найдена.", 404);
+    }
+
+    const timestamp = nowIso();
+    const data = {
+      categoryId,
+      kind: input.kind,
+      name: input.name,
+      contents: input.contents,
+      basePrice: input.basePrice,
+      generalPrice: input.generalPrice,
+      partnerPrice: input.partnerPrice,
+      tenantPrice: input.tenantPrice,
+      note: input.note,
+      updatedAt: timestamp,
+    };
+
+    if (method === "PATCH" && id) {
+      const { data: updated, error } = await client
+        .from("SupplyCatalogItem")
+        .update(data as never)
+        .eq("id", id)
+        .select(catalogItemColumns)
+        .single();
+
+      if (error) {
+        throw error.code === "23505" ? new Error("Такой товар уже есть в этой категории.") : error;
+      }
+
+      return json(updated);
+    }
+
+    const { data: lastItem } = await client
+      .from("SupplyCatalogItem")
+      .select("sortOrder")
+      .eq("categoryId", categoryId)
+      .order("sortOrder", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const { data: created, error } = await client
+      .from("SupplyCatalogItem")
+      .insert({
+        ...data,
+        id: crypto.randomUUID(),
+        isActive: true,
+        sortOrder: Number(asRecord(lastItem).sortOrder ?? 0) + 1,
+        createdAt: timestamp,
+      } as never)
+      .select(catalogItemColumns)
+      .single();
+
+    if (error) {
+      throw error.code === "23505" ? new Error("Такой товар уже есть в этой категории.") : error;
+    }
+
+    return json(created, 201);
+  }
+
+  return errorResponse("Этот приказ недоступен в текущем режиме допуска.", 405);
+}
+
 async function handleDutyMembers(client: SupabaseClient, method: string, init?: RequestInit, id?: string) {
   const accessUser = await assertAuthenticated(client);
   const actorRole = stringValue(accessUser.role) as UserRole;
@@ -1040,6 +1178,10 @@ export async function staticSupabaseFetch(input: RequestInfo | URL, init?: Reque
   try {
     if (path === "/api/auth/me") return await handleCurrentUser(client);
     if (path === "/api/calculator/catalog") return await handleCalculatorCatalog(client);
+    const catalogItemMatch = path.match(/^\/api\/calculator\/catalog\/items(?:\/([^/]+))?$/);
+    if (catalogItemMatch) {
+      return await handleCalculatorCatalogItem(client, method, init, catalogItemMatch[1] ? decodeURIComponent(catalogItemMatch[1]) : undefined);
+    }
     if (path === "/api/duty-members/access-users") return await handleAccessUsers(client);
     if (path === "/api/apartments/defaults") return await handleDefaultApartments(client, method);
     if (path === "/api/duty-members/users" || path.endsWith("/password") || path === "/api/duty-members/password") {

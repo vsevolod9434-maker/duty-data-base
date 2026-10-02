@@ -94,6 +94,10 @@ Edge Function `access-admin`. Через неё работают:
 6. `supabase/static-pages-rpc.sql`;
 7. при необходимости `supabase/repair-service-role-access-admin-grants.sql`.
 
+Если проект уже настроен по старому `rls-policies.sql`, для пополнения каталога
+снабжения из калькулятора дополнительно примените
+`supabase/calculator-catalog-write.sql`.
+
 Затем разверните `supabase/functions/access-admin` и создайте штатные записи
 командой `npm run duty-staff:seed`. После любых изменений RLS рекомендуется
 прогнать `supabase/rls-policy-tests.sql` на отдельном тестовом проекте.

@@ -2557,3 +2557,62 @@ body {
     display: block !important;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Calculator catalog management                                               */
+/* -------------------------------------------------------------------------- */
+
+.calculator-page .calculator-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .6rem;
+}
+
+.calculator-page .calculator-catalog-create {
+  flex: 0 0 auto;
+  width: auto !important;
+  min-height: 1.95rem !important;
+  padding: .3rem .8rem !important;
+  font-size: .76rem !important;
+}
+
+.calculator-page .calculator-catalog-action {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: .25rem;
+}
+
+.calculator-page .calculator-catalog-admin-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: .2rem;
+}
+
+.calculator-page .calculator-admin-button {
+  width: auto !important;
+  min-width: 1.9rem;
+  min-height: 1.82rem !important;
+  padding: .2rem .4rem !important;
+  font-size: .7rem !important;
+}
+
+@media (min-width: 901px) {
+  .calculator-page .calculator-catalog-heading,
+  .calculator-page .calculator-catalog-card {
+    grid-template-columns: minmax(9rem, 1fr) repeat(3, minmax(5.6rem, 7.6rem)) minmax(6.8rem, max-content);
+  }
+}
+
+.catalog-item-modal .catalog-price-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .6rem;
+}
+
+@media (max-width: 640px) {
+  .catalog-item-modal .catalog-price-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
