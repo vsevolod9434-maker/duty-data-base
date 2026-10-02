@@ -474,10 +474,6 @@ body {
   max-width: 13rem;
 }
 
-.pda-brand-copy strong::after {
-  font-size: 8px;
-}
-
 .pda-signal {
   width: .5rem;
   height: .5rem;
@@ -543,10 +539,6 @@ body {
 }
 
 @media (max-width: 460px) {
-  .pda-brand-copy strong::after {
-    display: none;
-  }
-
   .pda-brand-copy strong {
     font-size: .74rem;
     letter-spacing: .05em;
@@ -2441,5 +2433,127 @@ body {
   .pda-screen .profile-record-card .profile-record-facts > div:nth-child(odd) {
     border-left: 0 !important;
     padding-left: 0 !important;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Brand title and equal-width navigation keys                                 */
+/* -------------------------------------------------------------------------- */
+
+.pda-brand-copy strong {
+  padding-bottom: 0 !important;
+  color: #e7e9e9 !important;
+  font-size: 1.12rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .06em !important;
+  line-height: 1.1 !important;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.pda-brand-mark {
+  width: 42px !important;
+  height: 42px !important;
+}
+
+.pda-main-nav,
+.registry-main-nav {
+  display: grid !important;
+  grid-template-columns: repeat(7, var(--pda-nav-key-width, 7.2rem));
+}
+
+.pda-main-nav > *,
+.pda-nav-dropdown,
+.pda-nav-dropdown-trigger,
+.pda-tab,
+.registry-nav-tab {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.pda-tab,
+.registry-nav-tab {
+  justify-content: center;
+  padding-inline: .3rem !important;
+  text-align: center;
+  white-space: nowrap;
+}
+
+@media (min-width: 1121px) and (max-width: 1599px) {
+  .pda-main-nav,
+  .registry-main-nav {
+    --pda-nav-key-width: 6.6rem;
+  }
+
+  .pda-tab,
+  .registry-nav-tab {
+    font-size: .72rem !important;
+  }
+}
+
+@media (max-width: 1120px) {
+  .pda-main-nav,
+  .registry-main-nav {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .pda-main-nav,
+  .registry-main-nav {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .pda-brand-copy strong {
+    font-size: .92rem !important;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 460px) {
+  .pda-brand-copy strong {
+    font-size: .8rem !important;
+    letter-spacing: .03em !important;
+  }
+}
+
+@media (min-width: 1340px) and (max-width: 1599px) {
+  .pda-brand-copy strong {
+    font-size: .95rem !important;
+    letter-spacing: .04em !important;
+  }
+}
+
+@media (min-width: 1121px) and (max-width: 1339px) {
+  .pda-shell-header,
+  .registry-shell-header {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: .45rem .65rem;
+  }
+
+  .pda-brand,
+  .registry-brand {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .pda-status,
+  .registry-status {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .pda-main-nav,
+  .registry-main-nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+  }
+
+  .pda-user-email {
+    display: block !important;
   }
 }

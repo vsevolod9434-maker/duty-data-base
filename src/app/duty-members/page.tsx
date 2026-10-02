@@ -9,7 +9,7 @@ import { apiFetchJson } from "@/lib/api-client";
 import type { UserRole } from "@/lib/auth-roles";
 import { cachePolicy, dutyDataKeys, scheduleClientStateSync, TWO_HOURS, useCurrentUserCacheKey, useDutyQueryClient } from "@/lib/data-cache";
 import { compareDutyMembersByRankAndName, isDutyMemberVisibleRole } from "@/lib/duty-members";
-import { withBasePath } from "@/lib/public-path";
+import { getPhotoPlaceholderSrc } from "@/lib/photo-placeholder";
 import { isStaticExportEnabled } from "@/lib/static-hosting";
 import {
   accessAdminClosedMessage,
@@ -225,7 +225,7 @@ function getAccessLevelBadgeClass(member: DutyMember) {
 function DutyMemberPhoto({ alt, className = "", src }: { alt: string; className?: string; src: string | null }) {
   const normalizedSrc = src?.trim() ?? "";
   const [failedSrc, setFailedSrc] = useState("");
-  const placeholderSrc = withBasePath("/no-data-person.png");
+  const placeholderSrc = getPhotoPlaceholderSrc();
   const resolvedSrc = normalizedSrc && failedSrc !== normalizedSrc ? normalizedSrc : placeholderSrc;
   const isPlaceholder = resolvedSrc === placeholderSrc;
 

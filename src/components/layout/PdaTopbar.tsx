@@ -178,7 +178,7 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel, onSubt
               <Image alt="Эмблема группировки «Долг»" height={42} priority src={withBasePath("/duty-logo.png")} width={42} />
             </span>
             <div className="pda-brand-copy registry-brand-copy">
-              <strong>База данных «Долг»</strong>
+              <strong>База данных ВСГ «Долг»</strong>
             </div>
           </div>
 
@@ -307,7 +307,7 @@ export function PdaTopbar({ activeLabel, activeSubtab, activeSubtabLabel, onSubt
         </div>
       </header>
       <footer className="pda-statusbar" aria-label="Строка состояния">
-        <span className="pda-statusbar-device">КПК «Долг-09»</span>
+        <span className="pda-statusbar-device">КПК ВСГ «Долг»</span>
         <span className="pda-statusbar-path">{sectionPath}</span>
         <span className="pda-statusbar-spacer" />
         <span className="pda-statusbar-item">Сист. дата {systemDate ?? "--.--.----"}</span>

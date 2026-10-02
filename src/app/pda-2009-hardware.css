@@ -115,15 +115,6 @@
   letter-spacing: .085em;
 }
 
-.pda-brand-copy strong::after {
-  content: "СЛУЖЕБНЫЙ ТЕРМИНАЛ";
-  display: block;
-  margin-top: .18rem;
-  color: #676c6e;
-  font: 700 7px/1 var(--font-pda-ui);
-  letter-spacing: .14em;
-}
-
 .pda-main-nav,
 .registry-main-nav {
   gap: 2px;

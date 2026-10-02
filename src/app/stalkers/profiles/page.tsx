@@ -30,7 +30,7 @@ import {
   updateViolation,
 } from "@/lib/journal-api";
 import { isStaticExportEnabled, transactionalImportMessage } from "@/lib/static-hosting";
-import { withBasePath } from "@/lib/public-path";
+import { getPhotoPlaceholderSrc } from "@/lib/photo-placeholder";
 import type {
   StalkerAffiliation,
   StalkerGroup,
@@ -2387,7 +2387,7 @@ export default function StalkerProfilesPage() {
                           <img
                             alt="Стандартное изображение профиля сталкера"
                             className="profile-photo-placeholder"
-                            src={withBasePath("/no-data-person.png")}
+                            src={getPhotoPlaceholderSrc()}
                           />
                         )}
                         {selectedProfile.registryNumber ? (
@@ -2497,7 +2497,7 @@ export default function StalkerProfilesPage() {
                                     <div className="dossier-group-avatar">
                                       <img
                                         alt="Изображение группы"
-                                        src={group.photoUrl || withBasePath("/no-data-group.png")}
+                                        src={group.photoUrl || getPhotoPlaceholderSrc()}
                                       />
                                     </div>
                                     <div className="dossier-group-copy">
@@ -2867,9 +2867,10 @@ export default function StalkerProfilesPage() {
                           </>
                         )
                       ) : (
-                        <span className="profile-photo-state">
-                          {normalizedPhotoUrl ? "Изображение недоступно" : "Изображение не указано"}
-                        </span>
+                        <>
+                          <img alt="Фото не загружено" className="profile-photo-placeholder" src={getPhotoPlaceholderSrc()} />
+                          {normalizedPhotoUrl ? <span className="profile-photo-state">Изображение по ссылке недоступно</span> : null}
+                        </>
                       )}
                     </div>
                   </div>
