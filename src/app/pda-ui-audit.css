@@ -504,3 +504,137 @@ body {
     font-size: clamp(1.45rem, 7vw, 1.8rem);
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* User-requested fullscreen terminal cleanup                                  */
+/* -------------------------------------------------------------------------- */
+
+/* The application is the terminal. Remove the decorative outer PDA chassis. */
+.pda-page {
+  min-height: 100vh;
+  padding: 0 !important;
+}
+
+.pda-page::before,
+.pda-page::after {
+  display: none !important;
+  content: none !important;
+}
+
+.pda-screen {
+  width: 100%;
+  min-height: 100vh !important;
+  height: 100vh !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+.pda-screen::after {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+@supports (height: 100dvh) {
+  .pda-page,
+  .pda-screen {
+    min-height: 100dvh !important;
+  }
+
+  .pda-screen {
+    height: 100dvh !important;
+  }
+}
+
+.pda-content {
+  width: 100%;
+  max-width: none;
+}
+
+/* The top service strip was removed from the component; keep the selector inert
+   to protect against stale cached markup during deployment. */
+.pda-device-strip {
+  display: none !important;
+}
+
+/* Navigation: no LED dots. */
+.pda-tab::before,
+.registry-nav-tab::before,
+.pda-tab-active::before,
+.registry-nav-tab-active::before {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  content: none !important;
+  box-shadow: none !important;
+}
+
+/* Navigation hover should be a simple surface change, without red corner/side
+   illumination. Active section keeps its red state. */
+.pda-tab:hover:not(.pda-tab-active),
+.registry-nav-tab:hover:not(.registry-nav-tab-active),
+.pda-nav-dropdown-trigger:hover:not(.pda-tab-active) {
+  border-color: #515557 !important;
+  background:
+    linear-gradient(180deg, #2a2d2f 0, #1c1f21 48%, #111315 52%, #17191b 100%) !important;
+  color: #eef0f0 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.065),
+    inset 0 -1px 0 rgba(0,0,0,.85) !important;
+}
+
+/* Remove the external glow from the selected key as well: the red face and
+   bottom edge are enough to communicate the active section. */
+.pda-tab-active,
+.registry-nav-tab-active,
+.pda-tab[aria-current="page"] {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.10),
+    inset 0 -2px 0 #be2a32 !important;
+}
+
+/* Profiles: the generic hardware header background created the grey block
+   above "Реестр сталкеров". Keep the row itself, remove that artificial plate. */
+.profiles-page .list-column-header {
+  min-height: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Let the stalker workspace use the entire area below the top navigation. */
+.profiles-page .pda-content {
+  display: flex;
+  min-height: 0;
+}
+
+.profiles-page .profiles-workspace-panel {
+  flex: 1 1 auto;
+  min-height: 0 !important;
+  height: auto !important;
+}
+
+.profiles-page .profiles-command-grid {
+  min-height: 0 !important;
+  height: 100%;
+}
+
+/* No decorative bottom reservation on small screens either. */
+@media (max-width: 900px) {
+  .pda-page {
+    padding: 0 !important;
+  }
+
+  .pda-screen {
+    min-height: 100vh !important;
+    height: 100vh !important;
+  }
+
+  @supports (height: 100dvh) {
+    .pda-screen {
+      min-height: 100dvh !important;
+      height: 100dvh !important;
+    }
+  }
+}
