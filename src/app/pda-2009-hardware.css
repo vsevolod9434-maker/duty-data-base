@@ -1,0 +1,1429 @@
+/*
+ * PDA / КПК 2009 — hardware shell pass.
+ * Stage 3: makes the application read as a rugged 2009 field terminal rather than a themed web page.
+ * No application logic, data model, permissions or routes are changed.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* Device chassis                                                              */
+/* -------------------------------------------------------------------------- */
+
+.pda-page {
+  position: relative;
+  min-height: 100vh;
+  padding: 10px;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,.018), transparent 3%, transparent 97%, rgba(255,255,255,.012)),
+    repeating-linear-gradient(135deg, rgba(255,255,255,.012) 0 1px, transparent 1px 4px),
+    radial-gradient(circle at 50% -30%, rgba(108,112,114,.13), transparent 43rem),
+    #030404;
+}
+
+.pda-page::before,
+.pda-page::after {
+  position: fixed;
+  z-index: 40;
+  pointer-events: none;
+  color: #5f6466;
+  font: 700 8px/1 Consolas, "Lucida Console", monospace;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 #000;
+}
+
+.pda-page::before {
+  content: "DUTY // FIELD TERMINAL";
+  left: 25px;
+  bottom: 3px;
+}
+
+.pda-page::after {
+  content: "PDA-09 // 2009";
+  right: 25px;
+  bottom: 3px;
+}
+
+.pda-screen {
+  position: relative;
+  width: 100%;
+  min-height: calc(100vh - 20px);
+  height: calc(100vh - 20px);
+  border: 7px solid #181a1b;
+  border-top-color: #2c2f31;
+  border-left-color: #242729;
+  border-right-color: #0b0c0d;
+  border-bottom-color: #080909;
+  border-radius: 5px;
+  outline: 1px solid #424648;
+  outline-offset: -2px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.022), transparent 5rem),
+    #08090a;
+  box-shadow:
+    inset 0 0 0 1px #050606,
+    inset 0 0 80px rgba(0,0,0,.48),
+    0 0 0 1px #000,
+    0 14px 36px rgba(0,0,0,.48);
+  backdrop-filter: none;
+}
+
+.pda-screen::after {
+  content: "";
+  position: absolute;
+  z-index: 13;
+  inset: 0;
+  pointer-events: none;
+  border: 1px solid rgba(255,255,255,.035);
+  background:
+    linear-gradient(115deg, rgba(255,255,255,.018), transparent 16%, transparent 77%, rgba(255,255,255,.008)),
+    radial-gradient(ellipse at 50% 42%, transparent 52%, rgba(0,0,0,.19) 100%);
+  box-shadow:
+    inset 0 0 22px rgba(0,0,0,.26),
+    inset 0 0 0 1px rgba(255,255,255,.012);
+}
+
+/* recessed screen lip */
+.pda-content {
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.006) 0 1px, transparent 1px 4px),
+    transparent;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Device service strip                                                        */
+/* -------------------------------------------------------------------------- */
+
+.pda-device-strip {
+  position: relative;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: minmax(11rem, 1fr) auto minmax(11rem, 1fr);
+  min-height: 23px;
+  align-items: center;
+  gap: .75rem;
+  border-bottom: 1px solid #050606;
+  background:
+    linear-gradient(180deg, #17191b, #0d0f10 72%, #080909);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.055),
+    inset 0 -1px 0 #323638;
+  padding: 0 .75rem;
+  color: #787e80;
+  font: 700 9px/1 Consolas, "Lucida Console", monospace;
+  letter-spacing: .085em;
+  text-transform: uppercase;
+}
+
+.pda-device-strip::before {
+  content: "";
+  position: absolute;
+  left: .75rem;
+  right: .75rem;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, #6e161b, #a7252c 26%, #541115 58%, transparent 88%);
+}
+
+.pda-device-model {
+  justify-self: start;
+  color: #9ba0a2;
+}
+
+.pda-device-section {
+  justify-self: center;
+  border-right: 1px solid #2d3133;
+  border-left: 1px solid #2d3133;
+  padding: 0 .85rem;
+  color: #aeb2b3;
+}
+
+.pda-device-channel {
+  display: inline-flex;
+  justify-self: end;
+  align-items: center;
+  gap: .42rem;
+  color: #8e9395;
+}
+
+.pda-device-channel-led {
+  width: 5px;
+  height: 5px;
+  border: 1px solid #8f272d;
+  border-radius: 1px;
+  background: #c32b33;
+  box-shadow:
+    0 0 5px rgba(195,43,51,.55),
+    inset 0 1px 0 rgba(255,255,255,.18);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Main navigation as tactile membrane keys                                    */
+/* -------------------------------------------------------------------------- */
+
+.pda-topbar,
+.registry-topbar {
+  z-index: 25;
+  background: #0d0f10;
+}
+
+.pda-shell-header,
+.registry-shell-header {
+  min-height: 54px;
+  border-top: 1px solid #303436;
+  border-bottom: 1px solid #050606;
+  background:
+    linear-gradient(180deg, #242729 0, #181a1c 16%, #101214 72%, #090a0b 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.075),
+    inset 0 -1px 0 #34383a,
+    0 2px 7px rgba(0,0,0,.40);
+}
+
+.pda-shell-header::before,
+.pda-shell-header::after {
+  top: 5px;
+  width: 5px;
+  height: 5px;
+  border: 1px solid #5d6264;
+  background:
+    radial-gradient(circle at 40% 35%, #5b5f61 0 12%, #181a1b 18% 52%, #070808 58%);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.035),
+    inset 0 0 2px #000;
+}
+
+.pda-brand {
+  gap: .6rem;
+}
+
+.pda-brand-mark {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #505456;
+  background:
+    linear-gradient(145deg, #2a2d2f, #101213 66%);
+  box-shadow:
+    inset 0 0 0 2px #090a0b,
+    inset 0 1px 0 rgba(255,255,255,.075),
+    0 2px 4px rgba(0,0,0,.44);
+}
+
+.pda-brand-mark::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border: 1px solid rgba(185,190,192,.10);
+  pointer-events: none;
+}
+
+.pda-brand-copy strong {
+  position: relative;
+  padding-bottom: .13rem;
+  color: #d7dada;
+  font-size: .82rem;
+  letter-spacing: .085em;
+}
+
+.pda-brand-copy strong::after {
+  content: "СЛУЖЕБНЫЙ ТЕРМИНАЛ";
+  display: block;
+  margin-top: .18rem;
+  color: #676c6e;
+  font: 700 7px/1 Consolas, "Lucida Console", monospace;
+  letter-spacing: .14em;
+}
+
+.pda-main-nav,
+.registry-main-nav {
+  gap: 2px;
+  padding: 5px 0;
+}
+
+.pda-tab,
+.registry-nav-tab {
+  min-height: 35px;
+  border: 1px solid #373b3d;
+  border-top-color: #4c5052;
+  border-bottom-color: #080909;
+  border-radius: 1px;
+  background:
+    linear-gradient(180deg, #25282a 0, #1b1e20 47%, #111315 51%, #151719 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.065),
+    inset 0 -1px 0 rgba(0,0,0,.85),
+    0 1px 1px rgba(0,0,0,.32);
+  padding-inline: .72rem;
+  font-size: .76rem;
+  letter-spacing: .035em;
+}
+
+.pda-tab::before,
+.registry-nav-tab::before {
+  content: "";
+  width: 3px;
+  height: 3px;
+  margin-right: .38rem;
+  border-radius: 50%;
+  background: #555a5c;
+  box-shadow: 0 0 0 1px #090a0b;
+}
+
+.pda-tab:hover,
+.registry-nav-tab:hover,
+.pda-nav-dropdown-trigger:hover {
+  border-color: #604044;
+  background:
+    linear-gradient(180deg, #332628 0, #211719 48%, #120d0e 52%, #1a1113 100%);
+}
+
+.pda-tab-active,
+.registry-nav-tab-active,
+.pda-tab[aria-current="page"] {
+  border-color: #7b252b;
+  border-top-color: #a13a40;
+  border-bottom-color: #470c10;
+  background:
+    linear-gradient(180deg, #5c191e 0, #351216 47%, #1b0d0f 52%, #281013 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.10),
+    inset 0 -2px 0 #be2a32,
+    0 0 5px rgba(118,26,31,.18);
+}
+
+.pda-tab-active::before,
+.registry-nav-tab-active::before {
+  background: #d2323a;
+  box-shadow:
+    0 0 5px rgba(210,50,58,.52),
+    0 0 0 1px #39070a;
+}
+
+.pda-nav-dropdown-menu {
+  margin-top: 3px;
+  border: 1px solid #555a5c;
+  border-top: 2px solid #922129;
+  box-shadow:
+    0 0 0 1px #050606,
+    5px 7px 0 rgba(0,0,0,.24),
+    0 10px 22px rgba(0,0,0,.52);
+}
+
+.pda-nav-dropdown-option {
+  position: relative;
+  min-height: 32px;
+  padding-left: 1.1rem;
+}
+
+.pda-nav-dropdown-option::before {
+  content: "";
+  position: absolute;
+  left: .52rem;
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  transform: translateY(-50%);
+  background: #555a5c;
+}
+
+.pda-nav-dropdown-option-active::before {
+  background: #c42b33;
+  box-shadow: 0 0 4px rgba(196,43,51,.45);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Status cluster                                                              */
+/* -------------------------------------------------------------------------- */
+
+.pda-status,
+.registry-status {
+  position: relative;
+  gap: .4rem;
+  min-height: 38px;
+  border: 1px solid #303436;
+  border-radius: 1px;
+  background:
+    linear-gradient(180deg, #121415, #090a0b);
+  box-shadow:
+    inset 0 2px 5px rgba(0,0,0,.48),
+    0 1px 0 rgba(255,255,255,.025);
+  padding: .35rem .42rem;
+}
+
+.pda-user-email {
+  max-width: 10rem;
+  border: 0;
+  border-right: 1px solid #2d3133;
+  padding: 0 .55rem 0 .2rem;
+  color: #9ca1a3;
+}
+
+.pda-signout-button {
+  min-height: 27px;
+  border: 1px solid #424648;
+  border-radius: 1px;
+  background:
+    linear-gradient(180deg, #232628, #111315);
+  color: #9ba0a2;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.04),
+    inset 0 -1px 0 #050606;
+  font: 700 9px/1 "Arial Narrow", "Segoe UI", sans-serif;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.pda-signout-button:hover:not(:disabled) {
+  border-color: #702329;
+  background: linear-gradient(180deg, #381317, #180b0d);
+  color: #e1e3e3;
+}
+
+.pda-clock {
+  min-width: 3.5rem;
+  border: 1px solid #34383a;
+  border-top-color: #202325;
+  background: #050606;
+  color: #dadcdc;
+  box-shadow:
+    inset 0 2px 5px rgba(0,0,0,.82),
+    0 1px 0 rgba(255,255,255,.02);
+  font-size: .75rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.pda-signal {
+  width: 17px;
+  height: 13px;
+  opacity: .78;
+}
+
+.battery {
+  width: 23px;
+  height: 11px;
+  opacity: .82;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Window chrome                                                               */
+/* -------------------------------------------------------------------------- */
+
+.pda-screen :is(
+  .registry-panel,
+  .section-panel,
+  .profiles-workspace-panel,
+  .groups-workspace-panel,
+  .apartments-workspace-panel,
+  .journals-panel,
+  .calculator-catalog-panel,
+  .calculator-cart-panel,
+  .duty-members-list-panel,
+  .duty-member-detail-panel,
+  .map-side-panel,
+  .map-panel-editor,
+  .ui-page-header,
+  .profile-hero,
+  .group-hero-card,
+  .apartment-hero-card,
+  .duty-member-profile
+) {
+  border-top-width: 2px;
+  border-top-color: #535759;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.032),
+    inset 0 -1px 0 rgba(0,0,0,.68),
+    0 0 0 1px rgba(0,0,0,.44),
+    3px 4px 9px rgba(0,0,0,.19);
+}
+
+.pda-screen :is(
+  .registry-panel,
+  .section-panel,
+  .profiles-workspace-panel,
+  .groups-workspace-panel,
+  .apartments-workspace-panel,
+  .journals-panel,
+  .calculator-catalog-panel,
+  .calculator-cart-panel,
+  .duty-members-list-panel,
+  .duty-member-detail-panel,
+  .map-side-panel,
+  .map-panel-editor,
+  .ui-page-header
+)::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: 5px;
+  width: 4px;
+  height: 4px;
+  border: 1px solid #525658;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 40% 35%, #5c6062 0 14%, #151718 22% 58%, #060707 62%);
+  opacity: .72;
+  pointer-events: none;
+}
+
+.pda-screen :is(
+  .section-header,
+  .registry-section-header,
+  .column-header,
+  .list-column-header,
+  .list-header-block,
+  .calculator-panel-header,
+  .map-side-panel-head,
+  .modal-header,
+  .task-section-header,
+  .block-heading-row,
+  .work-block-header
+) {
+  min-height: 38px;
+  border-bottom-color: #3d4143;
+  background:
+    linear-gradient(180deg, #1d2022 0, #151719 58%, #101213 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.035),
+    inset 0 -1px 0 rgba(0,0,0,.68);
+}
+
+.pda-screen :is(
+  .section-header,
+  .registry-section-header,
+  .column-header,
+  .list-column-header,
+  .list-header-block,
+  .calculator-panel-header,
+  .map-side-panel-head,
+  .modal-header,
+  .task-section-header,
+  .block-heading-row,
+  .work-block-header
+)::before {
+  content: "";
+  flex: 0 0 4px;
+  width: 4px;
+  height: 12px;
+  margin-right: .42rem;
+  background:
+    linear-gradient(180deg, #c52c34 0 42%, #631318 44% 100%);
+  box-shadow: 0 0 4px rgba(197,44,52,.20);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Card chassis / list rows                                                    */
+/* -------------------------------------------------------------------------- */
+
+.pda-screen :is(
+  .profile-list-item,
+  .profile-case-card,
+  .profile-record-card,
+  .dossier-group-card,
+  .group-list-card,
+  .group-case-card,
+  .group-member-row,
+  .apartment-list-card,
+  .apartment-case-card,
+  .apartment-tenant-row,
+  .apartment-payment-card,
+  .task-item,
+  .trade-record-card,
+  .violation-record-card,
+  .calculator-catalog-card,
+  .calculator-cart-card,
+  .duty-member-detail-card,
+  .entity-search-result,
+  .entity-selected-row,
+  .stalker-note-card,
+  .relation-row,
+  .detailed-member-row
+) {
+  border-top-color: #414547;
+  border-bottom-color: #202325;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.021), transparent 1.9rem),
+    linear-gradient(90deg, rgba(255,255,255,.008), transparent 9rem),
+    #101213;
+}
+
+.pda-screen :is(
+  .profile-list-item,
+  .group-list-card,
+  .apartment-list-card,
+  .duty-member-list-line,
+  .calculator-catalog-card
+) {
+  position: relative;
+}
+
+.pda-screen :is(
+  .profile-list-item,
+  .group-list-card,
+  .apartment-list-card,
+  .duty-member-list-line,
+  .calculator-catalog-card
+)::after {
+  content: "";
+  position: absolute;
+  right: 5px;
+  top: 5px;
+  width: 3px;
+  height: 3px;
+  background: #363a3c;
+  box-shadow: 0 0 0 1px #050606;
+}
+
+.pda-screen :is(
+  .profile-list-item-active,
+  .apartment-list-card-active
+)::after {
+  background: #b32931;
+  box-shadow: 0 0 4px rgba(179,41,49,.38);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Forms as recessed LCD controls                                              */
+/* -------------------------------------------------------------------------- */
+
+.pda-screen :is(input, select, textarea) {
+  min-height: 36px;
+  border-width: 1px !important;
+  border-top-color: #202325 !important;
+  border-left-color: #292d2f !important;
+  border-right-color: #414547 !important;
+  border-bottom-color: #4a4e50 !important;
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.008) 0 1px, transparent 1px 3px),
+    #070808 !important;
+  box-shadow:
+    inset 0 3px 7px rgba(0,0,0,.78),
+    inset 0 0 0 1px rgba(255,255,255,.008),
+    0 1px 0 rgba(255,255,255,.025) !important;
+  font-family: "Segoe UI", Tahoma, sans-serif;
+}
+
+.pda-screen textarea {
+  min-height: 92px;
+}
+
+.pda-screen select {
+  background-color: #090a0b !important;
+}
+
+.pda-screen :is(input, select, textarea):hover:not(:disabled) {
+  border-right-color: #535759 !important;
+  border-bottom-color: #5b6062 !important;
+}
+
+.pda-screen :is(input, select, textarea):focus {
+  border-color: #7e272d !important;
+  outline: 1px solid rgba(192,42,50,.28) !important;
+  box-shadow:
+    inset 0 3px 7px rgba(0,0,0,.80),
+    0 0 0 1px rgba(192,42,50,.12) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Membrane / physical-looking controls                                        */
+/* -------------------------------------------------------------------------- */
+
+.pda-screen :is(
+  .command-row,
+  .interactive-button,
+  .pagination-button,
+  .task-action-button,
+  .duty-member-action-button,
+  .map-layer-action-button,
+  .map-preset-button,
+  .calculator-quantity-button,
+  .calculator-composition-button,
+  .calculator-info-button
+) {
+  min-height: 31px;
+  border-top-color: #515557;
+  border-left-color: #434749;
+  border-right-color: #202325;
+  border-bottom-color: #070808;
+  background:
+    linear-gradient(180deg, #272a2c 0, #1b1e20 46%, #101213 52%, #151719 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.075),
+    inset 0 -1px 0 rgba(0,0,0,.90),
+    0 1px 1px rgba(0,0,0,.36);
+}
+
+.pda-screen :is(
+  .command-row,
+  .interactive-button,
+  .pagination-button,
+  .task-action-button,
+  .duty-member-action-button,
+  .map-layer-action-button,
+  .map-preset-button,
+  .calculator-quantity-button,
+  .calculator-composition-button,
+  .calculator-info-button
+):active:not(:disabled) {
+  transform: translateY(1px);
+  border-top-color: #202325;
+  border-bottom-color: #45494b;
+  background: #0c0e0f;
+  box-shadow:
+    inset 0 3px 6px rgba(0,0,0,.82),
+    0 1px 0 rgba(255,255,255,.02);
+}
+
+.pda-screen :is(
+  .primary-command,
+  .profile-create-button,
+  .duty-member-add-button,
+  .calculator-add-button,
+  .tenant-modal-command,
+  .journal-modal-submit,
+  .journal-modal-submit-confirm
+) {
+  min-height: 34px;
+  border-top-color: #c4484e !important;
+  border-left-color: #93262c !important;
+  border-right-color: #5c1015 !important;
+  border-bottom-color: #2c0508 !important;
+  background:
+    linear-gradient(180deg, #b52a32 0, #8d1d24 47%, #5e1015 52%, #75161c 100%) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.16),
+    inset 0 -1px 0 rgba(0,0,0,.82),
+    0 1px 2px rgba(0,0,0,.42) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Tabs as hardware softkeys                                                   */
+/* -------------------------------------------------------------------------- */
+
+.pda-screen :is(
+  .profile-section-tabs,
+  .groups-record-tabs,
+  .list-tabs,
+  .segmented-tabs,
+  .journal-tabs-grid,
+  .map-panel-tabs
+) {
+  padding: 2px;
+  border-top-color: #242729;
+  border-left-color: #292d2f;
+  border-right-color: #44484a;
+  border-bottom-color: #4b4f51;
+  background: #070808;
+  box-shadow:
+    inset 0 2px 5px rgba(0,0,0,.72),
+    0 1px 0 rgba(255,255,255,.025);
+}
+
+.pda-screen :is(
+  .profile-section-tab,
+  .groups-record-tab,
+  .list-tabs > button,
+  .segmented-tabs > button,
+  .journal-tabs-grid > button,
+  .map-panel-tabs > button
+) {
+  min-height: 31px;
+  border: 1px solid #373b3d !important;
+  border-top-color: #484c4e !important;
+  border-bottom-color: #0a0b0c !important;
+  background:
+    linear-gradient(180deg, #222527, #111315) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.05),
+    inset 0 -1px 0 #050606;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Modal window shells                                                         */
+/* -------------------------------------------------------------------------- */
+
+.pda-modal-backdrop {
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.006) 0 1px, transparent 1px 4px),
+    rgba(0,0,0,.84);
+  backdrop-filter: blur(2px);
+}
+
+.pda-screen :is(
+  .pda-modal,
+  .journal-modal,
+  .journal-action-modal,
+  .task-modal,
+  .task-complete-modal,
+  .duty-member-modal,
+  .map-marker-modal,
+  .confirm-dialog
+) {
+  border: 6px solid #17191a;
+  border-top-color: #282b2d;
+  border-left-color: #222527;
+  border-right-color: #0b0c0d;
+  border-bottom-color: #070808;
+  border-radius: 3px;
+  outline: 1px solid #4d5153;
+  outline-offset: -2px;
+  background: #101213;
+  box-shadow:
+    inset 0 0 0 1px #050606,
+    0 0 0 1px #000,
+    8px 14px 34px rgba(0,0,0,.68);
+}
+
+.pda-screen :is(
+  .pda-modal,
+  .journal-modal,
+  .journal-action-modal,
+  .task-modal,
+  .task-complete-modal,
+  .duty-member-modal,
+  .map-marker-modal,
+  .confirm-dialog
+) .modal-header {
+  border-top: 2px solid #842027;
+  background:
+    linear-gradient(180deg, #202325, #121415);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Map as a dedicated recessed CRT/LCD module                                  */
+/* -------------------------------------------------------------------------- */
+
+.pda-screen .map-work-area {
+  border: 5px solid #151718;
+  border-top-color: #282b2d;
+  border-left-color: #242729;
+  border-right-color: #090a0b;
+  border-bottom-color: #070808;
+  outline: 1px solid #424648;
+  outline-offset: -2px;
+  background: #050606;
+  box-shadow:
+    inset 0 0 0 1px #000,
+    inset 0 0 28px rgba(0,0,0,.48),
+    0 5px 12px rgba(0,0,0,.30);
+}
+
+.pda-screen .map-viewer-shell {
+  border: 2px solid #2d3133;
+  background: #030404;
+  box-shadow:
+    inset 0 0 0 1px #050606,
+    inset 0 0 36px rgba(0,0,0,.44);
+}
+
+.pda-screen .map-viewer-viewport {
+  position: relative;
+}
+
+.pda-screen .map-viewer-viewport::after {
+  content: "";
+  position: absolute;
+  z-index: 9;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.010) 0 1px, transparent 1px 4px),
+    radial-gradient(ellipse at center, transparent 58%, rgba(0,0,0,.22) 100%);
+  mix-blend-mode: screen;
+}
+
+.pda-screen :is(
+  .map-viewer-toolbar,
+  .map-viewer-controls,
+  .map-viewer-state,
+  .map-viewer-coordinates,
+  .map-viewer-scale
+) {
+  border-top-color: #4b4f51;
+  border-bottom-color: #080909;
+  background:
+    linear-gradient(180deg, rgba(35,38,40,.96), rgba(10,11,12,.96));
+}
+
+/* -------------------------------------------------------------------------- */
+/* Calculator as an old field accounting module                               */
+/* -------------------------------------------------------------------------- */
+
+.pda-screen .calculator-catalog-table {
+  border: 2px solid #25292b;
+  outline: 1px solid #414547;
+  outline-offset: -1px;
+}
+
+.pda-screen .calculator-catalog-table th {
+  border-right-color: #373b3d !important;
+  background:
+    linear-gradient(180deg, #1e2123, #111315) !important;
+  color: #9ea3a5 !important;
+}
+
+.pda-screen .calculator-total-block,
+.pda-screen .calculator-cart-sums {
+  border: 2px solid #2f3335;
+  border-left: 4px solid #851d23;
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.008) 0 1px, transparent 1px 3px),
+    linear-gradient(90deg, rgba(137,29,35,.13), transparent 54%),
+    #090a0b;
+  box-shadow:
+    inset 0 3px 8px rgba(0,0,0,.62),
+    0 1px 0 rgba(255,255,255,.02);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Login terminal chassis                                                      */
+/* -------------------------------------------------------------------------- */
+
+.login-page {
+  min-height: 100vh;
+  padding: 12px;
+  background:
+    repeating-linear-gradient(135deg, rgba(255,255,255,.011) 0 1px, transparent 1px 4px),
+    radial-gradient(circle at 50% 0%, rgba(93,97,99,.10), transparent 38rem),
+    #030404;
+}
+
+.login-shell {
+  position: relative;
+  border: 7px solid #181a1b;
+  border-top-color: #2b2e30;
+  border-left-color: #232628;
+  border-right-color: #0b0c0d;
+  border-bottom-color: #070808;
+  border-radius: 5px;
+  outline: 1px solid #414547;
+  outline-offset: -2px;
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.006) 0 1px, transparent 1px 4px),
+    #070808;
+  box-shadow:
+    inset 0 0 0 1px #050606,
+    0 0 0 1px #000,
+    0 16px 38px rgba(0,0,0,.52);
+  padding: clamp(1.2rem, 3vw, 3rem);
+}
+
+.login-shell::before {
+  top: 7px;
+  left: 12px;
+  color: #747a7c;
+}
+
+.login-shell::after {
+  content: "SECURE ACCESS // DUTY PDA-09";
+  position: absolute;
+  right: 12px;
+  top: 9px;
+  color: #5f6466;
+  font: 700 7px/1 Consolas, "Lucida Console", monospace;
+  letter-spacing: .12em;
+}
+
+.login-briefing,
+.login-card {
+  border-width: 2px;
+  border-top-color: #535759;
+}
+
+.login-briefing {
+  box-shadow:
+    inset 4px 0 0 #72171c,
+    inset 0 1px 0 rgba(255,255,255,.025),
+    3px 5px 10px rgba(0,0,0,.22);
+}
+
+.login-card {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.025),
+    3px 5px 10px rgba(0,0,0,.22);
+}
+
+.login-submit {
+  min-height: 43px;
+  border-top-color: #c44950 !important;
+  border-bottom-color: #2b0508 !important;
+  background:
+    linear-gradient(180deg, #b72a32 0, #8e1d24 47%, #5d1015 52%, #75161c 100%) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Home terminal                                                               */
+/* -------------------------------------------------------------------------- */
+
+.welcome-screen {
+  min-height: 100%;
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.005) 0 1px, transparent 1px 4px),
+    #070808;
+}
+
+.welcome-panel {
+  border: 5px solid #161819;
+  border-top-color: #292c2e;
+  border-left-color: #222527;
+  border-right-color: #0b0c0d;
+  border-bottom-color: #070808;
+  outline: 1px solid #434749;
+  outline-offset: -2px;
+  box-shadow:
+    inset 4px 0 0 #72171c,
+    inset 0 0 0 1px #050606,
+    4px 7px 16px rgba(0,0,0,.28);
+}
+
+.welcome-panel-head {
+  background:
+    linear-gradient(180deg, #1c1f21, #111315);
+}
+
+.welcome-status-strip {
+  border-top: 2px solid #34383a;
+  background:
+    linear-gradient(180deg, #101213, #080909);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Responsive: collapse chassis, keep PDA language                             */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 1180px) {
+  .pda-device-section {
+    display: none;
+  }
+
+  .pda-device-strip {
+    grid-template-columns: 1fr auto;
+  }
+
+  .pda-main-nav,
+  .registry-main-nav {
+    gap: 1px;
+  }
+
+  .pda-tab,
+  .registry-nav-tab {
+    padding-inline: .56rem;
+    font-size: .72rem;
+  }
+
+  .pda-user-email {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .pda-page {
+    padding: 0;
+  }
+
+  .pda-page::before,
+  .pda-page::after {
+    display: none;
+  }
+
+  .pda-screen {
+    min-height: 100vh;
+    height: 100vh;
+    border: 0;
+    border-radius: 0;
+    outline: 0;
+  }
+
+  .pda-device-strip {
+    min-height: 21px;
+    padding-inline: .55rem;
+    font-size: 8px;
+  }
+
+  .pda-device-model {
+    letter-spacing: .055em;
+  }
+
+  .pda-shell-header,
+  .registry-shell-header {
+    min-height: 50px;
+  }
+
+  .login-page {
+    padding: 0;
+  }
+
+  .login-shell {
+    min-height: 100vh;
+    border: 0;
+    border-radius: 0;
+    outline: 0;
+    box-shadow: none;
+    padding-top: 2rem;
+  }
+
+  .login-shell::before,
+  .login-shell::after {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .pda-device-channel {
+    display: none;
+  }
+
+  .pda-device-strip {
+    display: flex;
+    justify-content: center;
+  }
+
+  .pda-device-model {
+    justify-self: center;
+  }
+
+  .pda-brand-copy strong::after {
+    display: none;
+  }
+
+  .pda-tab::before,
+  .registry-nav-tab::before {
+    display: none;
+  }
+
+  .pda-status,
+  .registry-status {
+    min-height: 34px;
+  }
+}
+
+@media (max-width: 640px) {
+  .login-briefing-copy h1 {
+    font-size: clamp(2.35rem, 11vw, 3rem);
+    line-height: .94;
+    overflow-wrap: anywhere;
+  }
+
+  .login-card-header h2 {
+    font-size: clamp(1.6rem, 7vw, 2rem);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Final coverage pass: remaining workspace containers                         */
+/* -------------------------------------------------------------------------- */
+
+.pda-screen :is(
+  .apartment-import-panel,
+  .apartment-section-block,
+  .group-member-list-editor,
+  .group-search-results,
+  .group-task-list,
+  .dossier-group-list,
+  .stalker-notes-list,
+  .apartment-profile-list
+) {
+  border: 1px solid #2f3335;
+  border-radius: 1px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.014), transparent 2rem),
+    #0b0d0e;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.018),
+    inset 0 -1px 0 rgba(0,0,0,.58);
+}
+
+.pda-screen :is(
+  .apartment-import-panel,
+  .apartment-section-block
+) {
+  position: relative;
+}
+
+.pda-screen :is(
+  .apartment-import-panel,
+  .apartment-section-block
+)::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: -1px;
+  width: 3rem;
+  height: 2px;
+  background: linear-gradient(90deg, #8b1e25, transparent);
+}
+
+.pda-screen :is(
+  .detail-actions,
+  .dossier-records-actions,
+  .duty-member-form-actions,
+  .duty-member-hero-actions,
+  .group-member-actions,
+  .group-records-actions,
+  .calculator-cart-controls
+) {
+  border-color: #303436;
+  background: transparent;
+}
+
+.pda-screen :is(
+  .detail-actions,
+  .dossier-records-actions,
+  .group-records-actions,
+  .duty-member-form-actions
+) > button,
+.pda-screen .group-member-actions > button {
+  border-radius: 1px;
+}
+
+.pda-screen :is(
+  .apartment-list-card-head,
+  .profile-list-item-head,
+  .group-hero-head,
+  .profile-hero-head
+) {
+  border-bottom-color: #2d3133;
+}
+
+.pda-screen :is(
+  .apartment-list-badges,
+  .apartment-profile-badges,
+  .group-hero-badges,
+  .profile-hero-badges,
+  .profile-list-badges
+) {
+  gap: .35rem;
+}
+
+.pda-screen :is(
+  .profile-list-info-row,
+  .profile-list-item-secondary
+) {
+  border-top-color: #292d2f;
+  color: #858b8d;
+}
+
+.pda-screen .profile-list-filter {
+  border: 1px solid #303436;
+  border-radius: 1px;
+  background: #0a0b0c;
+  box-shadow: inset 0 2px 5px rgba(0,0,0,.55);
+}
+
+.pda-screen :is(
+  .profile-detail,
+  .apartment-detail,
+  .journal-workspace,
+  .task-section,
+  .registry-panel-detail,
+  .registry-panel-list
+) {
+  background: transparent;
+}
+
+.pda-screen :is(
+  .profile-case-main,
+  .calculator-card-main,
+  .profile-hero-identity
+) {
+  min-width: 0;
+}
+
+.pda-screen .profile-photo-preview,
+.pda-screen .profile-photo-preload {
+  border: 1px solid #3b3f41;
+  border-radius: 1px;
+  background: #070808;
+  box-shadow: inset 0 2px 7px rgba(0,0,0,.7);
+}
+
+.pda-screen :is(
+  .groups-command-grid,
+  .profiles-command-grid,
+  .modal-layout-grid,
+  .apartments-two-column-layout
+) {
+  gap: var(--registry-gap);
+}
+
+.pda-screen :is(
+  .toolbar-row,
+  .registry-toolbar
+) {
+  border-color: #303436;
+}
+
+.pda-screen .ui-page-header-aside {
+  color: #8d9294;
+}
+
+/* remaining map editor controls */
+.pda-screen .map-choice-row {
+  border: 1px solid #303436;
+  border-radius: 1px;
+  background: #090a0b;
+  box-shadow: inset 0 2px 5px rgba(0,0,0,.54);
+}
+
+.pda-screen .map-panel-editor-grid,
+.pda-screen .map-form-style-stack,
+.pda-screen .map-radius-control,
+.pda-screen .map-route-builder {
+  border-color: #303436;
+}
+
+.pda-screen .map-panel-editor-pick {
+  border: 1px solid #4a4e50;
+  border-radius: 1px;
+  background:
+    linear-gradient(180deg, #242729, #111315);
+  color: #b4b8b9;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.045),
+    inset 0 -1px 0 rgba(0,0,0,.78);
+}
+
+.pda-screen .map-panel-editor-pick:hover:not(:disabled) {
+  border-color: #703237;
+  background: linear-gradient(180deg, #33171a, #160d0f);
+  color: #fff;
+}
+
+.pda-screen .map-form-section-primary {
+  border-left: 3px solid #6b171c;
+}
+
+.pda-screen .map-style-number-field {
+  border: 1px solid #323638;
+  background: #080909;
+}
+
+.pda-screen :is(
+  .map-visual-select,
+  .map-visual-select-chevron,
+  .map-layer-name
+) {
+  color: #adb1b2;
+}
+
+.pda-screen .map-visual-select-chevron {
+  opacity: .72;
+}
+
+.pda-screen .map-marker-popover-actions {
+  border-top: 1px solid #303436;
+  background: #0b0d0e;
+}
+
+/* visual swatches and map geometry intentionally retain their data color */
+.pda-screen :is(
+  .map-visual-select-swatch,
+  .map-visual-select-marker,
+  .map-marker-icon-symbol,
+  .map-marker-icon-radiation,
+  .map-marker-icon-bubble-index,
+  .map-marker-icon-text
+) {
+  box-shadow: 0 0 0 1px rgba(0,0,0,.68);
+}
+
+/* modal internals */
+.pda-screen .modal-layout-grid {
+  border-color: #303436;
+}
+
+.pda-screen .modal-message-slot {
+  min-height: 1.2rem;
+  color: #9ca1a3;
+  font-family: Consolas, "Lucida Console", monospace;
+  font-size: .72rem;
+}
+
+/* welcome internals */
+.welcome-content {
+  background: transparent;
+}
+
+.welcome-copy-rail {
+  background:
+    linear-gradient(180deg, #a5262d, #67151a 55%, transparent);
+  box-shadow: 0 0 6px rgba(165,38,45,.12);
+}
+
+.welcome-shell {
+  background: transparent;
+}
+
+.welcome-status {
+  color: #b9bdbd;
+  font-family: Consolas, "Lucida Console", monospace;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+
+.welcome-screen-layer-grid {
+  opacity: .28;
+}
+
+/* explicit final normalization for remaining non-geometric UI classes */
+.pda-screen .apartment-payment-empty {
+  border: 1px dashed #34383a;
+  border-radius: 1px;
+  background: #0b0d0e;
+  color: #777d7f;
+  font-family: Consolas, "Lucida Console", monospace;
+}
+
+.pda-screen .calculator-catalog-action {
+  border-left: 1px solid #303436;
+}
+
+.pda-screen .duty-member-list-archived {
+  opacity: .72;
+  filter: grayscale(.3);
+}
+
+.pda-screen .duty-member-modal-body {
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.006) 0 1px, transparent 1px 4px),
+    #0f1112;
+}
+
+.pda-screen .map-layer-action-button-edit {
+  border-color: #464a4c;
+  background: linear-gradient(180deg, #242729, #111315);
+  color: #afb3b4;
+}
+
+.pda-screen .map-layer-action-icon {
+  color: #9da2a4;
+}
+
+.pda-screen .map-object-form-compact {
+  border: 1px solid #303436;
+  border-radius: 1px;
+  background: #0c0e0f;
+}
+
+.pda-screen .map-panel-tabs-primary,
+.pda-screen .map-panel-tabs-layers {
+  background: #080909;
+}
+
+.pda-nav-dropdown {
+  position: relative;
+}
+
+.registry-brand {
+  min-width: 0;
+}
+
+.pda-screen .stalker-note-actions,
+.pda-screen .stalker-note-inline-actions {
+  border-color: #303436;
+}
+
+.welcome-page,
+.welcome-screen-layer {
+  background-color: transparent;
+}
