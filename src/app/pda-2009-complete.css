@@ -506,8 +506,6 @@
   gap: 1px;
   border: 1px solid #34383a;
   border-radius: 1px;
-  background: #080909;
-  box-shadow: inset 0 1px 4px rgba(0,0,0,.65);
 }
 
 .pda-screen :is(
@@ -518,15 +516,9 @@
   .journal-tabs-grid > button,
   .map-panel-tabs > button
 ) {
-  border: 0;
   border-right: 1px solid #303436;
   border-radius: 0 !important;
-  background:
-    linear-gradient(180deg, #202325 0, #111315 52%, #0d0f10 100%) !important;
   color: #9fa4a5 !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.04),
-    inset 0 -1px 0 rgba(0,0,0,.75);
   font-family: var(--font-pda-ui);
   font-weight: 700;
   letter-spacing: .03em;
@@ -838,7 +830,6 @@
 }
 
 .pda-screen .calculator-catalog-table {
-  border: 1px solid #303436;
   background: #0a0b0c;
 }
 
@@ -901,16 +892,6 @@
   background: #080909;
 }
 
-.pda-screen .calculator-total-block,
-.pda-screen .calculator-cart-sums {
-  border: 1px solid #3a3e40;
-  border-left: 3px solid #7a1a1f;
-  background:
-    linear-gradient(90deg, rgba(151,31,37,.10), transparent 54%),
-    #0c0e0f;
-  box-shadow: inset 0 2px 5px rgba(0,0,0,.42);
-}
-
 .pda-screen :is(
   .calculator-cart-sum-general,
   .calculator-cart-sum-partner,
@@ -920,19 +901,9 @@
   font-family: var(--font-pda-ui);
 }
 
-.pda-screen .calculator-price-value-general,
-.pda-screen .calculator-cart-sum-general {
-  color: #d7dada;
-}
-
 .pda-screen .calculator-price-value-partner,
 .pda-screen .calculator-cart-sum-partner {
   color: #bfc3c4;
-}
-
-.pda-screen .calculator-price-value-tenant,
-.pda-screen .calculator-cart-sum-tenant {
-  color: #e2a4a8;
 }
 
 /* ---------- personnel / access registry ---------- */
@@ -1058,21 +1029,11 @@
 }
 
 .pda-screen .map-work-area {
-  border: 1px solid #34383a;
   border-radius: 1px;
-  background: #080909;
-  box-shadow:
-    inset 0 0 0 1px #050606,
-    0 4px 10px rgba(0,0,0,.22);
 }
 
 .pda-screen .map-viewer-shell {
-  border: 1px solid #45494b;
   border-radius: 1px;
-  background: #050606;
-  box-shadow:
-    inset 0 0 0 2px #090a0b,
-    0 3px 9px rgba(0,0,0,.3);
 }
 
 .pda-screen .map-viewer-toolbar,
@@ -1243,12 +1204,6 @@
 
 /* ---------- modals / dialogs ---------- */
 
-.pda-modal-backdrop {
-  background:
-    repeating-linear-gradient(0deg, rgba(255,255,255,.009) 0 1px, transparent 1px 4px),
-    rgba(0,0,0,.80);
-}
-
 .pda-screen :is(
   .pda-modal,
   .journal-modal,
@@ -1259,15 +1214,7 @@
   .map-marker-modal,
   .confirm-dialog
 ) {
-  border: 1px solid #555a5c;
   border-top: 2px solid #8d2027;
-  border-radius: 1px;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.027), transparent 3.2rem),
-    #111315;
-  box-shadow:
-    0 0 0 2px #050606,
-    8px 12px 30px rgba(0,0,0,.62);
 }
 
 .pda-screen :is(
@@ -1281,8 +1228,6 @@
   .confirm-dialog
 ) .modal-header {
   border-bottom: 1px solid #414547;
-  background:
-    linear-gradient(180deg, #1d2022, #121415);
 }
 
 .pda-screen .modal-body {
@@ -1319,16 +1264,8 @@
   .journal-modal-submit-confirm
 ) {
   border: 1px solid #87242a !important;
-  border-top-color: #b64046 !important;
-  border-bottom-color: #460b0f !important;
   border-radius: 1px !important;
-  background:
-    linear-gradient(180deg, #a5262d 0, #77171c 49%, #540f13 51%, #681218 100%) !important;
   color: #f7f8f8 !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.14),
-    inset 0 -1px 0 rgba(0,0,0,.7),
-    0 1px 2px rgba(0,0,0,.42) !important;
   font-weight: 700;
   text-shadow: 0 1px 0 #260406;
 }
@@ -1391,7 +1328,6 @@
 
 /* ---------- home / login polish ---------- */
 
-.welcome-service-panel,
 .login-status-list {
   border: 1px solid #303436;
   border-radius: 1px;
@@ -1399,7 +1335,6 @@
   box-shadow: inset 0 2px 5px rgba(0,0,0,.48);
 }
 
-.welcome-service-panel-head,
 .login-briefing-topline {
   border-bottom: 1px solid #313537;
   background: #131516;
@@ -1409,12 +1344,10 @@
   text-transform: uppercase;
 }
 
-.welcome-service-list > *,
 .login-status-list > * {
   border-color: #292d2f !important;
 }
 
-.welcome-text,
 .login-card-header p,
 .login-briefing-copy p {
   color: #858a8c;
@@ -1748,47 +1681,8 @@
 
 /* ---------- journals summary ---------- */
 
-.pda-screen .journal-overview {
-  border: 1px solid #383c3e;
-  border-left: 4px solid #72171c;
-  border-radius: 1px;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.022), transparent),
-    #111315;
-}
-
-.pda-screen .journal-overview-copy {
-  color: #aeb2b3;
-}
-
 .pda-screen .journal-title-block {
   border-bottom: 1px solid #35393b;
-}
-
-.pda-screen .journal-stats {
-  gap: 1px;
-  border: 1px solid #303436;
-  background: #303436;
-}
-
-.pda-screen .journal-stat {
-  border: 0;
-  border-radius: 0;
-  background: #0e1011;
-}
-
-.pda-screen .journal-stat > strong {
-  color: #e0e2e2;
-  font-family: var(--font-pda-ui);
-  font-variant-numeric: tabular-nums;
-}
-
-.pda-screen .journal-stat > span {
-  color: #777d7f;
-  font-family: var(--font-pda-ui);
-  font-size: .67rem;
-  letter-spacing: .05em;
-  text-transform: uppercase;
 }
 
 /* ---------- profile / group record strips ---------- */
@@ -1847,10 +1741,8 @@
 /* ---------- topbar remaining elements ---------- */
 
 .pda-user-email {
-  max-width: 12rem;
   border-left: 1px solid #35393b;
   padding-left: .65rem;
-  color: #8f9496;
   font-family: var(--font-pda-ui);
   font-size: .70rem;
 }

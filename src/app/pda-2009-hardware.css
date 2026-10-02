@@ -58,69 +58,6 @@
 /* Device service strip                                                        */
 /* -------------------------------------------------------------------------- */
 
-.pda-device-strip {
-  position: relative;
-  z-index: 30;
-  display: grid;
-  grid-template-columns: minmax(11rem, 1fr) auto minmax(11rem, 1fr);
-  min-height: 23px;
-  align-items: center;
-  gap: .75rem;
-  border-bottom: 1px solid #050606;
-  background:
-    linear-gradient(180deg, #17191b, #0d0f10 72%, #080909);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.055),
-    inset 0 -1px 0 #323638;
-  padding: 0 .75rem;
-  color: #787e80;
-  font: 700 9px/1 var(--font-pda-ui);
-  letter-spacing: .085em;
-  text-transform: uppercase;
-}
-
-.pda-device-strip::before {
-  content: "";
-  position: absolute;
-  left: .75rem;
-  right: .75rem;
-  bottom: -1px;
-  height: 1px;
-  background: linear-gradient(90deg, #6e161b, #a7252c 26%, #541115 58%, transparent 88%);
-}
-
-.pda-device-model {
-  justify-self: start;
-  color: #9ba0a2;
-}
-
-.pda-device-section {
-  justify-self: center;
-  border-right: 1px solid #2d3133;
-  border-left: 1px solid #2d3133;
-  padding: 0 .85rem;
-  color: #aeb2b3;
-}
-
-.pda-device-channel {
-  display: inline-flex;
-  justify-self: end;
-  align-items: center;
-  gap: .42rem;
-  color: #8e9395;
-}
-
-.pda-device-channel-led {
-  width: 5px;
-  height: 5px;
-  border: 1px solid #8f272d;
-  border-radius: 1px;
-  background: #c32b33;
-  box-shadow:
-    0 0 5px rgba(195,43,51,.55),
-    inset 0 1px 0 rgba(255,255,255,.18);
-}
-
 /* -------------------------------------------------------------------------- */
 /* Main navigation as tactile membrane keys                                    */
 /* -------------------------------------------------------------------------- */
@@ -206,7 +143,6 @@
     inset 0 1px 0 rgba(255,255,255,.065),
     inset 0 -1px 0 rgba(0,0,0,.85),
     0 1px 1px rgba(0,0,0,.32);
-  padding-inline: .72rem;
   font-size: .76rem;
   letter-spacing: .035em;
 }
@@ -279,7 +215,6 @@
   position: relative;
   width: max-content;
   min-width: 0;
-  max-width: min(48vw, 46rem);
   gap: .4rem;
   min-height: 38px;
   justify-self: end;
@@ -297,7 +232,6 @@
 .pda-user-email {
   width: max-content;
   min-width: 0;
-  max-width: min(38vw, 32rem);
   flex: 0 1 auto;
   overflow: hidden;
   border: 0;
@@ -342,18 +276,6 @@
   font-size: .75rem;
   font-variant-numeric: tabular-nums;
   text-align: center;
-}
-
-.pda-signal {
-  width: 17px;
-  height: 13px;
-  opacity: .78;
-}
-
-.battery {
-  width: 23px;
-  height: 11px;
-  opacity: .82;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -799,10 +721,6 @@
 .pda-screen .calculator-cart-sums {
   border: 2px solid #2f3335;
   border-left: 4px solid #851d23;
-  background:
-    repeating-linear-gradient(0deg, rgba(255,255,255,.008) 0 1px, transparent 1px 3px),
-    linear-gradient(90deg, rgba(137,29,35,.13), transparent 54%),
-    #090a0b;
   box-shadow:
     inset 0 3px 8px rgba(0,0,0,.62),
     0 1px 0 rgba(255,255,255,.02);
@@ -888,50 +806,11 @@
 /* Home terminal                                                               */
 /* -------------------------------------------------------------------------- */
 
-.welcome-screen {
-  min-height: 100%;
-  background:
-    repeating-linear-gradient(0deg, rgba(255,255,255,.005) 0 1px, transparent 1px 4px),
-    #070808;
-}
-
-.welcome-panel {
-  border: 5px solid #161819;
-  border-top-color: #292c2e;
-  border-left-color: #222527;
-  border-right-color: #0b0c0d;
-  border-bottom-color: #070808;
-  outline: 1px solid #434749;
-  outline-offset: -2px;
-  box-shadow:
-    inset 4px 0 0 #72171c,
-    inset 0 0 0 1px #050606,
-    4px 7px 16px rgba(0,0,0,.28);
-}
-
-.welcome-panel-head {
-  background:
-    linear-gradient(180deg, #1c1f21, #111315);
-}
-
-.welcome-status-strip {
-  border-top: 2px solid #34383a;
-  background:
-    linear-gradient(180deg, #101213, #080909);
-}
-
 /* -------------------------------------------------------------------------- */
 /* Responsive: collapse chassis, keep PDA language                             */
 /* -------------------------------------------------------------------------- */
 
 @media (max-width: 1180px) {
-  .pda-device-section {
-    display: none;
-  }
-
-  .pda-device-strip {
-    grid-template-columns: 1fr auto;
-  }
 
   .pda-main-nav,
   .registry-main-nav {
@@ -967,16 +846,6 @@
     outline: 0;
   }
 
-  .pda-device-strip {
-    min-height: 21px;
-    padding-inline: .55rem;
-    font-size: 8px;
-  }
-
-  .pda-device-model {
-    letter-spacing: .055em;
-  }
-
   .pda-shell-header,
   .registry-shell-header {
     min-height: 50px;
@@ -1002,18 +871,6 @@
 }
 
 @media (max-width: 640px) {
-  .pda-device-channel {
-    display: none;
-  }
-
-  .pda-device-strip {
-    display: flex;
-    justify-content: center;
-  }
-
-  .pda-device-model {
-    justify-self: center;
-  }
 
   .pda-brand-copy strong::after {
     display: none;
@@ -1261,30 +1118,6 @@
 }
 
 /* welcome internals */
-.welcome-content {
-  background: transparent;
-}
-
-.welcome-copy-rail {
-  background:
-    linear-gradient(180deg, #a5262d, #67151a 55%, transparent);
-  box-shadow: 0 0 6px rgba(165,38,45,.12);
-}
-
-.welcome-shell {
-  background: transparent;
-}
-
-.welcome-status {
-  color: #b9bdbd;
-  font-family: var(--font-pda-ui);
-  letter-spacing: .045em;
-  text-transform: uppercase;
-}
-
-.welcome-screen-layer-grid {
-  opacity: .28;
-}
 
 /* explicit final normalization for remaining non-geometric UI classes */
 .pda-screen .apartment-payment-empty {
@@ -1342,9 +1175,4 @@
 .pda-screen .stalker-note-actions,
 .pda-screen .stalker-note-inline-actions {
   border-color: #303436;
-}
-
-.welcome-page,
-.welcome-screen-layer {
-  background-color: transparent;
 }

@@ -139,7 +139,6 @@ body {
     grid-column: 1 / -1;
     grid-row: 2;
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
     width: 100%;
     min-width: 0;
   }
@@ -161,10 +160,6 @@ body {
 }
 
 @media (max-width: 760px) {
-  .pda-shell-header,
-  .registry-shell-header {
-    grid-template-columns: minmax(0, 1fr);
-  }
 
   .pda-brand,
   .registry-brand,
@@ -182,37 +177,11 @@ body {
 
   .pda-status,
   .registry-status {
-    grid-row: 2;
-    justify-self: stretch;
-    width: 100%;
     justify-content: flex-end;
-    flex-wrap: wrap;
-  }
-
-  .pda-main-nav,
-  .registry-main-nav {
-    grid-row: 3;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .pda-nav-dropdown-menu {
     max-width: calc(100vw - 1.25rem);
-  }
-}
-
-@media (max-width: 460px) {
-  .pda-main-nav,
-  .registry-main-nav {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .pda-status,
-  .registry-status {
-    justify-content: space-between;
-  }
-
-  .pda-clock {
-    margin-left: auto;
   }
 }
 
@@ -325,8 +294,6 @@ body {
 .pda-screen .badge-task-completed,
 .pda-screen .badge-task-cancelled,
 .pda-screen .badge-violation-closed,
-.pda-screen .badge-payment-paid,
-.pda-screen .badge-payment-pending,
 .pda-screen .trade-record-purchase-badge,
 .pda-screen .registry-status-badge-active {
   border-color: #484c4e !important;
@@ -337,7 +304,6 @@ body {
 
 .pda-screen .badge-task-overdue,
 .pda-screen .badge-violation-active,
-.pda-screen .badge-payment-overdue,
 .pda-screen .trade-record-sale-badge,
 .pda-screen .registry-status-badge-danger {
   border-color: #79232a !important;
@@ -2110,9 +2076,7 @@ body {
   text-transform: none !important;
 }
 
-.pda-modal .filter-field > span:first-child,
-.pda-modal .stacked-field > span:first-child,
-.pda-modal .modal-photo-preview > span:first-child {
+.pda-modal .filter-field > span:first-child {
   color: #9ca1a3 !important;
   font-size: .66rem !important;
   font-weight: 800 !important;
