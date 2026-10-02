@@ -4,6 +4,7 @@ import { StaticAuthGate } from "@/components/providers/StaticAuthGate";
 import "./globals.css";
 import "./pda-2009-theme.css";
 import "./pda-2009-complete.css";
+import "./pda-2009-hardware.css";
 
 export const metadata: Metadata = {
   title: "Система учёта «Долг»",
